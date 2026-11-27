@@ -398,39 +398,69 @@ func pickTitle(m map[string]string, lang string) string {
 
 // ---------------------------------------------------------------- recipients
 
-// members returns the user ids behind an assignee.
-func (pl *Plugin) members(ctx context.Context, q pgx.Tx, x *Instance, as Assignee) ([]int64, error) {
-	var rows pgx.Rows
-	var err error
-	v := strings.TrimSpace(as.Value)
-	switch as.Type {
-	case "starter":
-		if x.StartedByID == nil {
-			return nil, nil
+// membersOf returns the user ids behind a list of assignees, each once and
+// in the order found. At most one query per kind (people, groups, roles),
+// however long the list.
+func (pl *Plugin) membersOf(ctx context.Context, q pgx.Tx, x *Instance, list []Assignee) ([]int64, error) {
+	var handles, locals, groups, roles []string
+	out, seen := []int64{}, map[int64]bool{}
+	add := func(ids ...int64) {
+		for _, id := range ids {
+			if !seen[id] {
+				seen[id] = true
+				out = append(out, id)
+			}
 		}
-		return []int64{*x.StartedByID}, nil
-	case "user":
-		if strings.Contains(v, "@") {
-			rows, err = q.Query(ctx, `SELECT id FROM users WHERE lower(username || '@' || provider) = lower($1) AND NOT disabled`, v)
-		} else {
-			rows, err = q.Query(ctx, `SELECT id FROM users WHERE lower(username) = lower($1) AND provider='local' AND NOT disabled`, v)
+	}
+	for _, as := range list {
+		v := strings.ToLower(strings.TrimSpace(as.Value))
+		switch as.Type {
+		case "starter":
+			if x.StartedByID != nil {
+				add(*x.StartedByID)
+			}
+		case "user":
+			if strings.Contains(v, "@") {
+				handles = append(handles, v)
+			} else {
+				locals = append(locals, v)
+			}
+		case "group":
+			groups = append(groups, v)
+		case "role":
+			roles = append(roles, v)
 		}
-	case "group":
-		// "#ID" (stays valid when the group is renamed) or the name
-		rows, err = q.Query(ctx, `SELECT ug.user_id FROM user_groups ug JOIN groups g ON g.id=ug.group_id JOIN users u ON u.id=ug.user_id
-			WHERE (lower(g.name)=lower($1) OR '#' || g.id::text = $1) AND NOT u.disabled`, v)
-	case "role":
-		rows, err = q.Query(ctx, `SELECT DISTINCT x.uid FROM (
-				SELECT ur.user_id AS uid FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE lower(r.name)=lower($1) OR '#' || r.id::text = $1
-				UNION SELECT ug.user_id FROM user_groups ug JOIN group_roles gr ON gr.group_id=ug.group_id JOIN roles r ON r.id=gr.role_id WHERE lower(r.name)=lower($1) OR '#' || r.id::text = $1
-			) x JOIN users u ON u.id=x.uid WHERE NOT u.disabled`, v)
-	default:
-		return nil, nil
 	}
-	if err != nil {
-		return nil, err
+	collect := func(sql string, args ...any) error {
+		rows, err := q.Query(ctx, sql, args...)
+		if err != nil {
+			return err
+		}
+		ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+		add(ids...)
+		return err
 	}
-	return pgx.CollectRows(rows, pgx.RowTo[int64])
+	if len(handles)+len(locals) > 0 {
+		if err := collect(`SELECT id FROM users WHERE NOT disabled AND (lower(username || '@' || provider) = ANY($1) OR (provider='local' AND lower(username) = ANY($2))) ORDER BY id`, handles, locals); err != nil {
+			return nil, err
+		}
+	}
+	// groups and roles: "#ID" (stays valid when renamed) or the name
+	if len(groups) > 0 {
+		if err := collect(`SELECT DISTINCT ug.user_id FROM user_groups ug JOIN groups g ON g.id=ug.group_id JOIN users u ON u.id=ug.user_id
+			WHERE (lower(g.name) = ANY($1) OR '#' || g.id::text = ANY($1)) AND NOT u.disabled ORDER BY ug.user_id`, groups); err != nil {
+			return nil, err
+		}
+	}
+	if len(roles) > 0 {
+		if err := collect(`SELECT DISTINCT x.uid FROM (
+				SELECT ur.user_id AS uid FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE lower(r.name) = ANY($1) OR '#' || r.id::text = ANY($1)
+				UNION SELECT ug.user_id FROM user_groups ug JOIN group_roles gr ON gr.group_id=ug.group_id JOIN roles r ON r.id=gr.role_id WHERE lower(r.name) = ANY($1) OR '#' || r.id::text = ANY($1)
+			) x JOIN users u ON u.id=x.uid WHERE NOT u.disabled ORDER BY x.uid`, roles); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 // canView keeps the users that may see the workflow page.
@@ -449,42 +479,41 @@ func (pl *Plugin) canView(ctx context.Context, tx pgx.Tx, x *Instance, ids []int
 // placeholders), starter, actor, user:NAME, group:NAME, role:NAME.
 func (pl *Plugin) recipients(ctx context.Context, tx pgx.Tx, x *Instance, spec string, vars map[string]string, a actorInfo) ([]string, error) {
 	out := []string{}
+	var list []Assignee // looked up together (at most one query per kind)
 	for _, tok := range mail.SplitAddresses(render(spec, vars)) {
 		low := strings.ToLower(tok)
-		var as *Assignee
 		switch {
 		case low == "starter":
-			as = &Assignee{Type: "starter"}
+			list = append(list, Assignee{Type: "starter"})
 		case low == "actor":
 			if a.p != nil && a.p.ID() != 0 {
-				as = &Assignee{Type: "user", Value: a.p.Handle()}
+				list = append(list, Assignee{Type: "user", Value: a.p.Handle()})
 			}
 		case strings.HasPrefix(low, "user:"), strings.HasPrefix(low, "group:"), strings.HasPrefix(low, "role:"):
 			k, v, _ := strings.Cut(tok, ":")
-			as = &Assignee{Type: strings.ToLower(k), Value: v}
+			list = append(list, Assignee{Type: strings.ToLower(k), Value: v})
 		default:
 			addr, err := mail.ParseAddress(tok)
 			if err != nil {
 				return nil, err
 			}
 			out = append(out, addr)
-			continue
 		}
-		if as == nil {
-			continue
-		}
-		ids, err := pl.members(ctx, tx, x, *as)
-		if err != nil {
-			return nil, err
-		}
-		us, err := pl.host.Mail.Users(ctx, tx, ids)
-		if err != nil {
-			return nil, err
-		}
-		for _, u := range us {
-			if u.Email != "" {
-				out = append(out, u.Email)
-			}
+	}
+	if len(list) == 0 {
+		return out, nil
+	}
+	ids, err := pl.membersOf(ctx, tx, x, list)
+	if err != nil {
+		return nil, err
+	}
+	us, err := pl.host.Mail.Users(ctx, tx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for _, u := range us {
+		if u.Email != "" {
+			out = append(out, u.Email)
 		}
 	}
 	return out, nil
@@ -535,7 +564,7 @@ func (pl *Plugin) notifyAssigneesKey(ctx context.Context, tx pgx.Tx, x *Instance
 	if x.Test { // a test run: no e-mails
 		return nil
 	}
-	ids, err := pl.members(ctx, tx, x, x.assignee(s))
+	ids, err := pl.membersOf(ctx, tx, x, x.assignees(s))
 	if err != nil {
 		return err
 	}
@@ -623,7 +652,7 @@ func (pl *Plugin) required(ctx context.Context, q pgx.Tx, x *Instance, s *Step) 
 	if s.Required > 0 {
 		return s.Required, nil
 	}
-	ids, err := pl.members(ctx, q, x, x.assignee(s))
+	ids, err := pl.membersOf(ctx, q, x, x.assignees(s))
 	if err != nil {
 		return 0, err
 	}

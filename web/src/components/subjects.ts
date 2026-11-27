@@ -25,19 +25,33 @@ export async function searchUsers(q: string): Promise<Choice[]> {
 }
 
 /** Picks one or more users by searching (name or user name). */
-export function userPicker(opts: { label: string; multiple?: boolean; initial?: Chip[]; help?: string; required?: boolean }): { el: HTMLElement; value: () => number[]; names: () => string[]; handles: () => string[]; focus: () => void } {
-  const list = choiceList({ label: opts.label, search: searchUsers, multiple: !!opts.multiple, selected: opts.initial ?? [], help: opts.help, required: opts.required });
+export function userPicker(opts: { label: string; multiple?: boolean; initial?: Chip[]; help?: string; required?: boolean; onChange?: () => void }): { el: HTMLElement; value: () => number[]; names: () => string[]; handles: () => string[]; focus: () => void } {
+  const list = choiceList({ label: opts.label, search: searchUsers, multiple: !!opts.multiple, selected: opts.initial ?? [], help: opts.help, required: opts.required, onChange: opts.onChange });
   return { el: list.el, value: list.value, names: () => list.chosen().map((x) => x.name), handles: () => list.chosen().flatMap((x) => (x.handle ? [x.handle] : [])), focus: list.focus };
 }
 
 /** Picks one or more groups (several: checkboxes or a list with a filter, see choiceList). */
-export async function groupPicker(opts: { label: string; multiple?: boolean; initial?: number[]; help?: string }): Promise<{ el: HTMLElement; value: () => number[] }> {
+export async function groupPicker(opts: { label: string; multiple?: boolean; initial?: number[]; help?: string; onChange?: () => void }): Promise<{ el: HTMLElement; value: () => number[] }> {
   const { groups } = await groupsAndRoles();
+  return namedPicker(groups, opts);
+}
+
+/** Picks one or more roles, like groupPicker. */
+export async function rolePicker(opts: { label: string; multiple?: boolean; initial?: number[]; help?: string; onChange?: () => void }): Promise<{ el: HTMLElement; value: () => number[] }> {
+  const { roles } = await groupsAndRoles();
+  return namedPicker(roles, opts);
+}
+
+/** The groups and roles known to the browser (loaded once per page). */
+export function knownGroupsAndRoles(): Promise<{ groups: Group[]; roles: Role[] }> { return groupsAndRoles(); }
+
+function namedPicker(items: { id: number; name: string }[], opts: { label: string; multiple?: boolean; initial?: number[]; help?: string; onChange?: () => void }): { el: HTMLElement; value: () => number[] } {
   if (!opts.multiple) {
-    const s = select([{ value: '', label: '—' }, ...groups.map((g) => ({ value: String(g.id), label: g.name }))], opts.initial?.[0] ? String(opts.initial[0]) : '');
+    const s = select([{ value: '', label: '—' }, ...items.map((g) => ({ value: String(g.id), label: g.name }))], opts.initial?.[0] ? String(opts.initial[0]) : '');
+    if (opts.onChange) s.addEventListener('change', opts.onChange);
     return { el: field(opts.label, s, { help: opts.help }), value: () => (s.value ? [Number(s.value)] : []) };
   }
-  const list = choiceList({ label: opts.label, items: groups.map((g) => ({ id: g.id, name: g.name })), selected: opts.initial, help: opts.help });
+  const list = choiceList({ label: opts.label, items: items.map((g) => ({ id: g.id, name: g.name })), selected: opts.initial, help: opts.help, onChange: opts.onChange });
   return { el: list.el, value: list.value };
 }
 

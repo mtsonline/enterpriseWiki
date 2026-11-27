@@ -148,12 +148,12 @@ func TestPermissionModel(t *testing.T) {
 
 	// workflows: the creator (editor preset) or a workflow administrator (manager preset)
 	def := map[string]any{"description": "", "fields": []any{}, "steps": []map[string]any{
-		{"id": "check", "name": "Check", "assignee": map[string]string{"type": "user", "value": "gina"}, "actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}}},
+		{"id": "check", "name": "Check", "assignees": []map[string]string{{"type": "user", "value": "gina"}}, "actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}}},
 		{"id": "done", "name": "Done", "actions": []any{}, "outcome": "success"}}}
 	var wf elem
 	frank.must("POST", "/api/v1/elements", map[string]any{"category_id": sub.ID, "type": "workflow.process", "title": "Request", "body": def}, &wf, 201)
 	def2 := map[string]any{"description": "", "fields": []any{}, "steps": []map[string]any{
-		{"id": "check", "name": "Check", "assignee": map[string]string{"type": "user", "value": "harry"}, "actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}}},
+		{"id": "check", "name": "Check", "assignees": []map[string]string{{"type": "user", "value": "harry"}}, "actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}}},
 		{"id": "done", "name": "Done", "actions": []any{}, "outcome": "success"}}}
 	save := func(c *client, body any) int {
 		return c.do("PUT", fmt.Sprintf("/api/v1/elements/%d", wf.ID), map[string]any{"lang": "en", "title": "Request", "body": body}, nil)

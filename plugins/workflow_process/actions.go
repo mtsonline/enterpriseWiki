@@ -62,25 +62,25 @@ func (pl *Plugin) people(ctx context.Context, tx pgx.Tx, x *Instance, spec strin
 			}
 		}
 	}
+	// people, groups and roles are collected and looked up together (at most
+	// one query per kind, however long the list)
+	var list []Assignee
 	for _, tok := range mail.SplitAddresses(render(spec, vars)) {
 		low := strings.ToLower(tok)
-		var as *Assignee
 		switch {
 		case low == "starter":
-			as = &Assignee{Type: "starter"}
+			list = append(list, Assignee{Type: "starter"})
 		case low == "actor":
 			if a.p != nil && a.p.ID() != 0 {
 				add([]int64{a.p.ID()})
 			}
-			continue
 		case low == "assignees":
 			if s := x.Definition.Step(x.Step); s != nil && s.Manual() {
-				as2 := x.assignee(s)
-				as = &as2
+				list = append(list, x.assignees(s)...)
 			}
 		case strings.HasPrefix(low, "user:"), strings.HasPrefix(low, "group:"), strings.HasPrefix(low, "role:"):
 			k, v, _ := strings.Cut(tok, ":")
-			as = &Assignee{Type: strings.ToLower(k), Value: v}
+			list = append(list, Assignee{Type: strings.ToLower(k), Value: v})
 		default:
 			addr, err := mail.ParseAddress(tok)
 			if err != nil {
@@ -89,17 +89,13 @@ func (pl *Plugin) people(ctx context.Context, tx pgx.Tx, x *Instance, spec strin
 			if len(addrs) < MaxRecipients {
 				addrs = append(addrs, addr)
 			}
-			continue
 		}
-		if as == nil {
-			continue
-		}
-		ids, err := pl.members(ctx, tx, x, *as)
-		if err != nil {
-			return nil, nil, err
-		}
-		add(ids)
 	}
+	ids, err := pl.membersOf(ctx, tx, x, list)
+	if err != nil {
+		return nil, nil, err
+	}
+	add(ids)
 	return users, addrs, nil
 }
 

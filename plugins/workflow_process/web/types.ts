@@ -33,7 +33,7 @@ export interface Trigger {
 }
 export interface TriggerStatus { id: string; type: TriggerType; name?: string; active: boolean; has_secret?: boolean; url?: string; next?: string; last_at?: string; last_error?: string; starts_24h: number }
 export interface Step {
-  id: string; name: string; type?: StepType; sign?: string; description?: string; assignee: Assignee; actions: Action[]; outcome?: string;
+  id: string; name: string; type?: StepType; sign?: string; description?: string; assignees: Assignee[]; actions: Action[]; outcome?: string;
   due_days?: number; required?: number; approve_label?: string; reject_label?: string; next?: string; next_else?: string;
   match?: 'all' | 'any'; rules?: Rule[]; email?: EmailSpec; webhook?: WebhookSpec; delay?: DelaySpec;
   notify?: NotifySpec; set?: Assign[]; http?: HTTPSpec; create?: CreateSpec; props?: PropsSpec; subflow?: SubflowSpec; access?: AccessSpec; membership?: MemberSpec; move?: MoveSpec; file?: FileSpec; calendar?: CalendarSpec; shell?: ShellSpec; upload?: UploadSpec;

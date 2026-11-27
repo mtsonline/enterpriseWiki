@@ -8,8 +8,8 @@ import (
 
 func TestValidate(t *testing.T) {
 	ok := `{"description":"d","fields":[{"id":"n","label":"Name","type":"text","options":["x"]}],"steps":[
-		{"id":"a","name":"A","assignee":{"type":"group","value":"hr"},"actions":[{"id":"go","label":"Go","next":"b","note":"weird"}]},
-		{"id":"b","name":"B","assignee":{"type":"group","value":"x"},"actions":[],"outcome":"?"}]}`
+		{"id":"a","name":"A","assignees":[{"type":"group","value":"hr"}],"actions":[{"id":"go","label":"Go","next":"b","note":"weird"}]},
+		{"id":"b","name":"B","assignees":[{"type":"group","value":"x"}],"actions":[],"outcome":"?"}]}`
 	out, err := Type{}.Normalize(json.RawMessage(ok))
 	if err != nil {
 		t.Fatal(err)
@@ -21,8 +21,8 @@ func TestValidate(t *testing.T) {
 	for _, bad := range []string{
 		`{"steps":[]}`,
 		`{"steps":[{"id":"A","name":"x","actions":[]}]}`,
-		`{"steps":[{"id":"a","name":"x","assignee":{"type":"nobody"},"actions":[{"id":"x","label":"X","next":"a"}]}]}`,
-		`{"steps":[{"id":"a","name":"x","assignee":{"type":"group","value":""},"actions":[{"id":"x","label":"X","next":"a"}]}]}`,
+		`{"steps":[{"id":"a","name":"x","assignees":[{"type":"nobody"}],"actions":[{"id":"x","label":"X","next":"a"}]}]}`,
+		`{"steps":[{"id":"a","name":"x","assignees":[{"type":"group","value":""}],"actions":[{"id":"x","label":"X","next":"a"}]}]}`,
 		`{"steps":[{"id":"a","name":"x","actions":[]},{"id":"a","name":"y","actions":[]}]}`,
 		`{"fields":[{"id":"s","label":"S","type":"select"}],"steps":[{"id":"a","name":"x","actions":[]}]}`,
 		`{"unknown":1,"steps":[{"id":"a","name":"x","actions":[]}]}`,
@@ -50,7 +50,7 @@ func TestValidateData(t *testing.T) {
 func TestStepTypesAndConditions(t *testing.T) {
 	def := `{"fields":[{"id":"amount","label":"A","type":"number"},{"id":"start","label":"S","type":"date"}],"steps":[
 		{"id":"c","name":"C","type":"condition","match":"any","rules":[{"field":"amount","op":"gt","value":"100"},{"field":"start","op":"lt","value":"2026-01-01"}],"next":"e","next_else":"e"},
-		{"id":"d","name":"D","type":"delay","delay":{"until":"start","days":1},"next":"e","assignee":{"type":"group","value":"x"}},
+		{"id":"d","name":"D","type":"delay","delay":{"until":"start","days":1},"next":"e","assignees":[{"type":"group","value":"x"}]},
 		{"id":"m","name":"M","type":"email","email":{"to":"{{field.x}}","subject":"s","body":"b"},"next":"e"},
 		{"id":"e","name":"E","type":"end","outcome":"success"}]}`
 	out, err := Type{}.Normalize(json.RawMessage(def))
@@ -58,7 +58,7 @@ func TestStepTypesAndConditions(t *testing.T) {
 		t.Fatal(err)
 	}
 	d, _ := Decode(out)
-	if d.Steps[1].Assignee.Type != "" {
+	if len(d.Steps[1].Assignees) != 0 {
 		t.Fatal("assignee kept on a delay step")
 	}
 	x := &Instance{Data: map[string]any{"amount": "99,5", "start": "2025-12-31"}, Definition: *d}
@@ -80,7 +80,7 @@ func TestStepTypesAndConditions(t *testing.T) {
 		`{"steps":[{"id":"a","name":"A","type":"delay","delay":{},"next":"a"}]}`,
 		`{"steps":[{"id":"a","name":"A","type":"webhook","webhook":{"url":"ftp://x"},"next":"a"}]}`,
 		`{"steps":[{"id":"a","name":"A","type":"email","email":{"to":"","subject":"s","body":"b"},"next":"a"}]}`,
-		`{"steps":[{"id":"a","name":"A","type":"approval","assignee":{"type":"group","value":"g"},"next":"a"}]}`,
+		`{"steps":[{"id":"a","name":"A","type":"approval","assignees":[{"type":"group","value":"g"}],"next":"a"}]}`,
 		`{"steps":[{"id":"a","name":"A","type":"magic"}]}`,
 	} {
 		if _, err := (Type{}).Normalize(json.RawMessage(bad)); err == nil {

@@ -1289,7 +1289,7 @@ test('a decision signed with a passkey, its verification and the verify page', a
   const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Contract ${run}`, body: {
     description: 'E2E', fields: [{ id: 'amount', label: 'Amount', type: 'number' }],
     steps: [
-      { id: 'check', name: 'Check', type: 'task', sign: 'advanced', assignee: { type: 'user', value: name },
+      { id: 'check', name: 'Check', type: 'task', sign: 'advanced', assignees: [{ type: 'user', value: name }],
         actions: [{ id: 'ok', label: 'Agree', next: 'done', note: 'optional' }] },
       { id: 'done', name: 'Done', type: 'end', outcome: 'success' }] } });
   const x = await call('POST', `/api/v1/x/workflow.process/elements/${wf.id}/instances`, { data: { amount: 1200 } });
@@ -1562,7 +1562,7 @@ test('workflow 2: automatic steps, deadline, triggers and a signed webhook reall
       { id: 'calc', name: 'Compute', type: 'set', next: 'note', set: [{ field: 'total', formula: 'amount * 2' }] },
       { id: 'note', name: 'Message', type: 'notify', next: 'mk', notify: { to: 'starter', channel: 'inbox', subject: `Case {{case.title}} ${run}` } },
       { id: 'mk', name: 'Page', type: 'create', next: 'check', create: { category: cat, title: `Welcome {{field.name}} ${run}`, store_url: 'page' } },
-      { id: 'check', name: 'Check', assignee: { type: 'starter', value: '' }, actions: [{ id: 'ok', label: 'Done', next: 'done' }],
+      { id: 'check', name: 'Check', assignees: [{ type: 'starter', value: '' }], actions: [{ id: 'ok', label: 'Done', next: 'done' }],
         deadline: { days: 3, workdays: true, warn: [24], escalate: { action: 'notify', notify: { to: 'starter', subject: 'late', channel: 'inbox' } } } },
       { id: 'done', name: 'Finished', type: 'end', outcome: 'success' }] } });
   // the editor shows triggers, deadline and the new steps accessibly
@@ -1647,8 +1647,8 @@ test('workflow 2: parallel branches, form of a step, hand-over and deputy', asyn
       { id: 'note', label: 'Review note', type: 'textarea', later: true }],
     steps: [
       { id: 'par', name: 'Reviews', type: 'parallel', next: 'decide', parallel: { branches: ['review'], for_each: 'departments' } },
-      { id: 'review', name: 'Review', assignee: { type: 'starter', value: '' }, actions: [{ id: 'ok', label: 'Reviewed', next: 'decide' }], form: [{ field: 'note', mode: 'required' }] },
-      { id: 'decide', name: 'Decide', assignee: { type: 'starter', value: '' }, actions: [{ id: 'sign', label: 'Sign', next: 'done' }] },
+      { id: 'review', name: 'Review', assignees: [{ type: 'starter', value: '' }], actions: [{ id: 'ok', label: 'Reviewed', next: 'decide' }], form: [{ field: 'note', mode: 'required' }] },
+      { id: 'decide', name: 'Decide', assignees: [{ type: 'starter', value: '' }], actions: [{ id: 'sign', label: 'Sign', next: 'done' }] },
       { id: 'done', name: 'Finished', type: 'end', outcome: 'success' }] } });
   // the editor shows the parallel step and the form of the step
   await page.goto(`${BASE}/e/${wf.id}/edit`);
@@ -1731,7 +1731,7 @@ test('workflow 2: decision links in e-mails, test run, evaluation and retention 
       description: 'E2E', links: true, link_hours: 48, retention: { days: 365, mode: 'anonymize' }, fields: [{ id: 'reason', label: 'Reason', type: 'text', required: true }],
       steps: [
         { id: 'mail', name: 'Inform', type: 'email', next: 'check', email: { to: 'outside@example.invalid', subject: 'Hi', body: 'x' } },
-        { id: 'check', name: 'Check', assignee: { type: 'user', value: who }, actions: [{ id: 'ok', label: 'Agree', next: 'done' }, { id: 'no', label: 'Refuse', next: 'done', note: 'required' }] },
+        { id: 'check', name: 'Check', assignees: [{ type: 'user', value: who }], actions: [{ id: 'ok', label: 'Agree', next: 'done' }, { id: 'no', label: 'Refuse', next: 'done', note: 'required' }] },
         { id: 'done', name: 'Finished', type: 'end', outcome: 'success' }] } });
     // the editor shows the options of the process
     await page.goto(`${BASE}/e/${wf.id}/edit`);
@@ -1974,8 +1974,8 @@ test('workflow: the step "Upload or confirm a file" – upload in the case dialo
   const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Contract ${run}`, body: {
     description: 'E2E', fields: [{ id: 'title', label: 'Title', type: 'text', required: true }, { id: 'contract', label: 'Contract', type: 'file' }],
     steps: [
-      { id: 'sign', name: 'Signed contract', type: 'upload', assignee: { type: 'starter' }, next: 'check', upload: { mode: 'upload', field: 'contract', label: 'Upload contract' } },
-      { id: 'check', name: 'Check', type: 'upload', assignee: { type: 'starter' }, next: 'done', next_else: 'sign',
+      { id: 'sign', name: 'Signed contract', type: 'upload', assignees: [{ type: 'starter' }], next: 'check', upload: { mode: 'upload', field: 'contract', label: 'Upload contract' } },
+      { id: 'check', name: 'Check', type: 'upload', assignees: [{ type: 'starter' }], next: 'done', next_else: 'sign',
         upload: { mode: 'confirm', field: 'contract', label: 'Contract is fine', reject_label: 'Not signed' } },
       { id: 'done', name: 'Done', type: 'end', outcome: 'success' }] } });
   try {
@@ -2145,6 +2145,37 @@ test('workflow: the start button carries the label of the workflow, set in the e
   await page.locator('dialog[open] h2', { hasText: `New leave request ${run}` }).waitFor();
   await a11y('start form with an own label');
   await page.keyboard.press('Escape');
+});
+
+test('workflow: people, groups and roles together handle a step; a name this wiki does not know is shown', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Owls ${run}` } })).id;
+  const group = await call('POST', '/api/v1/admin/groups', { name: `Owls ${run}` });
+  const me = (await call('GET', '/api/v1/auth/me')).user;
+  const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Owls ${run}`, body: {
+    description: 'E2E', fields: [], steps: [
+      { id: 'check', name: 'Check', type: 'task', assignees: [{ type: 'role', value: `Nobody ${run}` }], actions: [{ id: 'ok', label: 'Done', next: 'done' }] },
+      { id: 'done', name: 'Done', type: 'end', outcome: 'success' }] } });
+  await page.goto(`${BASE}/e/${wf.id}/edit`);
+  await idle();
+  const box = page.locator('.ewf-assignees').first();
+  // the role from the definition is not in this wiki: it stays listed with a warning
+  await box.getByText(new RegExp(`Nobody ${run}`)).waitFor();
+  await a11y('assignees of a step');
+  // the person who started the case, a person and a group together
+  await box.getByRole('checkbox', { name: /^(person who started the case|person, die den vorgang gestartet hat)$/i }).check();
+  await pickPerson(box, me.username);
+  await chooseEntry(box, /^(groups|gruppen)$/i, `Owls ${run}`);
+  await box.getByRole('button', { name: new RegExp(`^(remove Nobody ${run}|Nobody ${run} entfernen)$`, 'i') }).click();
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
+  const saved = (await call('GET', `/api/v1/elements/${wf.id}?edit=1`)).body.steps[0].assignees;
+  assert.equal(saved.length, 3, JSON.stringify(saved));
+  assert.deepEqual(saved[0], { type: 'starter', value: '' });
+  assert.equal(saved[1].type, 'user');
+  assert.match(saved[1].value, new RegExp(`^${me.username}`));
+  assert.deepEqual(saved[2], { type: 'group', value: `#${group.id}` });
+  // the overview of the process names all of them
+  await page.locator('.ewf-overview summary').click();
+  await page.locator('.ewf-assignee', { hasText: `Owls ${run}` }).waitFor();
 });
 
 test('workflow 3b: a case writes Word, PDF and Excel files and a calendar entry', async () => {

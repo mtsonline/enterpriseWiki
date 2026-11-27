@@ -212,7 +212,7 @@ func (s *Step) validateExtra(fieldType map[string]string) error {
 		return nil
 	}
 	// automatic: no assignee, actions, reminders
-	s.Assignee, s.Actions, s.Outcome, s.DueDays, s.Required = Assignee{}, []Action{}, "", 0, 0
+	s.Assignees, s.Actions, s.Outcome, s.DueDays, s.Required = []Assignee{}, []Action{}, "", 0, 0
 	s.ApproveLabel, s.RejectLabel, s.Match, s.Rules = "", "", "", nil
 	if s.Next == "" {
 		return apperr.BadRequest("step %q: the next step is required", s.ID)

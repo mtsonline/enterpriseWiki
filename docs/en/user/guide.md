@@ -177,8 +177,8 @@ With *New page*, choose the element type **Workflow**. With *Template* you take 
 
 | Kind | Effect |
 |---|---|
-| Task | those responsible (starting person, user, group or role) decide with one of the **actions** (e.g. *Invite to interview*, *Reject*); every action leads to a next step and can require a note |
-| Approval | four-eyes principle: a certain number of approvals or all members of a group/role must approve; a rejection (with reason) ends the approval |
+| Task | those responsible decide with one of the **actions** (e.g. *Invite to interview*, *Reject*); every action leads to a next step and can require a note |
+| Approval | four-eyes principle: a certain number of approvals or all of those responsible (every member of their groups and roles, counted together) must approve; a rejection (with reason) ends the approval |
 | Condition | checks data from the form automatically (e.g. "amount greater than 1000", "position is software development") and branches |
 | Send e-mail | sends a prepared e-mail automatically (recipients, Cc, sender, reply address, subject, text) |
 | Webhook | hands the case over to another system (e.g. HR software) |
@@ -207,7 +207,9 @@ For tasks and approvals a **reminder after X days** can be set. Those responsibl
 
 **Not before:** a date field can follow another date field (last day not before first day). The start form, the forms of steps and the server refuse a date before the other one. **Form of a step:** fields with *Filled in later* do not appear in the start form. For tasks and approvals, *Form of this step* sets which fields those responsible fill in (optional or required), only see or **do not see** (e.g. the salary). Whoever started the case, managers and admins always see everything.
 
-**Handing over tasks:** for tasks of a group or role, a person can **take over** the task (the others then no longer see it) and **give it back**. Every responsible person can **pass it on** (to someone who may see the workflow) or ask the **applicant a question**: they answer with a note, then the task comes back. Everything is in the history.
+**Those responsible** for a task, an approval or an upload: the person who started the case, people, groups and roles, several of them together (at most 20 entries, for example one person, two roles and three groups); any one of them may act. In the editor you choose them under *Handled by*: people by name (from 2 letters), groups and roles from a list. A group or role is kept by its number, so renaming it changes nothing; a name from a workflow template that this wiki does not know stays listed with a warning until you choose again or remove it.
+
+**Handing over tasks:** for tasks of a group, a role or several people, a person can **take over** the task (the others then no longer see it) and **give it back**. Every responsible person can **pass it on** (to someone who may see the workflow) or ask the **applicant a question**: they answer with a note, then the task comes back. Everything is in the history.
 
 **Deputy:** under *My tasks* you enter a deputy with a period for an absence. During this time they complete your tasks (also those of your groups and roles) and receive the task e-mails; the log records their name.
 

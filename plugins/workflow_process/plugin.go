@@ -216,15 +216,16 @@ func (pl *Plugin) caller(ctx context.Context) (*who, error) {
 	return w, nil
 }
 
-// assignee returns who handles step s of x (after an escalation: the new assignee).
-func (x *Instance) assignee(s *Step) Assignee {
+// assignees returns who handles step s of x: the assignees of the step, or
+// after a claim, a hand-over or an escalation the one who took it over.
+func (x *Instance) assignees(s *Step) []Assignee {
 	if x.Test && s.Manual() { // a test run: everything goes to the person testing
-		return Assignee{Type: "starter"}
+		return []Assignee{{Type: "starter"}}
 	}
 	if x.Override != nil && s.ID == x.Step {
-		return *x.Override
+		return []Assignee{*x.Override}
 	}
-	return s.Assignee
+	return s.Assignees
 }
 
 // assigned reports whether the caller is responsible for step s of x.
@@ -232,17 +233,26 @@ func (w *who) assigned(x *Instance, s *Step) bool {
 	if w.p == nil || w.p.ID() == 0 || s == nil || !s.Manual() {
 		return false
 	}
-	as := x.assignee(s)
-	v := strings.ToLower(as.Value)
-	switch as.Type {
-	case "starter":
-		return x.StartedByID != nil && *x.StartedByID == w.p.ID()
-	case "user":
-		return v == strings.ToLower(w.p.Handle()) || (!strings.Contains(v, "@") && v == strings.ToLower(w.p.Username) && w.p.Provider == "local") || w.users[v]
-	case "group":
-		return w.groups[v]
-	case "role":
-		return w.roles[v]
+	for _, as := range x.assignees(s) {
+		v := strings.ToLower(as.Value)
+		switch as.Type {
+		case "starter":
+			if x.StartedByID != nil && *x.StartedByID == w.p.ID() {
+				return true
+			}
+		case "user":
+			if v == strings.ToLower(w.p.Handle()) || (!strings.Contains(v, "@") && v == strings.ToLower(w.p.Username) && w.p.Provider == "local") || w.users[v] {
+				return true
+			}
+		case "group":
+			if w.groups[v] {
+				return true
+			}
+		case "role":
+			if w.roles[v] {
+				return true
+			}
+		}
 	}
 	return false
 }
@@ -647,24 +657,32 @@ func titleFrom(fields []Field, data map[string]any) string {
 func (pl *Plugin) Setup(host *coreplugin.Host) error {
 	pl.host = host
 	guardHosts.Set(host, host)
-	host.RegisterElementType(Type{name: func(ctx context.Context, kind, value string) string {
-		id, err := strconv.ParseInt(strings.TrimPrefix(value, "#"), 10, 64)
-		if err != nil {
-			return value
+	host.RegisterElementType(Type{names: func(ctx context.Context, refs []Assignee) map[string]string {
+		ids := map[string][]int64{}
+		for _, r := range refs {
+			if id, err := strconv.ParseInt(strings.TrimPrefix(r.Value, "#"), 10, 64); err == nil {
+				ids[r.Type] = append(ids[r.Type], id)
+			}
 		}
-		var n string
-		switch kind {
-		case "group":
-			err = host.DB.QueryRow(ctx, `SELECT name FROM groups WHERE id=$1`, id).Scan(&n)
-		case "role":
-			err = host.DB.QueryRow(ctx, `SELECT name FROM roles WHERE id=$1`, id).Scan(&n)
-		default:
-			return value
+		out := map[string]string{}
+		for kind, table := range map[string]string{"group": "groups", "role": "roles"} {
+			if len(ids[kind]) == 0 {
+				continue
+			}
+			rows, err := host.DB.Query(ctx, `SELECT id, name FROM `+table+` WHERE id = ANY($1)`, ids[kind]) // #nosec G202 -- table from the fixed map above
+			if err != nil {
+				continue // the names stay "#ID"
+			}
+			for rows.Next() {
+				var id int64
+				var n string
+				if rows.Scan(&id, &n) == nil {
+					out[Assignee{Type: kind, Value: "#" + strconv.FormatInt(id, 10)}.key()] = n
+				}
+			}
+			rows.Close()
 		}
-		if err != nil {
-			return value
-		}
-		return n
+		return out
 	}})
 	host.Files.AddReference("plugin_workflow_instances", "data")
 	// a saved version asks at once for the approval of its shell commands

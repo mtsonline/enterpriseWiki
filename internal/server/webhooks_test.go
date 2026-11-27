@@ -71,7 +71,7 @@ func TestWebhooksCommentsWorkflows(t *testing.T) {
 
 	def := map[string]any{"description": "", "fields": []map[string]any{{"id": "subject", "label": "Subject", "type": "text", "required": true}},
 		"steps": []map[string]any{
-			{"id": "check", "name": "Check", "assignee": map[string]string{"type": "starter"},
+			{"id": "check", "name": "Check", "assignees": []map[string]string{{"type": "starter"}},
 				"actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}}},
 			{"id": "done", "name": "Done", "actions": []any{}, "outcome": "success"},
 		}}

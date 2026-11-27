@@ -57,9 +57,9 @@ func TestWorkflowSignatures(t *testing.T) {
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "workflow.process", "title": "Contract", "body": map[string]any{
 		"description": "", "fields": []map[string]any{{"id": "amount", "label": "Amount", "type": "number"}},
 		"steps": []map[string]any{
-			{"id": "check", "name": "Check", "type": "task", "sign": "advanced", "assignee": map[string]string{"type": "user", "value": "wendy"},
+			{"id": "check", "name": "Check", "type": "task", "sign": "advanced", "assignees": []map[string]string{{"type": "user", "value": "wendy"}},
 				"actions": []map[string]any{{"id": "ok", "label": "Agree", "next": "approve"}, {"id": "back", "label": "Not mine", "next": "done", "sign": "none"}}},
-			{"id": "approve", "name": "Approve", "type": "approval", "sign": "qualified", "assignee": map[string]string{"type": "user", "value": "wendy"}, "next": "done", "next_else": "done"},
+			{"id": "approve", "name": "Approve", "type": "approval", "sign": "qualified", "assignees": []map[string]string{{"type": "user", "value": "wendy"}}, "next": "done", "next_else": "done"},
 			{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}}}, &wf, 201)
 	var x wfCase
 	admin.must("POST", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances", wf.ID), map[string]any{"data": map[string]any{"amount": 5000}}, &x, 201)

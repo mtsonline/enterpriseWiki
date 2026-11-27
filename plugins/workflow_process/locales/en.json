@@ -205,7 +205,6 @@
  "perm.workflow.process.admin_help": "Change and delete all workflows of the category. Every change is logged in detail and the creator is notified.",
  "perm.workflow.process.cases": "Manage cases",
  "perm.workflow.process.cases_help": "See all cases of the workflows, cancel them and decide about failed steps. Who carries out a step is defined only by its assignee.",
- "workflow.assignee_value_ph": "Name, or #ID (stays valid when renamed)",
  "limit.workflow.process.trigger_per_hour": "Starts of a trigger per hour",
  "limit.workflow.process.trigger_per_hour.help": "How many cases one trigger of a workflow (schedule, change, event, incoming webhook) may start in an hour; further starts are skipped and shown in the editor.",
  "limits.group.workflows": "Workflows",
@@ -635,5 +634,10 @@
  "workflow.field_after_help": "The date must not be before this field, e.g. the last day not before the first day.",
  "workflow.err_before": "{field} must not be before {other}.",
  "workflow.start_label": "Label of the start button",
- "workflow.start_label_help": "For example “New holiday request”. Empty: “Start new case”."
+ "workflow.start_label_help": "For example “New holiday request”. Empty: “Start new case”.",
+ "workflow.assignees_help": "Any one of them may handle the step. A group or role counts with all its members; approvals count everybody together.",
+ "workflow.assignee.people": "People",
+ "workflow.assignee.groups": "Groups",
+ "workflow.assignee.roles": "Roles",
+ "workflow.assignee_unknown": "Not found in this wiki: {kind} “{name}”. Choose it again or remove it."
 }

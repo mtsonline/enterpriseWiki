@@ -177,8 +177,8 @@ Wählen Sie bei *Neue Seite* den Elementtyp **Workflow**. Mit *Vorlage* überneh
 
 | Art | Wirkung |
 |---|---|
-| Aufgabe | Zuständige (startende Person, Benutzer, Gruppe oder Rolle) entscheiden mit einer der **Aktionen** (z. B. *Zum Gespräch einladen*, *Absagen*); jede Aktion führt zu einem nächsten Schritt und kann eine Notiz verlangen |
-| Freigabe | Vier-Augen-Prinzip: eine bestimmte Zahl von Freigaben oder alle Mitglieder einer Gruppe/Rolle müssen freigeben; eine Ablehnung (mit Begründung) beendet die Freigabe |
+| Aufgabe | Zuständige entscheiden mit einer der **Aktionen** (z. B. *Zum Gespräch einladen*, *Absagen*); jede Aktion führt zu einem nächsten Schritt und kann eine Notiz verlangen |
+| Freigabe | Vier-Augen-Prinzip: eine bestimmte Zahl von Freigaben oder alle Zuständigen (alle Mitglieder ihrer Gruppen und Rollen, zusammen gezählt) müssen freigeben; eine Ablehnung (mit Begründung) beendet die Freigabe |
 | Bedingung | prüft Angaben aus dem Formular automatisch (z. B. „Betrag größer als 1000“, „Stelle ist Softwareentwicklung“) und verzweigt |
 | E-Mail senden | verschickt automatisch eine vorbereitete E-Mail (Empfänger, Cc, Absender, Antwortadresse, Betreff, Text) |
 | Webhook | übergibt den Vorgang an ein anderes System (z. B. Personalsoftware) |
@@ -207,7 +207,9 @@ Bei Aufgaben und Freigaben kann eine **Erinnerung nach X Tagen** eingestellt wer
 
 **Nicht vor:** Ein Datumsfeld kann einem anderen Datumsfeld folgen (letzter Tag nicht vor dem ersten Tag). Startformular, Formulare der Schritte und Server lehnen ein Datum vor dem anderen ab. **Formular eines Schritts:** Felder mit *Später ausgefüllt* erscheinen nicht im Startformular. Bei Aufgaben und Freigaben legt *Formular dieses Schritts* fest, welche Felder die Zuständigen ausfüllen (optional oder Pflicht), nur sehen oder **nicht sehen** (z. B. das Gehalt). Wer den Vorgang gestartet hat, Verwaltende und Admins sehen immer alles.
 
-**Aufgaben übergeben:** Bei Aufgaben einer Gruppe oder Rolle kann eine Person die Aufgabe **übernehmen** (die anderen sehen sie dann nicht mehr) und **zurückgeben**. Jede zuständige Person kann **weitergeben** (an jemanden, der den Workflow sehen darf) oder eine **Rückfrage an den Antragsteller** stellen: Dieser antwortet mit einer Notiz, danach kommt die Aufgabe zurück. Alles steht im Verlauf.
+**Zuständige** für eine Aufgabe, eine Freigabe oder ein Hochladen: die Person, die den Vorgang gestartet hat, Personen, Gruppen und Rollen, auch mehrere zusammen (höchstens 20 Einträge, zum Beispiel eine Person, zwei Rollen und drei Gruppen); jede davon darf handeln. Im Editor wählen Sie sie unter *Bearbeitet von*: Personen über den Namen (ab 2 Buchstaben), Gruppen und Rollen aus einer Liste. Eine Gruppe oder Rolle wird über ihre Nummer gespeichert; ein Umbenennen ändert also nichts. Ein Name aus einer Workflow-Vorlage, den dieses Wiki nicht kennt, bleibt mit einem Hinweis stehen, bis Sie neu auswählen oder ihn entfernen.
+
+**Aufgaben übergeben:** Bei Aufgaben einer Gruppe, einer Rolle oder mehrerer Personen kann eine Person die Aufgabe **übernehmen** (die anderen sehen sie dann nicht mehr) und **zurückgeben**. Jede zuständige Person kann **weitergeben** (an jemanden, der den Workflow sehen darf) oder eine **Rückfrage an den Antragsteller** stellen: Dieser antwortet mit einer Notiz, danach kommt die Aufgabe zurück. Alles steht im Verlauf.
 
 **Vertretung:** Unter *Meine Aufgaben* tragen Sie für eine Abwesenheit eine Vertretung mit Zeitraum ein. Sie erledigt in dieser Zeit Ihre Aufgaben (auch die Ihrer Gruppen und Rollen) und erhält die Aufgaben-E-Mails; protokolliert wird mit ihrem Namen.
 

@@ -205,7 +205,6 @@
  "perm.workflow.process.admin_help": "Alle Workflows der Kategorie ändern und löschen. Jede Änderung wird genau protokolliert, und der Ersteller wird benachrichtigt.",
  "perm.workflow.process.cases": "Vorgänge verwalten",
  "perm.workflow.process.cases_help": "Alle Vorgänge sehen, abbrechen und über fehlgeschlagene Schritte entscheiden. Wer einen Schritt erledigt, legt nur die Zuständigkeit im Schritt fest.",
- "workflow.assignee_value_ph": "Name oder #ID (bleibt bei Umbenennen gültig)",
  "limit.workflow.process.trigger_per_hour": "Starts eines Auslösers pro Stunde",
  "limit.workflow.process.trigger_per_hour.help": "Wie viele Vorgänge ein Auslöser eines Workflows (Zeitplan, Änderung, Ereignis, eingehender Webhook) pro Stunde starten darf; weitere Starts entfallen und werden im Editor angezeigt.",
  "limits.group.workflows": "Workflows",
@@ -635,5 +634,10 @@
  "workflow.field_after_help": "Das Datum darf nicht vor diesem Feld liegen, z. B. der letzte Tag nicht vor dem ersten Tag.",
  "workflow.err_before": "{field} darf nicht vor {other} liegen.",
  "workflow.start_label": "Beschriftung der Startschaltfläche",
- "workflow.start_label_help": "Zum Beispiel „Neuer Urlaubsantrag“. Leer: „Neuen Vorgang starten“."
+ "workflow.start_label_help": "Zum Beispiel „Neuer Urlaubsantrag“. Leer: „Neuen Vorgang starten“.",
+ "workflow.assignees_help": "Jede dieser Personen darf den Schritt bearbeiten. Eine Gruppe oder Rolle zählt mit allen Mitgliedern; bei Freigaben zählen alle zusammen.",
+ "workflow.assignee.people": "Personen",
+ "workflow.assignee.groups": "Gruppen",
+ "workflow.assignee.roles": "Rollen",
+ "workflow.assignee_unknown": "In diesem Wiki nicht gefunden: {kind} „{name}“. Wählen Sie neu aus oder entfernen Sie den Eintrag."
 }

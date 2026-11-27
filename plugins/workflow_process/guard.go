@@ -106,9 +106,9 @@ func diffDefinitions(oldBody, newBody json.RawMessage) []string {
 		old, ok := oa[s.ID]
 		switch {
 		case !ok:
-			out = append(out, fmt.Sprintf("step %q (%s) added, assignee %s", s.Name, s.ID, assigneeText(s.Assignee)))
-		case !reflect.DeepEqual(old.Assignee, s.Assignee):
-			out = append(out, fmt.Sprintf("step %q (%s): assignee %s → %s", s.Name, s.ID, assigneeText(old.Assignee), assigneeText(s.Assignee)))
+			out = append(out, fmt.Sprintf("step %q (%s) added, assignees %s", s.Name, s.ID, assigneesText(s.Assignees)))
+		case !reflect.DeepEqual(old.Assignees, s.Assignees):
+			out = append(out, fmt.Sprintf("step %q (%s): assignees %s → %s", s.Name, s.ID, assigneesText(old.Assignees), assigneesText(s.Assignees)))
 		case !reflect.DeepEqual(old, s):
 			out = append(out, fmt.Sprintf("step %q (%s) changed", s.Name, s.ID))
 		}
@@ -132,6 +132,14 @@ func assigneeText(a Assignee) string {
 		return a.Type
 	}
 	return a.Type + " " + a.Value
+}
+
+func assigneesText(list []Assignee) string {
+	parts := make([]string, len(list))
+	for i, a := range list {
+		parts[i] = assigneeText(a)
+	}
+	return strings.Join(parts, ", ")
 }
 
 // notifyCreator tells the creator of a workflow that an administrator changed it.

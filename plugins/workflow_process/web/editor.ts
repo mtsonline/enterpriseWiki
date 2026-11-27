@@ -1,6 +1,7 @@
 // Structured editor for workflow definitions: start form, steps of all
 // types (task, approval, condition, e-mail, webhook, waiting time, end).
 import { api, button, categorySelect, checkbox, confirmDialog, field, h, select, t, textArea, textInput, type EditorContext, type EditorInstance } from '@ewiki/coreplugin';
+import { assigneesEditor } from './assignees';
 import { TEMPLATES } from './templates';
 import { cleanTrigger, deadlineFields, optionsSection, signField, extraStepFields, noticeFields, stepFormFields, triggersSection, validateExtra, type Kit } from './editor2';
 import type { Action, Definition, Field, Meta, Rule, Step, StepType, Trigger } from './types';
@@ -35,7 +36,7 @@ function toModel(d: Definition): Model {
       subflow: s.subflow ? { ...s.subflow, data: { ...(s.subflow.data ?? {}) }, return: { ...(s.subflow.return ?? {}) } } : undefined,
       deadline: s.deadline ? { ...s.deadline, warn: [...(s.deadline.warn ?? [])], escalate: s.deadline.escalate ? { ...s.deadline.escalate } : undefined } : undefined,
       notices: s.notices?.map((n) => ({ ...n })),
-      assignee: s.assignee?.type ? { ...s.assignee } : { type: 'group', value: '' } };
+      assignees: (s.assignees ?? []).map((a) => ({ ...a })) };
   });
   d.steps.forEach((s, i) => {
     steps[i].branchKeys = (s.parallel?.branches ?? []).map((b) => keys.get(b) ?? 0).filter(Boolean);
@@ -74,20 +75,20 @@ function toDefinition(m: Model): Definition {
   m.steps.forEach((s, i) => ids.set(s.key, uniqueId(s.id, s.name, stepIds, `step${i + 1}`)));
   const ref = (k: number) => ids.get(k) ?? '';
   const steps: Step[] = m.steps.map((s) => {
-    const base: Step = { id: ids.get(s.key)!, name: s.name, type: s.type, description: s.description, assignee: { type: '', value: '' }, actions: [],
+    const base: Step = { id: ids.get(s.key)!, name: s.name, type: s.type, description: s.description, assignees: [], actions: [],
       notices: s.notices?.length ? s.notices : undefined };
     const deadline = s.deadline ? { ...s.deadline, escalate: s.deadline.escalate?.action ? s.deadline.escalate : undefined } : undefined;
     switch (s.type) {
       case 'end': return { ...base, outcome: s.outcome || 'neutral' };
       case 'task': {
         const aIds = new Set<string>();
-        return { ...base, assignee: s.assignee, due_days: s.due_days || undefined, deadline, form: s.form?.length ? s.form : undefined,
+        return { ...base, assignees: s.assignees, due_days: s.due_days || undefined, deadline, form: s.form?.length ? s.form : undefined,
           sign: s.sign || undefined,
           actions: s.actions.map((a, j) => ({ id: uniqueId(a.id, a.label, aIds, `action${j + 1}`), label: a.label, next: ref(a.next), note: a.note || undefined, sign: a.sign || undefined })) };
       }
-      case 'upload': return { ...base, assignee: s.assignee, due_days: s.due_days || undefined, deadline, upload: s.upload, next: ref(s.next),
+      case 'upload': return { ...base, assignees: s.assignees, due_days: s.due_days || undefined, deadline, upload: s.upload, next: ref(s.next),
         next_else: s.upload?.mode === 'confirm' ? ref(s.nextElse) : undefined, sign: s.upload?.mode === 'confirm' ? s.sign || undefined : undefined };
-      case 'approval': return { ...base, assignee: s.assignee, due_days: s.due_days || undefined, deadline, form: s.form?.length ? s.form : undefined, required: s.required || 0,
+      case 'approval': return { ...base, assignees: s.assignees, due_days: s.due_days || undefined, deadline, form: s.form?.length ? s.form : undefined, required: s.required || 0,
         approve_label: s.approve_label || undefined, reject_label: s.reject_label || undefined, next: ref(s.next), next_else: ref(s.nextElse), sign: s.sign || undefined };
       case 'condition': return { ...base, match: s.match || 'all', rules: s.rules ?? [], next: ref(s.next), next_else: ref(s.nextElse) };
       case 'email': return { ...base, email: s.email, next: ref(s.next) };
@@ -118,7 +119,6 @@ function toDefinition(m: Model): Definition {
 function retype(s: EStep, type: StepType): void {
   s.type = type;
   if (type === 'task' && !s.actions.length) s.actions = [{ id: '', label: '', next: 0 }];
-  if ((type === 'task' || type === 'approval') && !s.assignee.type) s.assignee = { type: 'group', value: '' };
   if (type === 'condition' && !s.rules?.length) s.rules = [{ field: '', op: 'equals', value: '' }];
   if (type === 'email' && !s.email) s.email = { to: '{{starter.email}}', subject: '{{case.title}}', body: '' };
   if (type === 'webhook' && !s.webhook) s.webhook = { url: '', method: 'POST' };
@@ -236,13 +236,8 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
   };
 
   const assigneeFields = (s: EStep) => {
-    const at = select(['starter', 'user', 'group', 'role'].map((x) => ({ value: x, label: t(`workflow.assignee.${x}`) })), s.assignee.type || 'group');
-    const av = textInput({ value: s.assignee.value, maxlength: 200, placeholder: t('workflow.assignee_value_ph') });
-    at.addEventListener('change', () => { s.assignee = { type: at.value as EStep['assignee']['type'], value: av.value }; av.disabled = at.value === 'starter'; });
-    av.addEventListener('input', () => { s.assignee = { type: at.value as EStep['assignee']['type'], value: av.value }; });
-    av.disabled = at.value === 'starter';
-    return h('div', null, h('div', { class: 'ewf-grid' }, field(t('workflow.assignee'), at), field(t('workflow.assignee_value'), av, { help: t('workflow.assignee_help') }),
-      field(t('workflow.due_days'), num(() => s.due_days, (v) => { s.due_days = v; }), { help: t('workflow.due_days_help') })),
+    return h('div', null, assigneesEditor(() => s.assignees, (list) => { s.assignees = list; }),
+      h('div', { class: 'ewf-grid' }, field(t('workflow.due_days'), num(() => s.due_days, (v) => { s.due_days = v; }), { help: t('workflow.due_days_help') })),
     deadlineFields(s, kit), stepFormFields(s, kit));
   };
 
@@ -427,7 +422,7 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
         ...m.steps.map(stepRow),
         h('div', { class: 'ewf-template ewf-add-step' }, field(t('workflow.new_step_type'), newType, { inline: true }),
           button(t('workflow.add_step'), () => {
-            const s: EStep = { key: ++seq, id: '', name: '', type: 'task', assignee: { type: 'group', value: '' }, actions: [], next: 0, nextElse: 0 };
+            const s: EStep = { key: ++seq, id: '', name: '', type: 'task', assignees: [], actions: [], next: 0, nextElse: 0 };
             retype(s, newType.value as StepType);
             m.steps.push(s);
             draw();
@@ -445,7 +440,7 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
       for (const f of m.fields) if (!f.label.trim()) return t('workflow.err_field_label');
       for (const s of m.steps) {
         if (!s.name.trim()) return t('workflow.err_step_name');
-        if ((s.type === 'task' || s.type === 'approval') && s.assignee.type !== 'starter' && !s.assignee.value.trim()) return t('workflow.err_assignee', { step: s.name });
+        if ((s.type === 'task' || s.type === 'approval' || s.type === 'upload') && !s.assignees.length) return t('workflow.err_assignee', { step: s.name });
         if (s.type === 'task') {
           if (!s.actions.length) return t('workflow.err_action', { step: s.name });
           for (const a of s.actions) if (!a.label.trim() || !a.next) return t('workflow.err_action', { step: s.name });

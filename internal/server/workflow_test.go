@@ -466,7 +466,7 @@ func TestWorkflowStepsDeadlinesTriggers(t *testing.T) {
 				"create": map[string]any{"category": pages.ID, "title": "Page for {{field.name}}", "body": "Total: {{field.total}}", "store_id": "page"}},
 			map[string]any{"id": "pr", "name": "Props", "type": "props", "next": "task",
 				"props": map[string]any{"element": "{{field.page}}", "values": map[string]string{"status": "new"}}},
-			map[string]any{"id": "task", "name": "Check", "assignee": map[string]string{"type": "user", "value": "gus"},
+			map[string]any{"id": "task", "name": "Check", "assignees": []map[string]string{{"type": "user", "value": "gus"}},
 				"actions":  []map[string]any{{"id": "ok", "label": "OK", "next": "done"}},
 				"deadline": map[string]any{"hours": 2, "warn": []int{1}, "escalate": map[string]any{"action": "reassign", "assignee": map[string]string{"type": "user", "value": "hal"}}}},
 		)})
@@ -685,7 +685,7 @@ func TestWorkflowStepsDeadlinesTriggers(t *testing.T) {
 
 	// ---- sub-workflow: waits for the other case and takes its values
 	child := newWF("Child", map[string]any{"description": "", "fields": []map[string]any{{"id": "q", "label": "Q", "type": "text"}}, "steps": steps(
-		map[string]any{"id": "ans", "name": "Answer", "assignee": map[string]string{"type": "user", "value": "gus"},
+		map[string]any{"id": "ans", "name": "Answer", "assignees": []map[string]string{{"type": "user", "value": "gus"}},
 			"actions": []map[string]any{{"id": "ok", "label": "OK", "next": "set"}}},
 		map[string]any{"id": "set", "name": "Set", "type": "set", "next": "done", "set": []map[string]any{{"field": "answer", "value": "42 for {{field.q}}"}}})})
 	parent := newWF("Parent", map[string]any{"description": "", "fields": []any{}, "steps": steps(
@@ -831,7 +831,7 @@ func TestWorkflowBranchesAndHandovers(t *testing.T) {
 	wf := newWF(map[string]any{"description": "", "fields": []map[string]any{{"id": "regions", "label": "Regions", "type": "textarea"}},
 		"steps": []map[string]any{
 			{"id": "par", "name": "Ask the regions", "type": "parallel", "next": "sum", "parallel": map[string]any{"branches": []string{"ask"}, "for_each": "regions", "require": 2}},
-			{"id": "ask", "name": "Region answers", "assignee": map[string]string{"type": "user", "value": "gus"},
+			{"id": "ask", "name": "Region answers", "assignees": []map[string]string{{"type": "user", "value": "gus"}},
 				"actions": []map[string]any{{"id": "ok", "label": "OK", "next": "note"}}},
 			{"id": "note", "name": "Note", "type": "set", "next": "sum", "set": []map[string]any{{"field": "last", "value": "{{field.item}}"}}},
 			{"id": "sum", "name": "Summary", "type": "set", "next": "done", "set": []map[string]any{{"field": "summary", "value": "done after {{field.last}}"}}},
@@ -880,7 +880,7 @@ func TestWorkflowBranchesAndHandovers(t *testing.T) {
 		{"id": "topic", "label": "Topic", "type": "text"}, {"id": "salary", "label": "Salary", "type": "number"},
 		{"id": "decision", "label": "Decision", "type": "textarea", "later": true}},
 		"steps": []map[string]any{
-			{"id": "check", "name": "Check", "assignee": map[string]string{"type": "group", "value": "team"},
+			{"id": "check", "name": "Check", "assignees": []map[string]string{{"type": "group", "value": "team"}},
 				"actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}},
 				"form":    []map[string]string{{"field": "decision", "mode": "required"}, {"field": "salary", "mode": "hidden"}}},
 			{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}})
@@ -936,7 +936,7 @@ func TestWorkflowBranchesAndHandovers(t *testing.T) {
 
 	// ---- deputies: ivy stands in for hal
 	wf3 := newWF(map[string]any{"description": "", "fields": []any{}, "steps": []map[string]any{
-		{"id": "check", "name": "Check", "assignee": map[string]string{"type": "user", "value": "hal"}, "actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}}},
+		{"id": "check", "name": "Check", "assignees": []map[string]string{{"type": "user", "value": "hal"}}, "actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}}},
 		{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}})
 	today := time.Now().Format("2006-01-02")
 	hal.must("PUT", "/api/v1/x/workflow.process/me/deputy", map[string]any{"deputy": "hal", "from": today, "until": today}, nil, 400)
@@ -951,6 +951,39 @@ func TestWorkflowBranchesAndHandovers(t *testing.T) {
 	hal.must("DELETE", "/api/v1/x/workflow.process/me/deputy", nil, nil, 204)
 	if code := ivy.do("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", dc), nil, nil); code != 404 {
 		t.Fatalf("after the end of the deputyship: %d", code)
+	}
+
+	// ---- several assignees: a person and a group together; any one of them
+	// acts. An approval with all its votes (required 0) counts the person
+	// and the members of the group together (here ivy, gus and hal).
+	wf4 := newWF(map[string]any{"description": "", "fields": []any{}, "steps": []map[string]any{
+		{"id": "check", "name": "Check", "assignees": []map[string]string{{"type": "user", "value": "fred"}, {"type": "group", "value": "team"}},
+			"actions": []map[string]any{{"id": "ok", "label": "OK", "next": "appr"}}},
+		{"id": "appr", "name": "Approve", "type": "approval", "assignees": []map[string]string{{"type": "user", "value": "ivy"}, {"type": "group", "value": fmt.Sprintf("#%d", team.ID)}},
+			"required": 0, "next": "done", "next_else": "done"},
+		{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}})
+	mc := start(wf4, map[string]any{})
+	for name, c := range map[string]*client{"fred": fred, "gus": gus, "hal": hal} {
+		if x := get(c, mc); !has(x, "ok") || !has(x, "_claim") {
+			t.Fatalf("%s may not act on a step for a person and a group: %+v", name, x.Actions)
+		}
+		if len(tasks(c)) == 0 {
+			t.Fatalf("the task is not in the list of %s", name)
+		}
+	}
+	if code := ivy.do("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", mc), nil, nil); code != 404 {
+		t.Fatalf("ivy is not an assignee of the first step: %d", code)
+	}
+	act(gus, mc, map[string]any{"action": "ok"}, 200)
+	act(fred, mc, map[string]any{"action": "approve"}, 403) // not an assignee of the approval
+	act(ivy, mc, map[string]any{"action": "approve"}, 200)
+	act(gus, mc, map[string]any{"action": "approve"}, 200)
+	if x := get(admin, mc); x.Status != "open" || x.Step != "appr" {
+		t.Fatalf("after two of three votes: %+v", x)
+	}
+	act(hal, mc, map[string]any{"action": "approve"}, 200)
+	if x := get(admin, mc); x.Status != "done" {
+		t.Fatalf("after all three votes: %+v", x)
 	}
 }
 
@@ -981,7 +1014,7 @@ func TestWorkflowLinksTestRunsRetention(t *testing.T) {
 		"fields": []map[string]any{{"id": "who", "label": "Who", "type": "text"}},
 		"steps": []map[string]any{
 			{"id": "mail", "name": "Mail", "type": "email", "next": "check", "email": map[string]any{"to": "outside@example.org", "subject": "Hi", "body": "x"}},
-			{"id": "check", "name": "Check", "assignee": map[string]string{"type": "user", "value": "gus"},
+			{"id": "check", "name": "Check", "assignees": []map[string]string{{"type": "user", "value": "gus"}},
 				"actions": []map[string]any{{"id": "ok", "label": "Agree", "next": "done"}, {"id": "no", "label": "Refuse", "next": "done", "note": "required"}}},
 			{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}}
 	var wf elem
@@ -1151,7 +1184,7 @@ func TestWorkflowLinkPrivacy(t *testing.T) {
 		return map[string]any{"description": "", "links": true, "link_hours": hours,
 			"fields": []map[string]any{{"id": "who", "label": "Who", "type": "text"}},
 			"steps": []map[string]any{
-				{"id": "check", "name": "Check", "assignee": map[string]string{"type": "user", "value": "lia"}, "deadline": deadline,
+				{"id": "check", "name": "Check", "assignees": []map[string]string{{"type": "user", "value": "lia"}}, "deadline": deadline,
 					"actions": []map[string]any{{"id": "ok", "label": "Agree", "next": "done"}}},
 				{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}}
 	}
@@ -1256,13 +1289,13 @@ func TestWorkflow(t *testing.T) {
 			{"id": "ok", "label": "Privacy", "type": "checkbox", "required": true},
 		},
 		"steps": []map[string]any{
-			{"id": "screening", "name": "Screening", "assignee": map[string]string{"type": "group", "value": "hr"},
+			{"id": "screening", "name": "Screening", "assignees": []map[string]string{{"type": "group", "value": "hr"}},
 				"actions": []map[string]any{{"id": "accept", "label": "Accept", "next": "hired"}, {"id": "reject", "label": "Reject", "next": "rejected", "note": "required"}}},
 			{"id": "hired", "name": "Hired", "actions": []any{}, "outcome": "success"},
 			{"id": "rejected", "name": "Rejected", "actions": []any{}, "outcome": "failure"},
 		},
 	}
-	bad := map[string]any{"description": "", "fields": []any{}, "steps": []map[string]any{{"id": "a", "name": "A", "assignee": map[string]string{"type": "group", "value": "hr"},
+	bad := map[string]any{"description": "", "fields": []any{}, "steps": []map[string]any{{"id": "a", "name": "A", "assignees": []map[string]string{{"type": "group", "value": "hr"}},
 		"actions": []map[string]any{{"id": "x", "label": "X", "next": "missing"}}}}}
 	if got := admin.do("POST", "/api/v1/elements", map[string]any{"category_id": root.ID, "type": "workflow.process", "title": "Bad", "body": bad}, nil); got != 400 {
 		t.Fatalf("invalid workflow accepted: %d", got)
@@ -1436,7 +1469,7 @@ func TestWorkflowStepTypes(t *testing.T) {
 					"body": "Hello {{starter.name}},\nwe received {{field.item}} ({{field.amount}} EUR).\n{{case.url}}"}},
 			{"id": "check", "name": "Amount check", "type": "condition", "match": "all", "rules": []map[string]any{{"field": "amount", "op": "gt", "value": "1000"}},
 				"next": "approve", "next_else": "auto_ok"},
-			{"id": "approve", "name": "Four eyes", "type": "approval", "assignee": map[string]string{"type": "group", "value": "managers"}, "required": 0,
+			{"id": "approve", "name": "Four eyes", "type": "approval", "assignees": []map[string]string{{"type": "group", "value": "managers"}}, "required": 0,
 				"due_days": 2, "next": "export", "next_else": "rejected_mail"},
 			{"id": "export", "name": "Send to ERP", "type": "webhook", "webhook": map[string]any{"url": srv.URL + "/erp", "secret": "topsecret"}, "next": "wait"},
 			{"id": "wait", "name": "Delivery time", "type": "delay", "delay": map[string]any{"days": 3}, "next": "approved"},
