@@ -62,8 +62,8 @@ export async function renderAuthProviderPage(el: HTMLElement, p: AuthProviderPag
     if (!(await confirmDialog(t('authadmin.remove_confirm', { id: provider }), t('authadmin.remove'), true))) return;
     try {
       await savePluginSettings(p.pluginId, { ...settings, instances: instances.filter((x) => x.id !== instance) });
-      toast(t('authadmin.removed'));
-      await renderAuthProviderPage(el, p, '');
+      // the message once the page shows the new state
+      try { await renderAuthProviderPage(el, p, ''); } finally { toast(t('authadmin.removed')); }
       focusChoice();
     } catch (e) { toast(errorText(e), 'error'); }
   }, { variant: 'danger' }) : null;

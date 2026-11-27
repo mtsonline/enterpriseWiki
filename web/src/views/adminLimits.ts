@@ -71,8 +71,9 @@ export async function limitsAdmin(panel: HTMLElement): Promise<void> {
     if (!Object.keys(values).length) { toast(t('limits.unchanged')); return; }
     try {
       await api.put('admin/limits', { values });
-      toast(t('limits.saved'));
-      await limitsAdmin(panel);
+      // the message once the page shows the saved values: a change made
+      // before would be made on the old form
+      try { await limitsAdmin(panel); } finally { toast(t('limits.saved')); }
     } catch (e) { alert.textContent = errorText(e); }
   });
 

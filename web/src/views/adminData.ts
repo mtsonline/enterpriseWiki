@@ -31,8 +31,8 @@ export async function dataAdmin(panel: HTMLElement): Promise<void> {
   const rebuild = async (kind: string) => {
     try {
       await api.post('admin/data/rebuild', { kind });
-      toast(t('data.rebuild_started'));
-      await dataAdmin(panel);
+      // the message once the page shows the new state
+      try { await dataAdmin(panel); } finally { toast(t('data.rebuild_started')); }
     } catch (e) { toast(errorText(e), 'error'); }
   };
 
