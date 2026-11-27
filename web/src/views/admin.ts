@@ -177,6 +177,11 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
     navigate(`/login?next=${encodeURIComponent(location.pathname)}`, { replace: true });
     return;
   }
+  // the placement became a tab of the templates (links and bookmarks keep working)
+  if (params.section === 'placement') {
+    navigate('/admin/templates?tab=positions', { replace: true });
+    return;
+  }
   const pages = adminSections();
   const section = params.section ?? pages[0]?.id ?? 'users';
   if (!pages.some((p) => p.id === section)) {

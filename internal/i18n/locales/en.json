@@ -1239,7 +1239,6 @@
  "placement.type_choose": "Choose an element type",
  "placement.help_type": "Blocks at the positions of the pages of this element type. What is not set here comes from the site; categories and single pages can change it again.",
  "placement.title_type": "Layout of the element type",
- "placement.admin": "Placement",
  "placement.title_site": "Placement of the building blocks",
  "placement.title_category": "Placement in this category",
  "placement.title_user": "My arrangement",
@@ -3311,5 +3310,19 @@
  "sitetpl.use_for_site": "Use for the website",
  "sitetpl.used_for_site": "{name} is now the template of the website.",
  "admin.current_area": "current area",
- "admin.menu": "Administration menu"
+ "admin.menu": "Administration menu",
+ "placement.hidden_on_device": "Hidden on this device",
+ "placement.add_at": "Block to add at {position}",
+ "placement.view": "Page shown",
+ "placement.view_site": "Website",
+ "placement.view_category": "Category page",
+ "placement.view_element": "Page",
+ "placement.view_editor": "Editor",
+ "placement.view_dashboard": "Dashboard",
+ "placement.blocks_count_one": "{count} block",
+ "placement.blocks_count_other": "{count} blocks",
+ "placement.choose_position": "Choose a position in the schematic to see and change what is there.",
+ "sitetpl.tab_positions": "Positions and placements",
+ "sitetpl.positions_help": "Each position of the template is a button in the schematic. A click shows what is there for the whole website. There you change the order and add or remove blocks. Choose the page shown and the device to see where the positions are there.",
+ "sitetpl.positions_template": "Template"
 }
