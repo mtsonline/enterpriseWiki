@@ -80,15 +80,93 @@ export function adminSections(): { id: string; label: string; area: AdminArea }[
   return ADMIN_AREAS.flatMap((a) => [...core, ...plugin].filter((p) => p.area === a));
 }
 
-/** The menu of the administration: the areas as headed groups of links. */
-function adminMenu(pages: { id: string; label: string; area: AdminArea }[], current: string): HTMLElement[] {
-  return ADMIN_AREAS.flatMap((a) => {
+/** The menu of the administration: a bar with the overview first and one
+ * button per area; each button opens a panel with the pages of its area
+ * (WAI-ARIA disclosure navigation: Escape closes and returns to the
+ * button, the arrow keys move along the bar, leaving the menu closes it).
+ * The page shows only what is chosen. */
+function adminMenu(pages: { id: string; label: string; area: AdminArea }[], current: string): HTMLElement {
+  const nav = h('nav', { class: 'ew-adminnav', 'aria-label': t('admin.title') });
+  const tops: HTMLElement[] = [];
+  const panels: { button: HTMLButtonElement; panel: HTMLElement }[] = [];
+  const close = (except?: HTMLButtonElement) => {
+    for (const x of panels) {
+      if (x.button === except) continue;
+      x.button.setAttribute('aria-expanded', 'false');
+      x.panel.hidden = true;
+    }
+  };
+  const items = ADMIN_AREAS.flatMap((a) => {
     const here = pages.filter((p) => p.area === a);
     if (!here.length) return [];
+    // the overview is a page of its own: a link, the first item of the bar
+    if (a === 'overview') {
+      return here.map((p) => {
+        const link = h('a', { href: `/admin/${p.id}`, class: 'ew-adminnav-top', 'aria-current': p.id === current ? 'page' : undefined }, p.label);
+        tops.push(link);
+        return h('li', null, link);
+      });
+    }
     const id = `admin-area-${a}`;
-    return [h('h3', { class: 'ew-subnav-area', id }, t(`admin.area.${a}`)),
-      h('ul', { 'aria-labelledby': id }, ...here.map((p) => h('li', null, h('a', { href: `/admin/${p.id}`, 'aria-current': p.id === current ? 'page' : undefined }, p.label))))];
+    const isCurrent = here.some((p) => p.id === current);
+    const button = h('button', { type: 'button', id: `${id}-button`, class: ['ew-adminnav-top', isCurrent && 'ew-adminnav-top--current'], 'aria-expanded': 'false', 'aria-controls': id },
+      t(`admin.area.${a}`), isCurrent ? h('span', { class: 'sr-only' }, ` (${t('admin.current_area')})`) : null,
+      h('span', { class: 'ew-adminnav-caret', 'aria-hidden': 'true' })) as HTMLButtonElement;
+    const panel = h('div', { id, class: 'ew-adminnav-panel', hidden: true },
+      h('ul', { 'aria-labelledby': button.id }, ...here.map((p) => h('li', null, h('a', { href: `/admin/${p.id}`, 'aria-current': p.id === current ? 'page' : undefined }, p.label)))));
+    button.addEventListener('click', () => {
+      const open = button.getAttribute('aria-expanded') !== 'true';
+      close(button);
+      button.setAttribute('aria-expanded', String(open));
+      panel.hidden = !open;
+    });
+    panels.push({ button, panel });
+    tops.push(button);
+    return [h('li', { class: 'ew-adminnav-item' }, button, panel)];
   });
+  nav.addEventListener('keydown', (ev) => {
+    const at = tops.indexOf(document.activeElement as HTMLElement);
+    if (ev.key === 'Escape') {
+      const open = panels.find((x) => !x.panel.hidden);
+      if (open) {
+        ev.preventDefault();
+        close();
+        open.button.focus();
+      } else if (nav.classList.contains('is-open')) {
+        // narrow windows: Escape closes the bar too
+        ev.preventDefault();
+        nav.querySelector<HTMLButtonElement>('.ew-adminnav-toggle')?.click();
+        nav.querySelector<HTMLButtonElement>('.ew-adminnav-toggle')?.focus();
+      }
+    } else if (at >= 0 && (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft' || ev.key === 'Home' || ev.key === 'End')) {
+      ev.preventDefault();
+      const n = tops.length;
+      const next = ev.key === 'Home' ? 0 : ev.key === 'End' ? n - 1 : (at + (ev.key === 'ArrowRight' ? 1 : -1) + n) % n;
+      tops[next].focus();
+    }
+  });
+  // following a link closes the menu at once (the new page is drawn after it loads)
+  nav.addEventListener('click', (ev) => { if ((ev.target as Element).closest('.ew-adminnav-panel a')) close(); });
+  // leaving the menu (focus or a click elsewhere) closes it
+  nav.addEventListener('focusout', (ev) => { if (!nav.contains(ev.relatedTarget as Node | null)) close(); });
+  const outside = (ev: MouseEvent) => {
+    if (!nav.isConnected) { document.removeEventListener('click', outside); return; }
+    if (!nav.contains(ev.target as Node)) close();
+  };
+  document.addEventListener('click', outside);
+  // narrow windows: the bar itself is closed behind one button that names the page
+  const bar = h('ul', { class: 'ew-adminnav-bar', id: 'ew-adminnav-bar' }, ...items);
+  const here = pages.find((p) => p.id === current)?.label ?? '';
+  const toggle = h('button', { type: 'button', class: 'ew-adminnav-toggle ew-btn ew-btn--secondary', 'aria-expanded': 'false', 'aria-controls': bar.id },
+    h('span', { 'aria-hidden': 'true' }, '☰'), h('span', null, here ? `${t('admin.menu')}: ${here}` : t('admin.menu'))) as HTMLButtonElement;
+  toggle.addEventListener('click', () => {
+    const open = toggle.getAttribute('aria-expanded') !== 'true';
+    toggle.setAttribute('aria-expanded', String(open));
+    nav.classList.toggle('is-open', open);
+    if (!open) close();
+  });
+  nav.append(toggle, bar, licenseSeal('ew-admin-seal', 48) ?? '');
+  return nav;
 }
 
 const reload = () => navigate(location.pathname + location.search, { replace: true });
@@ -107,10 +185,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
   }
   const panel = h('div');
   const notice = h('div');
-  mount(main, h('div', { class: 'ew-admin' },
-    h('nav', { class: 'ew-subnav', 'aria-label': t('admin.title') }, h('h2', { class: 'ew-subnav-title' }, t('admin.title')), licenseSeal('ew-admin-seal', 96),
-      ...adminMenu(pages, section)),
-    h('div', { class: 'ew-admin-panel' }, notice, panel)));
+  mount(main, h('div', { class: 'ew-admin' }, adminMenu(pages, section), h('div', { class: 'ew-admin-panel' }, notice, panel)));
   // problems with the license on every administration page (not on the license page itself)
   // and problems with the PostgreSQL version (end of support)
   void Promise.all([

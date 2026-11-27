@@ -128,7 +128,7 @@ test('administration pages', async () => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${BASE}/admin`);
   await idle();
-  const sections = await page.locator('.ew-admin nav.ew-subnav a').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
+  const sections = await page.locator('.ew-admin nav.ew-adminnav a').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
   assert.ok(sections.length >= 20, `administration pages: ${sections}`);
   const key = new Set(['/admin', '/admin/license', '/admin/users', '/admin/plugins', '/admin/settings']);
   const found = [];

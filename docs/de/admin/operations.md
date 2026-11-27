@@ -45,6 +45,10 @@ docker compose up -d                    # legt Datenbank und Administrator (EWIK
 
 Mit systemd: die Datenbank neu anlegen (`dropdb`/`createdb` wie bei der Installation) und `ewiki setup` ausführen.
 
+### Das Menü der Verwaltung
+
+Die Verwaltung hat oben eine Leiste. Zuerst kommt *Übersicht*; sie ist die Startseite (`/admin`). Danach hat jeder Bereich eine Schaltfläche: Anmeldung, Personen und Rechte, Darstellung, Inhalte, Anbindungen, Sicherheit und Datenschutz, Betrieb und Erweiterungen für Plugins ohne Bereich. Eine Schaltfläche öffnet die Seiten ihres Bereichs als Menü über der Seite; die Seite selbst zeigt nur, was Sie gewählt haben. Escape schließt das Menü, die Pfeiltasten wandern durch die Leiste. Auf dem Handy ist die Leiste eine Schaltfläche, die die aktuelle Seite nennt; sie öffnet die Bereiche untereinander.
+
 ### Hinweis auf neue Versionen in der Übersicht
 
 Die Startseite der Administration (*Administration → Übersicht*, `/admin`) zeigt, ob eine neue Version des Kerns erschienen ist, mit ihren Änderungen. Sicherheitsupdates sind hervorgehoben: Ihre Abschnitte `## Security` bzw. `## Sicherheit` aus den Release-Notes aller Versionen seit der installierten stehen zuerst (Regel für Release-Notes: [CONTRIBUTING.de.md](../../../CONTRIBUTING.de.md)).

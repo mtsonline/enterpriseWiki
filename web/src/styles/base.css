@@ -506,16 +506,38 @@ progress { width: 8rem; vertical-align: middle; }
 @media (max-width: 600px) { .ew-person-card { grid-template-columns: 1fr; } }
 
 /* ---------------------------------------------------------------- admin */
-.ew-admin { display: grid; grid-template-columns: 13rem 1fr; gap: 2rem; }
-.ew-subnav-title { font-size: 1rem; margin-top: 0; }
-.ew-subnav ul { list-style: none; padding: 0; margin: 0; }
-.ew-subnav-area { font-size: .8rem; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--ew-text-muted); margin: 1rem 0 .25rem .6rem; }
-/* long words (German: Experteneinstellungen) wrap instead of reaching under the panel next to it */
-.ew-subnav a { display: block; max-width: 100%; overflow-wrap: anywhere; hyphens: auto; padding: .4rem .6rem; border-radius: 4px; text-decoration: none; color: var(--ew-text); }
-.ew-subnav a[aria-current="page"] { background: var(--ew-info-bg) url(/brand/mark.webp) .45rem center / 1.1rem no-repeat; padding-left: 1.9rem; color: var(--ew-info-text); font-weight: 700; }
-@media (forced-colors: active) { .ew-subnav a[aria-current="page"] { background-image: none; padding-left: .6rem; } }
-.ew-subnav a:hover { text-decoration: underline; }
-@media (max-width: 800px) { .ew-admin { grid-template-columns: 1fr; } }
+/* the menu: a bar with the overview and the areas; an area opens a panel
+   with its pages over the page (the page shows only what is chosen) */
+.ew-admin { display: grid; gap: 1.5rem; }
+.ew-adminnav { position: relative; display: flex; align-items: center; gap: 1rem; border-bottom: 2px solid var(--ew-border); padding-bottom: .4rem; }
+.ew-adminnav ul { list-style: none; padding: 0; margin: 0; }
+.ew-adminnav-bar { display: flex; flex-wrap: wrap; gap: .25rem; flex: 1; min-width: 0; }
+.ew-adminnav-top { font: inherit; display: inline-flex; align-items: center; gap: .35rem; min-height: 2.75rem; padding: .4rem .75rem; border: 1px solid transparent; border-radius: 6px;
+  background: none; color: var(--ew-text); text-decoration: none; cursor: pointer; }
+.ew-adminnav-top:hover { background: var(--ew-bg-subtle); text-decoration: underline; }
+.ew-adminnav-top[aria-expanded="true"] { background: var(--ew-bg-subtle); border-color: var(--ew-border); }
+.ew-adminnav-top--current, a.ew-adminnav-top[aria-current="page"] { font-weight: 700; box-shadow: inset 0 -3px 0 var(--ew-primary); }
+.ew-adminnav-caret { width: .45rem; height: .45rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-2px) rotate(45deg); }
+.ew-adminnav-top[aria-expanded="true"] .ew-adminnav-caret { transform: translateY(2px) rotate(-135deg); }
+.ew-adminnav-panel { position: absolute; left: 0; right: 0; top: 100%; z-index: 40; margin-top: 2px; padding: 1rem; border: 1px solid var(--ew-border); border-radius: 0 0 10px 10px;
+  background: var(--ew-bg-raised); box-shadow: 0 10px 28px rgb(0 0 0 / .16); max-height: 70vh; overflow-y: auto; }
+.ew-adminnav-panel[hidden] { display: none; }
+.ew-adminnav-panel ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: .25rem 1rem; }
+/* long words (German: Experteneinstellungen) wrap instead of reaching beyond the column */
+.ew-adminnav-panel a { display: block; overflow-wrap: anywhere; hyphens: auto; padding: .45rem .6rem; border-radius: 4px; text-decoration: none; color: var(--ew-text); }
+.ew-adminnav-panel a:hover { text-decoration: underline; background: var(--ew-bg-subtle); }
+.ew-adminnav-panel a[aria-current="page"] { background: var(--ew-info-bg) url(/brand/mark.webp) .45rem center / 1.1rem no-repeat; padding-left: 1.9rem; color: var(--ew-info-text); font-weight: 700; }
+.ew-adminnav-toggle { display: none; }
+/* narrow windows: one button opens the bar; areas one below the other, their pages right below them */
+@media (max-width: 640px) {
+  .ew-adminnav { flex-wrap: wrap; }
+  .ew-adminnav-toggle { display: inline-flex; flex: 1; justify-content: flex-start; }
+  .ew-adminnav:not(.is-open) .ew-adminnav-bar { display: none; }
+  .ew-adminnav-bar { flex-direction: column; flex-basis: 100%; }
+  .ew-adminnav-top { width: 100%; justify-content: space-between; }
+  .ew-adminnav-panel { position: static; box-shadow: none; border-radius: 6px; margin: .25rem 0 .5rem; max-height: none; }
+}
+@media (forced-colors: active) { .ew-adminnav-panel a[aria-current="page"] { background-image: none; padding-left: .6rem; } .ew-adminnav-top--current, a.ew-adminnav-top[aria-current="page"] { text-decoration: underline; } }
 
 /* ---------------------------------------------------------------- basic fallback layout */
 .ew-basic-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .75rem 1rem; border-bottom: 1px solid var(--ew-border); flex-wrap: wrap; }
@@ -534,7 +556,7 @@ progress { width: 8rem; vertical-align: middle; }
 .ew-powered { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; }
 .ew-powered-mark { width: 20px; height: 20px; flex: none; }
 .ew-powered-seal { width: 56px; height: 56px; flex: none; margin-left: .25rem; }
-.ew-admin-seal { display: block; width: 96px; height: 96px; margin: 0 auto 1rem; }
+.ew-admin-seal { display: block; width: 48px; height: 48px; flex: none; }
 .ew-license-seal { display: block; width: 128px; height: 128px; margin: .5rem 0 1rem; }
 .ew-print-brand { display: none; }
 .ew-pos--header-tools { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
@@ -555,7 +577,7 @@ th .ew-help { font-weight: 400; }
 .ew-admin-panel { min-width: 0; overflow-x: auto; position: relative; }
 
 /* WCAG 2.2 target size: interactive targets are at least 24x24 px */
-.ew-breadcrumbs a, .ew-tags a, .ew-subnav a, .ew-tabs a { display: inline-block; min-height: 24px; min-width: 24px; }
+.ew-breadcrumbs a, .ew-tags a, .ew-tabs a { display: inline-block; min-height: 24px; min-width: 24px; }
 .ew-btn--link { min-height: 24px; }
 
 /* position preview for administrators (?positions=1) */

@@ -3309,5 +3309,7 @@
  "sitetpl.used_categories_other": "Chosen by {count} categories",
  "sitetpl.kind_code": "Code",
  "sitetpl.use_for_site": "Use for the website",
- "sitetpl.used_for_site": "{name} is now the template of the website."
+ "sitetpl.used_for_site": "{name} is now the template of the website.",
+ "admin.current_area": "current area",
+ "admin.menu": "Administration menu"
 }

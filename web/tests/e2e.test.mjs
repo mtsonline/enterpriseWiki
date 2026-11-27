@@ -237,19 +237,72 @@ test('administration pages are accessible', async () => {
   // every page the administration offers (from its navigation, so new pages are checked too)
   await page.goto(`${BASE}/admin`);
   await idle();
-  const sections = await page.locator('.ew-admin nav.ew-subnav a').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
+  const nav = page.locator('.ew-admin nav.ew-adminnav');
+  const sections = await nav.locator('a').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
   assert.ok(sections.length >= 20, `administration pages: ${sections}`);
-  // the menu in areas: each a heading with its list of pages
-  const areas = await page.locator('.ew-admin nav.ew-subnav ul').evaluateAll((uls) => uls.map((ul) => ({
-    area: document.getElementById(ul.getAttribute('aria-labelledby') ?? '')?.textContent ?? '',
+  // the menu: the overview first, then a button per area with a panel of its pages
+  assert.equal(await nav.locator('.ew-adminnav-bar > li:first-child > a').getAttribute('href'), '/admin/overview');
+  const areas = await nav.locator('ul[aria-labelledby]').evaluateAll((uls) => uls.map((ul) => ({
+    area: document.getElementById(ul.getAttribute('aria-labelledby') ?? '')?.firstChild?.textContent ?? '',
     pages: [...ul.querySelectorAll('a')].map((a) => a.getAttribute('href')),
   })));
   assert.ok(areas.every((a) => a.area && a.pages.length), JSON.stringify(areas));
   const areaOf = (href) => areas.find((a) => a.pages.includes(href))?.area ?? '';
-  for (const [href, area] of [['/admin/overview', /^(overview|übersicht)$/i], ['/admin/oidc', /^(sign-in|anmeldung)$/i], ['/admin/users', /^(people and permissions|personen und rechte)$/i],
+  for (const [href, area] of [['/admin/oidc', /^(sign-in|anmeldung)$/i], ['/admin/users', /^(people and permissions|personen und rechte)$/i],
     ['/admin/templates', /^(appearance|darstellung)$/i], ['/admin/workflow', /^(content|inhalte)$/i], ['/admin/webhooks', /^(connections|anbindungen)$/i],
     ['/admin/audit', /^(security and privacy|sicherheit und datenschutz)$/i], ['/admin/settings', /^(operation|betrieb)$/i]]) {
     assert.match(areaOf(href), area, `${href} in ${areaOf(href) || 'no area'}`);
+  }
+  // all closed at first; the page shows only the overview
+  assert.equal(await nav.locator('.ew-adminnav-panel:visible').count(), 0, 'no panel open at first');
+  assert.match((await page.locator('.ew-admin-panel h1').textContent()) ?? '', /^(overview|übersicht)$/i);
+  // an area opens its panel, another one closes it again; Escape closes and returns to the button
+  const people = nav.getByRole('button', { name: /^(people and permissions|personen und rechte)/i });
+  const ops = nav.getByRole('button', { name: /^(operation|betrieb)/i });
+  await people.click();
+  assert.equal(await people.getAttribute('aria-expanded'), 'true');
+  await nav.getByRole('link', { name: /^(users|benutzer)$/i }).waitFor();
+  await a11y('the administration menu with an area open');
+  await ops.click();
+  assert.equal(await people.getAttribute('aria-expanded'), 'false');
+  assert.equal(await nav.locator('.ew-adminnav-panel:visible').count(), 1);
+  await page.keyboard.press('Escape');
+  assert.equal(await ops.getAttribute('aria-expanded'), 'false');
+  assert.ok(await ops.evaluate((b) => b === document.activeElement), 'the focus is back on the button');
+  // the arrow keys move along the bar; Enter opens, a link leads to its page
+  await page.keyboard.press('ArrowLeft');
+  assert.notEqual(await page.evaluate(() => document.activeElement?.textContent), await ops.textContent());
+  await ops.focus();
+  await page.keyboard.press('Enter');
+  await nav.getByRole('link', { name: /^(expert settings|experteneinstellungen)$/i }).click();
+  await page.waitForURL(`${BASE}/admin/limits`);
+  await page.locator('.ew-admin-panel h1', { hasText: /^(expert settings|experteneinstellungen)$/i }).waitFor();
+  assert.equal(await nav.locator('.ew-adminnav-panel:visible').count(), 0, 'closed on the new page');
+  assert.match(await nav.locator('.ew-adminnav-top--current').textContent(), /^(operation|betrieb)/i, 'the area of the page is marked');
+  // a click beside the open menu closes it
+  await ops.click();
+  const vp = page.viewportSize();
+  await page.mouse.click(vp.width - 8, vp.height - 8);
+  assert.equal(await ops.getAttribute('aria-expanded'), 'false');
+  // on a phone the menu is one button that names the page; it opens the areas one below the other
+  const size = page.viewportSize();
+  try {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const toggle = nav.getByRole('button', { name: /^(administration menu|menü der verwaltung)\W+(expert settings|experteneinstellungen)$/i });
+    await toggle.waitFor();
+    assert.ok(await people.isHidden(), 'the areas are closed at first');
+    const before = await page.locator('.ew-admin-panel h1').boundingBox();
+    assert.ok(before.y < 250, `the page starts near the top (${before.y})`);
+    await toggle.click();
+    await people.click();
+    await nav.getByRole('link', { name: /^(users|benutzer)$/i }).waitFor();
+    await a11y('the administration menu on a phone');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+    assert.ok(await people.isHidden());
+  } finally {
+    await page.setViewportSize(size);
   }
   for (const href of sections) {
     await page.goto(BASE + href);
@@ -6824,7 +6877,7 @@ test('marks of the product: favicon, the logo in the header, powered by, no seal
   // administration: the active item carries the "e"; no seal without a license
   await page.goto(BASE + '/admin/license');
   await idle();
-  const cur = page.locator('.ew-subnav a[aria-current="page"]');
+  const cur = page.locator('.ew-adminnav-panel a[aria-current="page"]');
   assert.match(await cur.evaluate((a) => getComputedStyle(a).backgroundImage), /brand\/mark\.webp/);
   assert.equal(await page.locator('.ew-admin-seal, .ew-license-seal').count(), 0);
   await a11y('administration with the marks');
@@ -7860,7 +7913,7 @@ test('administration overview: tiles with links, update commands, narrow and wid
   await idle();
   await page.waitForSelector('.ew-overview');
   assert.match((await page.locator('.ew-admin-panel h1').textContent()) ?? '', /^(overview|übersicht)$/i);
-  assert.equal(await page.locator('.ew-admin nav.ew-subnav a[aria-current="page"]').getAttribute('href'), '/admin/overview');
+  assert.equal(await page.locator('.ew-admin nav.ew-adminnav a[aria-current="page"]').getAttribute('href'), '/admin/overview');
   for (const id of ['health', 'updates', 'security', 'plugins', 'users', 'license']) {
     assert.equal(await page.locator(`.ew-overview section[aria-labelledby="ov-${id}"]`).count(), 1, `tile ${id}`);
   }
