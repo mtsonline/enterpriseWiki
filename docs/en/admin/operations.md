@@ -45,6 +45,10 @@ docker compose up -d                    # creates the database and the administr
 
 With systemd: create the database anew (`dropdb`/`createdb` as in the installation) and run `ewiki setup`.
 
+### The menu of the administration
+
+The administration has a bar at the top. *Overview* comes first and is the start page (`/admin`). Then each area has a button: sign-in, people and permissions, appearance, content, connections, security and privacy, operation, and extensions for plugins without an area. A button opens the pages of its area as a menu over the page; the page itself shows only what you chose. Escape closes the menu, the arrow keys move along the bar. On a phone the bar is one button that names the current page; it opens the areas one below the other.
+
 ### Notice of new versions in the overview
 
 The start page of the administration (*Administration → Overview*, `/admin`) shows whether a new version of the core has been released, with its changes. Security updates are highlighted: their sections `## Security` or `## Sicherheit` from the release notes of all versions since the installed one come first (rule for release notes: [CONTRIBUTING.md](../../../CONTRIBUTING.md)).

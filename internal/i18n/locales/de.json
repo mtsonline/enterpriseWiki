@@ -3309,5 +3309,7 @@
  "sitetpl.used_categories_other": "Gewählt von {count} Kategorien",
  "sitetpl.kind_code": "Code",
  "sitetpl.use_for_site": "Für die Website verwenden",
- "sitetpl.used_for_site": "{name} ist jetzt das Template der Website."
+ "sitetpl.used_for_site": "{name} ist jetzt das Template der Website.",
+ "admin.current_area": "aktueller Bereich",
+ "admin.menu": "Menü der Verwaltung"
 }
