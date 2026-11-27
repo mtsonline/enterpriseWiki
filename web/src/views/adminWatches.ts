@@ -3,13 +3,13 @@
 // assignments cannot be unsubscribed; optional ones can (in the profile).
 import { api } from '../core/api';
 import { personName } from '../components/person';
-import { newest } from '../core/newest';
 import { fmtDate, h, mount, uid } from '../core/dom';
 import { pick, t } from '../core/i18n';
 import { navigate } from '../core/router';
 import { state } from '../core/state';
 import { toast } from '../core/announce';
-import { button, checkbox, confirmDialog, errorText, field, formDialog, pageHeader, select, textArea, textInput } from '../components/ui';
+import { button, checkbox, confirmDialog, errorText, field, formDialog, pageHeader, select, textArea } from '../components/ui';
+import { userPicker } from '../components/subjects';
 import { categorySelect, elementSelect } from '../components/pickers';
 
 export interface Assignment {
@@ -56,25 +56,11 @@ async function assignmentDialog(a: Assignment | null, groups: Named[], roles: Na
   const sType = select(['group', 'role', 'user'].map((x) => ({ value: x, label: t(`acl.${x}`) })), a?.subject_type ?? 'group');
   const groupSel = select(groups.map((g) => ({ value: String(g.id), label: g.name })), a?.subject_type === 'group' ? String(a.subject_id) : undefined);
   const roleSel = select(roles.map((r) => ({ value: String(r.id), label: r.name })), a?.subject_type === 'role' ? String(a.subject_id) : undefined);
-  const userInput = textInput({ placeholder: t('acl.user_search'), value: a?.subject_type === 'user' ? a.subject_name : '' });
-  const userList = h('datalist', { id: uid('wausers') });
-  userInput.setAttribute('list', userList.id);
-  const userMap = new Map<string, number>();
-  if (a?.subject_type === 'user') userMap.set(a.subject_name, a.subject_id);
-  const freshUsers = newest();
-  userInput.addEventListener('input', async () => {
-    const current = freshUsers();
-    if (userInput.value.length < 2) return;
-    try {
-      const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(userInput.value)}`);
-      if (!current()) return;
-      userList.replaceChildren(...res.map((u) => { userMap.set(u.handle, u.id); return h('option', { value: u.handle }, u.display_name); }));
-    } catch { /* lookup is optional */ }
-  });
+  const user = userPicker({ label: t('acl.user'), help: t('acl.user_help'), initial: a?.subject_type === 'user' ? [{ id: a.subject_id, name: a.subject_name }] : [] });
   const subjectWrap = h('div');
   const showSubject = () => subjectWrap.replaceChildren(
     sType.value === 'group' ? field(t('acl.group'), groupSel) : sType.value === 'role' ? field(t('acl.role'), roleSel)
-      : h('div', null, field(t('acl.user'), userInput, { help: t('acl.user_help') }), userList));
+      : user.el);
   sType.addEventListener('change', showSubject);
   showSubject();
   // target
@@ -108,7 +94,7 @@ async function assignmentDialog(a: Assignment | null, groups: Named[], roles: Na
     let subjectId = 0;
     if (sType.value === 'group') subjectId = Number(groupSel.value);
     else if (sType.value === 'role') subjectId = Number(roleSel.value);
-    else subjectId = userMap.get(userInput.value) ?? 0;
+    else subjectId = user.value()[0] ?? 0;
     if (!subjectId) throw new Error(t(sType.value === 'user' ? 'acl.user_not_found' : 'wassign.choose_subject'));
     const targetId = tType.value === 'category' ? cat.value() : el.value();
     if (!targetId) throw new Error(t('wassign.choose_target'));

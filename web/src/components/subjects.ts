@@ -1,10 +1,12 @@
-// Pickers for people, groups and roles: chips with a search field (users),
+// Pickers for people, groups and roles (on top of choiceList: people are
+// searched, groups are checkboxes or a list with a filter),
 // and an editor for a list of subjects (who may see or change something).
 import { api } from '../core/api';
-import { h, uid } from '../core/dom';
+import { h } from '../core/dom';
 import { t } from '../core/i18n';
 import type { Group, Role } from '../core/types';
-import { button, field, select, textInput } from './ui';
+import { type Choice, choiceList } from './choicelist';
+import { button, field, select } from './ui';
 
 export interface Subject { type: 'user' | 'group' | 'role' | 'authenticated' | 'guest'; id?: number }
 
@@ -16,77 +18,27 @@ function groupsAndRoles() {
 
 interface Chip { id: number; name: string; handle?: string }
 
-/** Chips of chosen items with remove buttons; returns the list element and a redraw. */
-function chips(label: string, items: Chip[], onChange: () => void): { el: HTMLElement; draw: () => void } {
-  const el = h('ul', { class: 'ew-chips', 'aria-label': label });
-  const draw = () => el.replaceChildren(...items.map((c, i) => h('li', { class: 'ew-chip' }, h('span', null, c.name),
-    button('×', () => { items.splice(i, 1); draw(); onChange(); }, { variant: 'subtle', ariaLabel: t('common.remove_item', { name: c.name }) }))));
-  draw();
-  return { el, draw };
+/** Looks people up by name or user name (at least SEARCH_MIN letters; the server limits the answer). */
+export async function searchUsers(q: string): Promise<Choice[]> {
+  const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(q)}`);
+  return res.map((u) => ({ id: u.id, name: u.display_name || u.handle, detail: u.handle, handle: u.handle }));
 }
 
 /** Picks one or more users by searching (name or user name). */
 export function userPicker(opts: { label: string; multiple?: boolean; initial?: Chip[]; help?: string; required?: boolean }): { el: HTMLElement; value: () => number[]; names: () => string[]; handles: () => string[]; focus: () => void } {
-  const items: Chip[] = [...(opts.initial ?? [])];
-  const input = textInput({ placeholder: t('acl.user_search'), autocomplete: 'off' });
-  const dl = h('datalist', { id: uid('users') });
-  input.setAttribute('list', dl.id);
-  const found = new Map<string, Chip>();
-  const status = h('span', { class: 'sr-only', 'aria-live': 'polite' });
-  let list: ReturnType<typeof chips>;
-  const sync = () => { input.hidden = !opts.multiple && items.length > 0; };
-  list = chips(opts.label, items, sync);
-  const take = () => {
-    const c = found.get(input.value);
-    if (!c) return;
-    if (!items.some((x) => x.id === c.id)) items.push(c);
-    input.value = '';
-    list.draw();
-    sync();
-    status.textContent = t('common.added_item', { name: c.name });
-  };
-  let timer = 0;
-  input.addEventListener('input', () => {
-    if (found.has(input.value)) { take(); return; }
-    window.clearTimeout(timer);
-    if (input.value.trim().length < 2) return;
-    timer = window.setTimeout(async () => {
-      try {
-        const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(input.value.trim())}`);
-        dl.replaceChildren(...res.map((u) => {
-          const key = `${u.display_name} (${u.handle})`;
-          found.set(key, { id: u.id, name: u.display_name || u.handle, handle: u.handle });
-          return h('option', { value: key });
-        }));
-      } catch { /* no search for guests */ }
-    }, 200);
-  });
-  input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); take(); } });
-  sync();
-  const box = h('div', { class: 'ew-picker' }, list.el, input, dl, status);
-  const el = field(opts.label, box, { help: opts.help, required: opts.required });
-  // the label, the description and "required" belong to the search field, not to the box around it
-  input.id = `${box.id}-q`;
-  el.querySelector('label')?.setAttribute('for', input.id);
-  input.setAttribute('aria-describedby', box.getAttribute('aria-describedby') ?? '');
-  box.removeAttribute('aria-describedby');
-  box.removeAttribute('aria-required');
-  if (opts.required) input.setAttribute('aria-required', 'true');
-  return { el, value: () => items.map((x) => x.id), names: () => items.map((x) => x.name), handles: () => items.flatMap((x) => (x.handle ? [x.handle] : [])), focus: () => input.focus() };
+  const list = choiceList({ label: opts.label, search: searchUsers, multiple: !!opts.multiple, selected: opts.initial ?? [], help: opts.help, required: opts.required });
+  return { el: list.el, value: list.value, names: () => list.chosen().map((x) => x.name), handles: () => list.chosen().flatMap((x) => (x.handle ? [x.handle] : [])), focus: list.focus };
 }
 
-/** Picks one or more groups. */
+/** Picks one or more groups (several: checkboxes or a list with a filter, see choiceList). */
 export async function groupPicker(opts: { label: string; multiple?: boolean; initial?: number[]; help?: string }): Promise<{ el: HTMLElement; value: () => number[] }> {
   const { groups } = await groupsAndRoles();
   if (!opts.multiple) {
     const s = select([{ value: '', label: '—' }, ...groups.map((g) => ({ value: String(g.id), label: g.name }))], opts.initial?.[0] ? String(opts.initial[0]) : '');
     return { el: field(opts.label, s, { help: opts.help }), value: () => (s.value ? [Number(s.value)] : []) };
   }
-  const s = select(groups.map((g) => ({ value: String(g.id), label: g.name })));
-  s.multiple = true;
-  s.size = Math.min(6, Math.max(3, groups.length));
-  for (const o of Array.from(s.options)) o.selected = !!opts.initial?.includes(Number(o.value));
-  return { el: field(opts.label, s, { help: opts.help }), value: () => Array.from(s.selectedOptions).map((o) => Number(o.value)) };
+  const list = choiceList({ label: opts.label, items: groups.map((g) => ({ id: g.id, name: g.name })), selected: opts.initial, help: opts.help });
+  return { el: list.el, value: list.value };
 }
 
 /** Edits a list of subjects (users, groups, roles, all signed-in people, everybody). */

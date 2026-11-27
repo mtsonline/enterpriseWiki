@@ -2050,4 +2050,11 @@ var traps = []trap{
 		New:  "clean(d.StartLabel, 100000)",
 		Pkg:  "./internal/server/", Tests: "^TestWorkflowStartLabel$",
 	},
+	{
+		ID: "ui.choice-checkboxes-unchecked", About: "config.yaml accepts any length for lists as checkboxes (thousands of checkboxes)",
+		File: "internal/config/config.go",
+		Old:  "if n := c.UI.ChoiceCheckboxes; n < 0 || n > ChoiceCheckboxesMax {",
+		New:  "if n := c.UI.ChoiceCheckboxes; false && (n < 0 || n > ChoiceCheckboxesMax) {",
+		Pkg:  "./internal/server/", Tests: "^TestChoiceCheckboxes$",
+	},
 }

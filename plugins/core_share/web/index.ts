@@ -1,36 +1,21 @@
 // Share pages and categories with users, groups and roles.
-import { api, button, checkbox, errorText, field, h, hasPerm, newest, openDialog, registerPageAction, state, t, textArea, textInput, toast, uid, type Group, type Role } from '@ewiki/coreplugin';
+import { api, button, choiceList, errorText, field, h, hasPerm, openDialog, registerPageAction, searchUsers, state, t, textArea, toast, type Group, type Role } from '@ewiki/coreplugin';
 
 interface Result { recipients: number; without_access: string[]; sent: boolean }
 
 async function shareDialog(target: { type: 'element' | 'category'; id: number; title: string }): Promise<void> {
   const [groups, roles] = await Promise.all([api.get<Group[]>('groups').catch(() => []), api.get<Role[]>('roles').catch(() => [])]);
-  const chosen = new Map<number, string>();
-  const chips = h('ul', { class: 'ew-chips', 'aria-live': 'polite' });
-  const drawChips = () => chips.replaceChildren(...[...chosen.entries()].map(([id, name]) => h('li', null, name, ' ',
-    button('×', () => { chosen.delete(id); drawChips(); }, { variant: 'subtle', ariaLabel: t('core.share.remove', { name }) }))));
-  const user = textInput({ placeholder: t('core.share.users_help') });
-  const list = h('datalist', { id: uid('share-users') });
-  user.setAttribute('list', list.id);
-  const found = new Map<string, { id: number; name: string }>();
-  const freshUsers = newest();
-  user.addEventListener('input', async () => {
-    const current = freshUsers();
-    const v = user.value.trim();
-    if (found.has(v)) { const u = found.get(v)!; chosen.set(u.id, u.name); user.value = ''; drawChips(); return; }
-    if (v.length < 2) return;
-    const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(v)}`).catch(() => []);
-    if (!current()) return;
-    list.replaceChildren(...res.map((u) => { found.set(u.handle, { id: u.id, name: u.display_name || u.handle }); return h('option', { value: u.handle }, u.display_name); }));
-  });
-  const groupBoxes = groups.map((g) => ({ g, cb: checkbox(g.name, false) }));
-  const roleBoxes = roles.filter((r) => !r.is_admin).map((r) => ({ r, cb: checkbox(r.name, false) }));
+  // people are searched (2 letters); groups and roles: checkboxes or a list with a filter
+  const users = choiceList({ label: t('core.share.users'), search: searchUsers, help: t('core.share.users_help') });
+  const groupList = groups.length ? choiceList({ label: t('core.share.groups'), items: groups.map((g) => ({ id: g.id, name: g.name })) }) : null;
+  const shareRoles = roles.filter((r) => !r.is_admin);
+  const roleList = shareRoles.length ? choiceList({ label: t('core.share.roles'), items: shareRoles.map((r) => ({ id: r.id, name: r.name })) }) : null;
   const message = textArea({ rows: 3 });
   message.maxLength = 2000;
   const status = h('div', { role: 'status', 'aria-live': 'polite' });
   const alert = h('p', { class: 'ew-field-error', role: 'alert' });
-  const body = () => ({ target_type: target.type, target_id: target.id, users: [...chosen.keys()],
-    groups: groupBoxes.filter((x) => x.cb.input.checked).map((x) => x.g.id), roles: roleBoxes.filter((x) => x.cb.input.checked).map((x) => x.r.id), message: message.value });
+  const body = () => ({ target_type: target.type, target_id: target.id, users: users.value(),
+    groups: groupList?.value() ?? [], roles: roleList?.value() ?? [], message: message.value });
   const show = (r: Result) => status.replaceChildren(h('p', null, t('core.share.recipients', { n: r.recipients })),
     r.without_access.length ? h('p', { class: 'ew-notice ew-notice--warning' }, t('core.share.without_access', { names: r.without_access.join(', ') })) : '');
   const valid = () => {
@@ -41,9 +26,7 @@ async function shareDialog(target: { type: 'element' | 'category'; id: number; t
   };
   const dlg = openDialog(t('core.share.title', { title: target.title }), h('div', { class: 'ew-form' },
     h('p', null, t('core.share.help')),
-    field(t('core.share.users'), user, { help: t('core.share.users_help') }), list, chips,
-    groups.length ? h('fieldset', null, h('legend', null, t('core.share.groups')), h('div', { class: 'ew-check-grid' }, ...groupBoxes.map((x) => x.cb.el))) : null,
-    roleBoxes.length ? h('fieldset', null, h('legend', null, t('core.share.roles')), h('div', { class: 'ew-check-grid' }, ...roleBoxes.map((x) => x.cb.el))) : null,
+    users.el, groupList?.el ?? null, roleList?.el ?? null,
     field(t('core.share.message'), message), alert, status,
     h('div', { class: 'ew-dialog-actions' },
       button(t('core.share.check'), async () => {

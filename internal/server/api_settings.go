@@ -77,6 +77,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 			if err := checkReadability(in.UI.Readability); err != nil {
 				return err
 			}
+			if n := in.UI.ChoiceCheckboxes; n < 0 || n > config.ChoiceCheckboxesMax {
+				return apperr.BadRequest("ui.choice_checkboxes must be 0 (default %d) to %d", config.ChoiceCheckboxesDefault, config.ChoiceCheckboxesMax)
+			}
 			c.UI = *in.UI
 		}
 		if in.I18n != nil {

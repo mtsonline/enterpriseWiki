@@ -423,7 +423,17 @@ type UI struct {
 	// Readability is the hint on long sentences and long words while
 	// writing in the editors (off by default).
 	Readability Readability `yaml:"readability,omitempty" json:"readability"`
+	// ChoiceCheckboxes: lists of up to this many entries (groups, roles …)
+	// are offered as checkboxes, longer ones as a list with a filter and
+	// several choices (0 = ChoiceCheckboxesDefault, at most ChoiceCheckboxesMax).
+	ChoiceCheckboxes int `yaml:"choice_checkboxes,omitempty" json:"choice_checkboxes"`
 }
+
+// Lists offered as checkboxes (UI.ChoiceCheckboxes).
+const (
+	ChoiceCheckboxesDefault = 5
+	ChoiceCheckboxesMax     = 50
+)
 
 // Readability configures the hint on long sentences and long words while
 // writing (internal/readability). It never blocks saving and never changes
@@ -1121,6 +1131,9 @@ func Validate(c *Config) error {
 	}
 	if err := ValidateMaintenance(c.Maintenance); err != nil {
 		return err
+	}
+	if n := c.UI.ChoiceCheckboxes; n < 0 || n > ChoiceCheckboxesMax {
+		return fmt.Errorf("ui.choice_checkboxes must be 0 (default %d) to %d, got %d", ChoiceCheckboxesDefault, ChoiceCheckboxesMax, n)
 	}
 	if err := ValidateReadability(c.UI.Readability); err != nil {
 		return err
