@@ -523,6 +523,7 @@ Aufgerufen von Verzeichnissen wie Entra ID oder Okta mit dem Token eines SCIM-Zu
 | `GET` | `/api/v1/admin/secrets` |
 | `POST` | `/api/v1/admin/secrets/rewrap` |
 | `PUT` | `/api/v1/admin/limits` |
+| `GET` | `/api/v1/admin/templates/usage` |
 | `GET` | `/api/v1/admin/mfa` |
 | `PUT` | `/api/v1/admin/mfa` |
 | `POST` | `/api/v1/admin/auth/providers/{id}/preview` |

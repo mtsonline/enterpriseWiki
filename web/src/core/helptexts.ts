@@ -43,7 +43,7 @@ export const HIDE_HELP_KEYS = [
   'settings.readable_urls_help', 'settings.template_help', 'settings.viewer_help', 'signature.keys_help', 'signature.smime.label_help',
   'signature.smime.on_expired_help', 'signature.smime.set_mail_signing_help', 'signature.smime.set_personal_help',
   'signature.smime.set_seal_help', 'sites.accounts_help', 'space.from_template_help', 'space.is_template_help', 'space.mine_help',
-  'space.with_pages_help', 'template.admin_help', 'template.d_contrast_help', 'template.d_desktop_drawer_help', 'template.d_preview_help',
+  'space.with_pages_help', 'template.d_contrast_help', 'template.d_desktop_drawer_help', 'template.d_preview_help',
   'template.d_structure_help', 'template.help', 'template.rights_help', 'template.versions_help', 'template_try.try_help',
   'translation.category_help', 'translation.original_lang_help', 'waf.mode_help', 'waf.paranoia_help', 'wassign.note_help',
   'watch.frequency_help', 'watch.help', 'webauthn.as_passkey_help', 'webauthn.name_help', 'workflow.approval_help', 'workflow.calendar_help',

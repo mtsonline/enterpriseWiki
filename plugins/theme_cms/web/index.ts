@@ -6,7 +6,7 @@
 // Logo, colours and the start page hero are set under Administration →
 // Website template (plugin settings, public via GET /api/v1/x/theme.cms/config).
 import {
-  api, brandHeader, h, iconURL, mount, pick, poweredBy, readableOn, pluginSettingsForm, registerAdminPage, registerSlot, registerTemplate, state, t, type Category, type SettingField,
+  api, brandHeader, h, iconURL, MAIN, mediaMatches, mount, pick, poweredBy, readableOn, pluginSettingsForm, registerAdminPage, registerSlot, registerTemplate, state, t, type Category, type SchemaArea, type SettingField, type TemplateSchema,
 } from '@ewiki/coreplugin';
 import './style.css';
 import { CMS_DARK_BGS } from './colors';
@@ -71,6 +71,32 @@ function settingsFields(): SettingField[] {
   ];
 }
 
+/** Compact: the navigation and the tools behind their buttons (style.css). */
+const COMPACT = '(max-width: 1100px), (max-height: 520px)';
+
+/** How many footer columns fit: 14rem each with 2rem between, in the width
+ * of the page (78rem less 1.5rem padding on each side), as the CSS grid does. */
+function footerColumns(width: number): number {
+  const inner = Math.min(width, 78 * 16) - 2 * 24;
+  return Math.max(1, Math.min(4, Math.floor((inner + 32) / (14 * 16 + 32))));
+}
+
+/** Where the positions are (the schematic in Administration → Templates). */
+export const schema: TemplateSchema = (size) => {
+  const compact = mediaMatches(COMPACT, size);
+  const tools: SchemaArea = { kind: 'area', positions: ['header-tools'], behind: compact ? t('nav.tools_toggle') : undefined };
+  const nav: SchemaArea = { kind: 'area', positions: ['cms-nav', 'header-nav'], grow: 3, behind: compact ? t('nav.menu') : undefined };
+  return [
+    { role: 'banner', areas: compact ? [{ kind: 'area', positions: ['top-bar'] }] : [{ kind: 'area', positions: ['top-bar'], grow: 3 }, tools] },
+    { role: 'banner', areas: compact ? [{ kind: 'brand', positions: [] }, tools, nav] : [{ kind: 'brand', positions: [] }, nav] },
+    { role: 'none', areas: [{ kind: 'area', positions: ['hero'] }] },
+    { role: 'none', areas: [{ kind: 'content', positions: ['content-top', MAIN, 'content-bottom'] }] },
+    { role: 'none', areas: [{ kind: 'area', positions: ['sidebar'] }] },
+    { role: 'contentinfo', columns: footerColumns(size.width), areas: ['footer-1', 'footer-2', 'footer-3', 'footer-4'].map((p) => ({ kind: 'area' as const, positions: [p] })) },
+    { role: 'contentinfo', areas: [{ kind: 'area', positions: ['footer'] }] },
+  ];
+};
+
 export function register(): void {
   registerSlot({ id: 'theme.cms.nav', position: 'cms-nav', order: 0, label: () => t('theme.cms.block_nav'), render: mainNav });
   registerSlot({ id: 'theme.cms.hero', position: 'hero', order: 0, label: () => t('theme.cms.block_hero'), render: hero });
@@ -90,6 +116,7 @@ export function register(): void {
     // cms-nav: automatic main navigation (top categories), header-nav: menus next to it
     // hero: full width below the header; content-top / content-bottom: around the page
     // sidebar: area below the content; footer-1 … footer-4: footer columns; footer: socket bar
+    schema,
     positions: ['top-bar', 'header-tools', 'cms-nav', 'header-nav', 'hero', 'content-top', 'content-bottom', 'sidebar', 'footer-1', 'footer-2', 'footer-3', 'footer-4', 'footer'],
     layout: (ctx) => {
       const main = h('main', { id: 'main', class: 'ewcms-main', tabindex: '-1' });

@@ -122,6 +122,24 @@ actions:
     examples:
       - name: default
         as: member
+  - id: core.templates.usage
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/templates/usage
+    success_status: 200
+    summary:
+      text:
+        en: Show which template the site uses and how many categories choose each template
+        de: Anzeigen, welches Template die Website nutzt und wie viele Kategorien welches Template wählen
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [templates, usage]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        as: member
+      - name: refused
+        as: outsider
+        status: 403
   - id: core.limits.update
     category: CATEGORY_ACTION
     method: PUT

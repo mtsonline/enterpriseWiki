@@ -28,6 +28,7 @@ import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
 import { langName, setContext } from '../components/widgets';
 import { previewImageInput } from '../components/previewimage';
+import { mayOpenTemplates, templatesAdmin } from './adminTemplates';
 import { ADMIN_AREAS, listAdminPages, listTemplates, listUserAdminFields, templateLabel, type AdminArea } from '../coreplugin';
 import { errorPage } from './content';
 import { watchesAdmin } from './adminWatches';
@@ -38,7 +39,7 @@ import { askExternal, confirmInstall, isExternalRefusal, originBadge, originDeta
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; alias: string | null; alias_source: string; mfa: boolean }
 
-const CORE_SECTIONS = ['overview', 'users', 'mfa', 'scim', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'limits', 'data', 'consent', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites', 'maintenance', 'demo'];
+const CORE_SECTIONS = ['overview', 'users', 'mfa', 'scim', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'limits', 'data', 'consent', 'mail', 'webhooks', 'cache', 'templates', 'languages', 'audit', 'watches', 'license', 'sites', 'maintenance', 'demo'];
 
 /** global permission of each administration page ('' = category managers too) */
 const SECTION_PERMS: Record<string, string> = {
@@ -53,7 +54,7 @@ const CORE_AREAS: Record<string, AdminArea> = {
   overview: 'overview',
   mfa: 'auth', scim: 'auth',
   users: 'people', groups: 'people', roles: 'people', permissions: 'people', watches: 'people',
-  languages: 'appearance',
+  templates: 'appearance', languages: 'appearance',
   elements: 'content', data: 'content', demo: 'content',
   webhooks: 'integrations', mail: 'integrations',
   audit: 'security', consent: 'security',
@@ -66,6 +67,7 @@ export function adminSections(): { id: string; label: string; area: AdminArea }[
   const core = CORE_SECTIONS.filter((s) => {
     const k = SECTION_PERMS[s];
     if (s === 'languages') return canTranslateAny();
+    if (s === 'templates') return mayOpenTemplates();
     if (s === 'sites') return isInstanceAdmin();
     if (s === 'overview' || s === 'demo' || s === 'maintenance') return isAdmin();
     // license and plugin installation concern the whole instance
@@ -134,6 +136,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
       case 'elements': await elementsAdmin(panel); break;
       case 'webhooks': await webhooksAdmin(panel); break;
       case 'cache': await cacheAdmin(panel); break;
+      case 'templates': await templatesAdmin(panel, query); break;
       case 'languages': await languagesAdmin(panel, query); break;
       case 'audit': await auditAdmin(panel, query); break;
       case 'watches': await watchesAdmin(panel); break;

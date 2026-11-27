@@ -10,16 +10,41 @@
 //   content-top      above the content of every page
 //   content-bottom   below the content of every page
 //   footer           footer
-import { brandHeader, h, iconURL, poweredBy, registerTemplate, t } from '@ewiki/coreplugin';
+import { brandHeader, h, iconURL, MAIN, mediaMatches, poweredBy, registerTemplate, t, type SchemaArea, type SchemaRow, type TemplateSchema } from '@ewiki/coreplugin';
 import './style.css';
 
 export const POSITIONS = ['top-bar', 'header-nav', 'header-tools', 'sidebar', 'sidebar-bottom', 'content-top', 'content-bottom', 'footer'];
+
+/** Compact: phones in both orientations and tablets. */
+export const COMPACT = '(max-width: 1100px), (max-height: 520px)';
+
+/** Where the positions are (the schematic in Administration → Templates):
+ * compact, the main navigation and the sidebar are in the menu and the
+ * tools behind their button; wide, the sidebar is a column beside the page. */
+export const schema: TemplateSchema = (size) => {
+  const compact = mediaMatches(COMPACT, size);
+  const top: SchemaRow = { role: 'none', areas: [{ kind: 'area', positions: ['top-bar'] }] };
+  const foot: SchemaRow = { role: 'contentinfo', areas: [{ kind: 'area', positions: ['footer'] }] };
+  const page: SchemaArea = { kind: 'content', positions: ['content-top', MAIN, 'content-bottom'], grow: 3 };
+  if (compact) {
+    return [top,
+      { role: 'banner', areas: [
+        { kind: 'area', positions: ['header-nav', 'sidebar', 'sidebar-bottom'], behind: t('nav.menu') },
+        { kind: 'brand', positions: [] },
+        { kind: 'area', positions: ['header-tools'], behind: t('nav.tools_toggle') }] },
+      { role: 'none', areas: [page] }, foot];
+  }
+  return [top,
+    { role: 'banner', areas: [{ kind: 'brand', positions: [] }, { kind: 'area', positions: ['header-nav'], grow: 3 }, { kind: 'area', positions: ['header-tools'], grow: 2 }] },
+    { role: 'none', areas: [{ kind: 'area', positions: ['sidebar', 'sidebar-bottom'] }, page] }, foot];
+};
 
 export function register(): void {
   registerTemplate({
     id: 'theme.wiki',
     className: 'ewc',
     positions: POSITIONS,
+    schema,
     layout: (ctx) => {
       const main = h('main', { id: 'main', class: 'ewc-main', tabindex: '-1' });
       const sidebar = h('aside', { id: 'ewc-sidebar', class: 'ewc-sidebar', 'aria-label': t('nav.sidebar') }, ctx.position('sidebar'), ctx.position('sidebar-bottom'));
@@ -37,7 +62,6 @@ export function register(): void {
       // menu opens below the bar across the whole width in portrait and as a
       // drawer of the full height in landscape (CSS). Wide screens: the
       // sidebar can be hidden for more reading width (remembered).
-      const COMPACT = '(max-width: 1100px), (max-height: 520px)';
       const compact = () => window.matchMedia?.(COMPACT).matches ?? false;
       let hidden = false;
       try { hidden = localStorage.getItem('ewc-sidebar') === 'hidden'; } catch { /* storage not available */ }

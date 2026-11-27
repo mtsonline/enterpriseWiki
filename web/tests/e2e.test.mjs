@@ -2584,6 +2584,69 @@ test('templates on phones and tablets: content first, menu and tools closed, not
   }
 });
 
+test('templates: the schematic of each device shows the positions where the page has them', async () => {
+  const set = (tpl) => call('GET', '/api/v1/admin/settings').then((cur) => call('PUT', '/api/v1/admin/settings', { ui: { ...cur.config.ui, template: tpl } }));
+  // the sizes of the devices of the schematic (core/templateSchema.ts)
+  const devices = { desktop: [1280, 800], tablet: [820, 1180], phone: [390, 844], 'phone-landscape': [844, 390] };
+  const ids = ['theme.wiki', 'theme.wiki.dark', 'theme.cms', 'theme.cms.modern', 'core.template/example-wiki', 'core.template/example-cms'];
+  const before = { template: (await call('GET', '/api/v1/admin/settings')).config.ui.template, viewport: page.viewportSize() };
+  try {
+    // what the schematics say, device by device
+    await page.goto(`${BASE}/admin/templates`);
+    await idle();
+    const schema = {};
+    for (const d of Object.keys(devices)) {
+      const b = page.locator(`.ew-sch-devices button[data-device="${d}"]`);
+      await b.click();
+      assert.equal(await b.getAttribute('aria-pressed'), 'true');
+      await page.locator(`.ew-sch[data-device="${d}"]`).first().waitFor();
+      schema[d] = await page.evaluate((ids) => Object.fromEntries(ids.map((id) => [id,
+        [...document.querySelectorAll(`.ew-sch[data-template="${CSS.escape(id)}"] [data-schema-position]`)].map((x) => [x.dataset.schemaPosition, x.dataset.state])])), ids);
+      if (d === 'phone') await a11y('the overview of templates on a phone');
+    }
+    // the page in the same size: closed behind a button, hidden, or shown
+    const real = (names) => page.evaluate((names) => {
+      const main = document.getElementById('main');
+      // closed: inside an element that is not shown and that a button opens
+      // (the button itself is not shown while there is nothing behind it)
+      const closed = (el) => {
+        for (let x = el; x; x = x.parentElement) {
+          if (!x.id || x.checkVisibility()) continue;
+          if ([...document.querySelectorAll(`button[aria-controls="${CSS.escape(x.id)}"]`)].some((b) => b.getAttribute('aria-expanded') === 'false')) return true;
+        }
+        return false;
+      };
+      return [...document.querySelectorAll('.ew-pos[data-position]')].filter((el) => !main?.contains(el) && names.includes(el.dataset.position))
+        .map((el) => [el.dataset.position, closed(el) ? 'behind' : el.parentElement.checkVisibility() ? 'shown' : 'hidden']);
+    }, names);
+    for (const id of ids) {
+      await set(id);
+      for (const [d, [w, hgt]] of Object.entries(devices)) {
+        const want = schema[d][id];
+        assert.ok(want.length > 0, `${id} has a schematic`);
+        await page.setViewportSize({ width: w, height: hgt });
+        // nothing remembered from earlier tests (a hidden side column)
+        await page.evaluate(() => { for (const k of Object.keys(localStorage)) if (k === 'ewc-sidebar' || k.startsWith('ewd-collapsed:')) localStorage.removeItem(k); });
+        await page.goto(BASE + '/');
+        await idle();
+        const got = new Map(await real(want.map(([p]) => p)));
+        const where = `${id} on ${d}`;
+        for (const [p, st] of want) {
+          assert.ok(got.has(p), `${where}: the page has ${p}`);
+          if (st === 'shown') assert.notEqual(got.get(p), 'behind', `${where}: ${p} is not behind a button`);
+          else assert.equal(got.get(p), st, `${where}: ${p} is ${st}`);
+        }
+        // what is shown comes in the same order as on the page
+        const shown = want.filter(([, st]) => st === 'shown').map(([p]) => p);
+        assert.deepEqual([...got.keys()].filter((p) => shown.includes(p)), shown, `${where}: order`);
+      }
+    }
+  } finally {
+    await page.setViewportSize(before.viewport);
+    await set(before.template);
+  }
+});
+
 /** Calls the API with the browser session (the page must be on the wiki). */
 const call = (method, path, body) => page.evaluate(async ([method, path, body]) => {
   const res = await __e2eFetch(path, { method, headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'ewiki' }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -4834,8 +4897,10 @@ test('template designer, part 3c: own fonts, rights per template, trying a templ
   const tpl = await call('POST', '/api/v1/x/core.template/templates', { names: { en: `Fonts ${run}` }, copy_of: 'core.template/example-wiki' });
   let fontId = 0;
   try {
-    await page.goto(`${BASE}/admin/templates`);
+    // the fonts have their own tab
+    await page.goto(`${BASE}/admin/templates?tab=fonts`);
     await idle();
+    assert.equal(await page.getByRole('tab', { name: /^(own fonts|eigene schriften)$/i }).getAttribute('aria-selected'), 'true');
     // upload a font: license and confirmation needed
     const fonts = page.getByRole('region', { name: /^(own fonts|eigene schriften)$/i });
     // two files of a family in the usual formats; weight and style come from their names
@@ -4866,6 +4931,7 @@ test('template designer, part 3c: own fonts, rights per template, trying a templ
     assert.deepEqual(file, [200, 'font/ttf', 84492]);
     await a11y('own fonts');
     // the designer offers it; the wiki loads it from itself
+    await page.getByRole('tab', { name: /^(overview|übersicht)$/i }).click();
     await page.getByRole('button', { name: new RegExp(`^(edit|bearbeiten): Fonts ${run}$`, 'i') }).click();
     await page.locator('.ewd-structure').waitFor();
     await page.getByLabel(/^(font|schrift)$/i).selectOption({ label: `Inter ${run}` });
@@ -4874,9 +4940,10 @@ test('template designer, part 3c: own fonts, rights per template, trying a templ
     assert.equal((await saved).status(), 200);
     assert.equal((await call('GET', `/api/v1/x/core.template/templates/${tpl.key}`)).template.design.tokens.font, `own-${fontId}`);
     // a used font cannot be removed: the list says where it is used instead
-    await page.goto(`${BASE}/admin/templates`);
+    await page.goto(`${BASE}/admin/templates?tab=fonts`);
     await idle();
     await page.getByRole('region', { name: /^(own fonts|eigene schriften)$/i }).getByText(new RegExp(`(used by|verwendet von) .*Fonts ${run}`)).waitFor();
+    await page.getByRole('tab', { name: /^(overview|übersicht)$/i }).click();
     // rights: all signed-in people may change it (the administrator manages it anyway)
     await page.getByRole('button', { name: new RegExp(`^(rights|rechte): Fonts ${run}$`, 'i') }).click();
     const dlg = page.getByRole('dialog');
@@ -4920,7 +4987,7 @@ test('template designer, part 3c: own fonts, rights per template, trying a templ
     await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
     await call('DELETE', `/api/v1/x/core.template/templates/${tpl.key}`);
     await call('DELETE', `/api/v1/x/core.template/templates/${tpl.key}?purge=1`);
-    await page.goto(`${BASE}/admin/templates`);
+    await page.goto(`${BASE}/admin/templates?tab=fonts`);
     await idle();
     await page.getByRole('button', { name: new RegExp(`^(delete|löschen): Inter ${run}$`, 'i') }).click();
     await page.getByRole('dialog').getByRole('button', { name: /^(delete|löschen)$/i }).click();
@@ -4978,8 +5045,9 @@ test('templates of data: copy, check while typing, save, versions, use for the s
     // use it for the site (the page loads again); version 1 in the text is not saved, so leaving asks first
     await page.getByRole('button', { name: /^(← all templates|← alle templates)$/i }).click();
     await page.locator('dialog[open]').getByRole('button', { name: /^(leave without saving|ohne speichern verlassen)$/i }).click();
+    await page.getByRole('tab', { name: /^(overview|übersicht)$/i }).click();
     const reloaded = page.waitForEvent('load');
-    await page.getByRole('button', { name: /^(use for the site|für die website verwenden): (copy of wiki \(data\)|kopie von wiki \(daten\))$/i }).click();
+    await page.getByRole('button', { name: /^(use for the website|für die website verwenden): (copy of wiki \(data\)|kopie von wiki \(daten\))$/i }).click();
     await reloaded;
     await page.goto(`${BASE}/`);
     await idle();
@@ -5089,21 +5157,35 @@ test('templates of data: copy, check while typing, save, versions, use for the s
     await page.getByRole('button', { name: /^(export|exportieren): (website \(data\)|website \(daten\))$/i }).click();
     const exported = readFileSync(await (await download).path(), 'utf8');
     assert.match(exported, /"format": "ewiki-template"/);
+    // import in the tab of the designer; the trash has its own tab
+    const tab = (name) => page.getByRole('tab', { name });
+    const overviewTab = tab(/^(overview|übersicht)$/i);
+    const trashTab = tab(/^(trash|papierkorb)$/i);
+    await tab(/^designer$/i).click();
     const imported = page.waitForResponse((r) => r.url().endsWith('/api/v1/x/core.template/templates/import') && r.request().method() === 'POST');
     await page.getByLabel(/^(template file \(json\)|template-datei \(json\))$/i).setInputFiles({ name: 'website.template.json', mimeType: 'application/json', buffer: Buffer.from(exported) });
     const importedKey = (await (await imported).json()).key;
     imports.push(importedKey);
     const del = page.getByRole('button', { name: /^(delete|löschen): (website \(data\)|website \(daten\))$/i });
+    const restore = page.getByRole('button', { name: /^(restore|wiederherstellen): (website \(data\)|website \(daten\))$/i });
+    await overviewTab.click();
     await del.click();
     await page.locator('dialog[open]').getByRole('button', { name: /^(delete|löschen)$/i }).click();
-    await page.getByRole('button', { name: /^(restore|wiederherstellen): (website \(data\)|website \(daten\))$/i }).click();
+    await del.waitFor({ state: 'detached' });
+    await trashTab.click();
+    await restore.click();
+    await restore.waitFor({ state: 'detached' });
+    await overviewTab.click();
     await del.click();
     await page.locator('dialog[open]').getByRole('button', { name: /^(delete|löschen)$/i }).click();
+    await del.waitFor({ state: 'detached' });
+    await trashTab.click();
+    await a11y('the trash of templates');
     const purged = page.waitForResponse((r) => r.url().includes(`/templates/${importedKey}?purge=1`));
     await page.getByRole('button', { name: /^(delete permanently|endgültig löschen): (website \(data\)|website \(daten\))$/i }).click();
     await page.locator('dialog[open]').getByRole('button', { name: /^(delete permanently|endgültig löschen)$/i }).click();
     assert.equal((await purged).status(), 204);
-    await page.getByRole('button', { name: /^(restore|wiederherstellen): (website \(data\)|website \(daten\))$/i }).waitFor({ state: 'detached' });
+    await restore.waitFor({ state: 'detached' });
     imports.length = 0;
   } finally {
     await call('PUT', '/api/v1/admin/settings', { ui: before.ui });

@@ -12,7 +12,9 @@ import { onBeforeMount } from './core/router';
 import { t } from './core/i18n';
 import { api } from './core/api';
 import { CATEGORY_POSITIONS, DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, resolvePlacements, type PagePosition, type PlacementLevel, type PositionKind } from './core/placement';
+import type { TemplateSchema } from './core/templateSchema';
 export { SCHEMA as BLOCK_OPTIONS_SCHEMA, optionDef, problems as optionProblems, maxColumns, contrast, readableOn, type BlockOptions, type OptionDef, type OptionGroup } from './core/blockoptions';
+export { DEVICES, MAIN, deviceSize, mediaMatches, type Device, type SchemaArea, type SchemaRow, type TemplateSchema, type WindowSize } from './core/templateSchema';
 export { CATEGORY_POSITIONS, DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, positionFits, resolvePlacements, type PagePosition, type Placement, type PlacementLevel, type PositionKind } from './core/placement';
 
 import { h } from './core/dom';
@@ -121,6 +123,9 @@ export interface TemplateDef {
   positions?: string[];
   /** Builds the page skeleton. Inherited from the base template if omitted. */
   layout?: (ctx: LayoutContext) => Layout;
+  /** Where the positions are for a size of window (the schematic in
+   * Administration → Templates). Inherited from the base template if omitted. */
+  schema?: TemplateSchema;
 }
 
 const templates = new Map<string, TemplateDef>();
@@ -129,11 +134,17 @@ export function registerTemplate(def: TemplateDef): void {
   templates.set(def.id, def);
 }
 
+/** Removes a template that no longer exists (a template of data put in the trash). */
+export function unregisterTemplate(id: string): void {
+  templates.delete(id);
+}
+
 export interface ResolvedTemplate {
   id: string;
   classNames: string[];
   positions: string[];
   layout: (ctx: LayoutContext) => Layout;
+  schema?: TemplateSchema;
 }
 
 /** Resolves a template with its inheritance chain. */
@@ -153,6 +164,7 @@ export function resolveTemplate(id: string, fallback = 'theme.wiki'): ResolvedTe
     classNames: chain.map((d) => d.className).filter((c): c is string => !!c).reverse(),
     positions: [...new Set(chain.flatMap((d) => d.positions ?? []))],
     layout,
+    schema: chain.find((d) => d.schema)?.schema,
   };
 }
 
@@ -667,6 +679,54 @@ export interface AdminPage {
 }
 
 const adminPages: AdminPage[] = [];
+
+/** What a tab of Administration → Templates gets: the parameters of the
+ * address (?tab=…&…) and a way to open another tab. */
+export interface TemplateTabContext {
+  params: URLSearchParams;
+  open: (tab: string, params?: Record<string, string>) => void;
+}
+
+/** A tab of Administration → Templates added by a plugin (designer, fonts …). */
+export interface TemplateTab {
+  id: string;
+  label: () => string;
+  order?: number;
+  /** global permission needed for the tab */
+  permission?: string;
+  render: (panel: HTMLElement, ctx: TemplateTabContext) => Promise<void> | void;
+}
+
+const templateTabs: TemplateTab[] = [];
+
+/** Adds a tab to Administration → Templates. */
+export function registerTemplateTab(tab: TemplateTab): void {
+  templateTabs.push(tab);
+  templateTabs.sort((a, b) => (a.order ?? 50) - (b.order ?? 50));
+}
+
+export function listTemplateTabs(): TemplateTab[] {
+  return [...templateTabs];
+}
+
+/** What a plugin adds to the card of a template in the overview: the kind
+ * of the template, its current name (also of a template made after the
+ * page was loaded) and buttons (copy, edit …); null for templates it does
+ * not know. */
+export interface TemplateCardInfo { name?: string; kind?: string; actions: (HTMLElement | null)[] }
+/** Loads what a plugin needs once per drawing of the overview. */
+export type TemplateCardSource = (ctx: TemplateTabContext & { reload: () => void }) => Promise<(id: string) => TemplateCardInfo | null>;
+
+const templateCardSources: TemplateCardSource[] = [];
+
+/** Adds kinds and buttons to the cards of the overview of templates. */
+export function registerTemplateCards(source: TemplateCardSource): void {
+  templateCardSources.push(source);
+}
+
+export function listTemplateCardSources(): TemplateCardSource[] {
+  return [...templateCardSources];
+}
 
 export interface UserAdminField {
   id: string;
