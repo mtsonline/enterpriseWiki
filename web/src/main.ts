@@ -16,6 +16,7 @@ import { api, ApiError, setWaitNotice, setWaitPrompt } from './core/api';
 import { errorText, pageHeader, waitDialog } from './components/ui';
 import { toast } from './core/announce';
 import { h, mount } from './core/dom';
+import { MAIN } from './core/templateSchema';
 import { loadMessages, t } from './core/i18n';
 import { onBeforeRender, onNavigate, rerender, route, setMain, setNotFound, start } from './core/router';
 import { isAdmin, rememberedLang, state, stored } from './core/state';
@@ -125,6 +126,12 @@ function registerCore(): void {
   registerTemplate({
     id: 'core.basic',
     positions: ['header-tools', 'sidebar', 'footer'],
+    // the same on every size: the sidebar stays a column beside the page
+    schema: () => [
+      { role: 'banner', areas: [{ kind: 'brand', positions: [] }, { kind: 'area', positions: ['header-tools'], grow: 2 }] },
+      { role: 'none', areas: [{ kind: 'area', positions: ['sidebar'] }, { kind: 'content', positions: [MAIN], grow: 3 }] },
+      { role: 'contentinfo', areas: [{ kind: 'area', positions: ['footer'] }] },
+    ],
     layout: (ctx) => {
       const main = h('main', { id: 'main', tabindex: '-1' });
       const root = h('div', { class: 'ew-basic' },

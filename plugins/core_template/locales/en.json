@@ -1,19 +1,8 @@
 {
- "template.admin_title": "Templates",
- "template.admin_help": "Website templates decide how the whole wiki looks. Templates of code come with plugins and are references; templates of data can be copied and changed here. Which template applies is chosen in the settings of the site and of categories.",
- "template.list": "Website templates",
- "template.col_name": "Name",
- "template.col_kind": "Kind",
- "template.col_id": "ID",
  "template.kind_shipped": "Data (shipped, copy to change)",
  "template.kind_data": "Data",
- "template.kind_code": "Code",
- "template.code_note": "A template of code cannot be changed or copied here.",
- "template.site_badge": "Site template",
  "template.edit_named": "Change template {name}",
  "template.export": "Export",
- "template.use_for_site": "Use for the site",
- "template.used_for_site": "{name} is now the template of the site.",
  "template.copy_of": "Copy of {name}",
  "template.copied": "{name} was created.",
  "template.delete_confirm": "Move the template {name} to the trash?",
@@ -289,5 +278,10 @@
  "template.d_dark_contrast": "Contrast of the dark colours",
  "template.d_color_scheme": "Colour scheme without a choice of the person",
  "template.d_color_scheme_help": "Applies as long as a person has not chosen one (in the profile or with the block “Light and dark”).",
- "plugin.name.core.template": "Template designer"
+ "plugin.name.core.template": "Template designer",
+ "template.tab_designer": "Designer",
+ "template.designer_help": "Choose a template of data to change it. To start a new one, copy a template in the overview.",
+ "template.designer_none": "There is no template here that you may change. Copy a template in the overview first.",
+ "template.trash_help": "Deleted templates of data. Restore them or delete them for good.",
+ "template.trash_empty": "The trash is empty."
 }

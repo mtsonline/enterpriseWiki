@@ -337,7 +337,8 @@ const collapsedKey = (b: Block) => `ewd-collapsed:${location.host}:${b.id}`;
 const readCollapsed = (b: Block): boolean => { try { return localStorage.getItem(collapsedKey(b)) === '1'; } catch { return false; } };
 const writeCollapsed = (b: Block, v: boolean): void => { try { if (v) localStorage.setItem(collapsedKey(b), '1'); else localStorage.removeItem(collapsedKey(b)); } catch { /* not kept */ } };
 
-const pick = (m: Record<string, string> | undefined): string => (m ? m[state.lang] || m[state.site.default_language] || Object.values(m)[0] || '' : '');
+/** The text of a label in the language of the page. */
+export const pick = (m: Record<string, string> | undefined): string => (m ? m[state.lang] || m[state.site.default_language] || Object.values(m)[0] || '' : '');
 
 /** The page skeleton of a design (positions are live containers of the wiki). */
 export function buildLayout(d: Design, ctx: LayoutContext): Layout {

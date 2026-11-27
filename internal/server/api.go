@@ -27,6 +27,7 @@ var adminPerms = []struct{ prefix, perm string }{
 	{"/api/v1/admin/settings", "core.settings.manage"},
 	{"/api/v1/admin/auth/login", "core.settings.manage"},
 	{"/api/v1/admin/limits", "core.settings.manage"},
+	{"/api/v1/admin/templates", "core.settings.manage"},
 	{"/api/v1/admin/data", "core.settings.manage"},
 	{"/api/v1/admin/consent", "core.settings.manage"},
 	{"/api/v1/admin/consents", "core.audit.view"},
@@ -122,6 +123,7 @@ func (s *Server) routes() {
 	s.routesAccess()
 	s.routesAudit()
 	s.routesLimits()
+	s.routesTemplates()
 	s.routesKeyLimits()
 	s.routesSecrets()
 	s.routesDrafts()

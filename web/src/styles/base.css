@@ -983,3 +983,28 @@ input.ew-dp-input::-webkit-calendar-picker-indicator { display: none; }
 .ew-choice-option[aria-selected="true"] .ew-choice-detail { color: inherit; }
 .ew-choice [hidden] { display: none !important; }
 .ew-choice-note:empty { display: none; }
+
+/* ---------- schematic of a template (Administration → Templates) */
+.ew-sch-devices { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: 1rem 0; }
+.ew-sch-devices-label { font-weight: 600; }
+.ew-sch { display: grid; gap: .35rem; padding: .5rem; border: 2px solid var(--ew-border); border-radius: 10px; background: var(--ew-bg-subtle); font-size: .8rem; margin-inline: auto; }
+.ew-sch--tablet { max-width: 30rem; }
+.ew-sch--phone { max-width: 15rem; }
+.ew-sch--phone-landscape { max-width: 30rem; }
+.ew-sch-row { display: flex; gap: .35rem; align-items: stretch; }
+.ew-sch-row--grid { display: grid; grid-template-columns: repeat(var(--ew-sch-cols, 1), minmax(0, 1fr)); }
+.ew-sch-row--banner, .ew-sch-row--contentinfo { background: color-mix(in srgb, var(--ew-text) 8%, transparent); border-radius: 6px; padding: .2rem; }
+.ew-sch-area { flex: var(--ew-sch-grow, 1) 1 0; min-width: 0; display: flex; flex-wrap: wrap; gap: .25rem; align-content: flex-start; padding: .3rem; border: 1px solid var(--ew-border); border-radius: 6px; background: var(--ew-bg); }
+.ew-sch-area--brand { flex: 0 0 auto; align-items: center; }
+.ew-sch-area--behind { border-style: dashed; background: transparent; }
+.ew-sch-area--hidden { border-style: dotted; background: transparent; opacity: .85; }
+.ew-sch-area--hidden .ew-sch-pos { text-decoration: line-through; }
+.ew-sch-behind { flex-basis: 100%; font-weight: 600; }
+.ew-sch-brand { font-weight: 700; }
+.ew-sch-pos { display: inline-block; padding: .1rem .4rem; border-radius: 4px; background: var(--ew-bg-subtle); border: 1px solid var(--ew-border); overflow-wrap: anywhere; }
+.ew-sch-main { flex-basis: 100%; min-height: 3.5rem; display: grid; place-items: center; border-radius: 4px; background: color-mix(in srgb, var(--ew-primary) 12%, var(--ew-bg)); font-weight: 600; text-align: center; }
+.ew-tpl-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: 1rem; list-style: none; padding: 0; margin: 0; }
+.ew-tpl-card { display: grid; gap: .6rem; align-content: start; padding: 1rem; border: 1px solid var(--ew-border); border-radius: 10px; background: var(--ew-bg-raised); }
+.ew-tpl-card h3 { margin: 0; font-size: 1.1rem; }
+.ew-tpl-card--site { border-width: 3px; border-color: var(--ew-primary); }
+.ew-tpl-badges { display: flex; flex-wrap: wrap; gap: .35rem; }

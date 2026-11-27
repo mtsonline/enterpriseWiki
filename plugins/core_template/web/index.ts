@@ -5,14 +5,15 @@
 // copy, change (visual designer and text, designer.ts), trash,
 // export and import.
 import {
-  api, button, checkbox, confirmDialog, errorText, field, fmtDate, formDialog, h, select, textInput, hasPerm, listTemplates, registerAdminPage, registerTemplate,
-  setTriedTemplate, state, subjectsEditor, t, templateLabel, toast, triedTemplate,
+  api, button, checkbox, confirmDialog, errorText, field, fmtDate, formDialog, h, select, textInput, hasPerm, registerTemplate, registerTemplateCards, registerTemplateTab, unregisterTemplate,
+  state, subjectsEditor, t, templateLabel, toast, type TemplateCardSource, type TemplateTabContext,
 } from '@ewiki/coreplugin';
 import './style.css';
 import { buildLayout, classOf, designCSS, type Design } from './engine';
 import { designer } from './designer';
 import { setupPreview } from './preview';
 import { guessFace } from './fonts';
+import { designSchema } from './schema';
 
 const BASE = 'x/core.template';
 
@@ -41,11 +42,16 @@ function addDesign(tpl: Tpl): void {
   style.textContent = designCSS(d, cls);
   if (!style.isConnected) document.head.append(style);
   const positions = d.rows.flatMap((r) => r.blocks.flatMap((b) => [...b.positions, ...(b.after ?? [])]));
-  registerTemplate({ id: tpl.id, className: cls, positions, layout: (ctx) => buildLayout(d, ctx) });
+  registerTemplate({ id: tpl.id, className: cls, positions, schema: designSchema(d), layout: (ctx) => buildLayout(d, ctx) });
 }
 
 export async function register(): Promise<void> {
-  registerAdminPage({ id: 'templates', area: 'appearance', label: () => t('template.admin_title'), permission: 'core.template.design', order: 35, render: adminPage });
+  // Administration → Templates (a page of the core): the buttons on the
+  // cards of the overview and the tabs designer, fonts and trash
+  registerTemplateCards(cards);
+  registerTemplateTab({ id: 'designer', order: 30, permission: 'core.template.design', label: () => t('template.tab_designer'), render: designerTab });
+  registerTemplateTab({ id: 'fonts', order: 40, permission: 'core.template.design', label: () => t('template.fonts'), render: fontsTab });
+  registerTemplateTab({ id: 'trash', order: 50, permission: 'core.template.design', label: () => t('template.trash'), render: trashTab });
   const list = await api.get<Tpl[]>(`${BASE}/designs`);
   for (const tpl of list) addDesign(tpl);
   // the frame of the designer's preview shows its draft instead
@@ -54,25 +60,21 @@ export async function register(): Promise<void> {
 
 // ---------------------------------------------------------------- administration
 
-async function adminPage(panel: HTMLElement): Promise<void> {
-  const [data, trash, fonts] = await Promise.all([api.get<Tpl[]>(`${BASE}/templates`), api.get<Tpl[]>(`${BASE}/templates?deleted=1`), api.get<OwnFont[]>(`${BASE}/fonts`)]);
-  const reload = () => void adminPage(panel);
-  const canSite = hasPerm('core.settings.manage');
-  const useForSite = async (id: string) => {
-    try {
-      const s = await api.get<{ config: { ui: Record<string, unknown> } }>('admin/settings');
-      await api.put('admin/settings', { ui: { ...s.config.ui, template: id } });
-      toast(t('template.used_for_site', { name: templateLabel(id) }));
-      setTimeout(() => location.reload(), 600);
-    } catch (e) { toast(errorText(e), 'error'); }
-  };
+const may = (x: Tpl) => x.may ?? { edit: !x.read_only, manage: !x.read_only };
+
+/** The buttons on the cards of the overview: edit (in the designer tab),
+ * copy, export, rights and delete for templates of data. */
+const cards: TemplateCardSource = async (ctx) => {
+  if (!hasPerm('core.template.design')) return () => null;
+  const data = await api.get<Tpl[]>(`${BASE}/templates`);
   const copy = async (x: Tpl) => {
     try {
       const names: Record<string, string> = {};
       for (const [l, v] of Object.entries(x.names)) names[l] = t('template.copy_of', { name: v });
       const c = await api.post<Tpl>(`${BASE}/templates`, { names, copy_of: x.id });
+      addDesign(c);
       toast(t('template.copied', { name: pick(c.names) }));
-      void designer(panel, c.key, reload, addDesign);
+      ctx.open('designer', { t: c.key });
     } catch (e) { toast(errorText(e), 'error'); }
   };
   const exportFile = async (x: Tpl) => {
@@ -93,74 +95,84 @@ async function adminPage(panel: HTMLElement): Promise<void> {
         await api.put(`${BASE}/templates/${x.key}/rights`, { edit_subjects: edit.value(), manage_subjects: manage.value() });
         dlg.close();
         toast(t('template.rights_saved'));
-        reload();
+        ctx.reload();
       }, { wide: true });
     } catch (e) { toast(errorText(e), 'error'); }
   };
-  // see a template only for oneself first (this browser), then for everybody
-  const tryIt = (id: string) => { setTriedTemplate(id); location.href = '/'; };
-  const tryButton = (id: string, name: string) => id === site || id === triedTemplate() ? null
-    : button(t('template_try.try'), () => tryIt(id), { ariaLabel: named(t('template_try.try'), name) });
-  const may = (x: Tpl) => x.may ?? { edit: !x.read_only, manage: !x.read_only };
-  const site = state.site.template;
-  // templates of code: registered by plugins, references (not in the designer)
-  const code = listTemplates().filter((x) => (x.layout || x.extends) && !x.id.startsWith('core.template/'));
-  const row = (name: string, kind: string, id: string, actions: (HTMLElement | null)[]) => h('tr', null,
-    h('th', { scope: 'row' }, name, id === site ? [' ', h('span', { class: 'ew-badge ew-badge--info' }, t('template.site_badge'))] : null),
-    h('td', null, kind), h('td', null, h('code', null, id)), h('td', null, h('div', { class: 'ew-actions' }, ...actions)));
+  return (id) => {
+    const x = data.find((y) => y.id === id);
+    if (!x) return null;
+    const name = pick(x.names);
+    return {
+      name,
+      kind: x.read_only ? t('template.kind_shipped') : t('template.kind_data'),
+      actions: [
+        x.read_only ? null : may(x).edit ? button(t('common.edit'), () => ctx.open('designer', { t: x.key }), { variant: 'primary', ariaLabel: named(t('common.edit'), name) })
+          : h('span', { class: 'ew-muted' }, t('template.limited')),
+        button(t('common.duplicate'), () => void copy(x), { ariaLabel: named(t('common.duplicate'), name) }),
+        button(t('template.export'), () => void exportFile(x), { ariaLabel: named(t('template.export'), name) }),
+        !x.read_only && may(x).manage ? button(t('template.rights'), () => void rights(x), { ariaLabel: named(t('template.rights'), name) }) : null,
+        x.read_only || !may(x).manage ? null : button(t('common.delete'), () => void (async () => {
+          if (!(await confirmDialog(t('template.delete_confirm', { name }), t('common.delete'), true))) return;
+          try { await api.del(`${BASE}/templates/${x.key}`); unregisterTemplate(x.id); ctx.reload(); } catch (e) { toast(errorText(e), 'error'); }
+        })(), { variant: 'danger', ariaLabel: named(t('common.delete'), name) }),
+      ],
+    };
+  };
+};
+
+/** The tab "Designer": with ?t=KEY the designer of that template, else the
+ * templates the person may change and the import of a template file. */
+async function designerTab(panel: HTMLElement, ctx: TemplateTabContext): Promise<void> {
+  const key = ctx.params.get('t');
+  if (key) {
+    await designer(panel, key, () => ctx.open('designer'), addDesign);
+    return;
+  }
+  const data = (await api.get<Tpl[]>(`${BASE}/templates`)).filter((x) => !x.read_only && may(x).edit);
   const importInput = h('input', { type: 'file', accept: 'application/json,.json', class: 'ew-input' }) as HTMLInputElement;
   importInput.addEventListener('change', () => void (async () => {
     const file = importInput.files?.[0];
     if (!file) return;
     try {
       const c = await api.post<Tpl>(`${BASE}/templates/import`, JSON.parse(await file.text()));
+      addDesign(c);
       toast(t('template.imported', { name: pick(c.names) }));
-      reload();
+      ctx.open('designer');
     } catch (e) { toast(e instanceof SyntaxError ? t('template.not_json') : errorText(e), 'error'); }
   })());
-  panel.replaceChildren(...[
-    h('h1', null, t('template.admin_title')),
-    h('p', { class: 'ew-help' }, t('template.admin_help')),
-    h('p', { class: 'ew-help' }, t('template_try.try_help')),
-    h('div', { class: 'ew-table-wrap', role: 'region', 'aria-label': t('template.list'), tabindex: '0' },
-      h('table', { class: 'ew-table' },
-        h('caption', { class: 'sr-only' }, t('template.list')),
-        h('thead', null, h('tr', null, ...['template.col_name', 'template.col_kind', 'template.col_id', 'common.actions'].map((k) => h('th', { scope: 'col' }, t(k))))),
-        h('tbody', null,
-          ...data.map((x) => row(pick(x.names), x.read_only ? t('template.kind_shipped') : t('template.kind_data'), x.id, [
-            x.read_only ? null : may(x).edit ? button(t('common.edit'), () => void designer(panel, x.key, reload, addDesign), { variant: 'primary', ariaLabel: named(t('common.edit'), pick(x.names)) })
-              : h('span', { class: 'ew-muted' }, t('template.limited')),
-            button(t('common.duplicate'), () => void copy(x), { ariaLabel: named(t('common.duplicate'), pick(x.names)) }),
-            button(t('template.export'), () => void exportFile(x), { ariaLabel: named(t('template.export'), pick(x.names)) }),
-            tryButton(x.id, pick(x.names)),
-            canSite && x.id !== site ? button(t('template.use_for_site'), () => void useForSite(x.id), { ariaLabel: named(t('template.use_for_site'), pick(x.names)) }) : null,
-            !x.read_only && may(x).manage ? button(t('template.rights'), () => void rights(x), { ariaLabel: named(t('template.rights'), pick(x.names)) }) : null,
-            x.read_only || !may(x).manage ? null : button(t('common.delete'), () => void (async () => {
-              if (!(await confirmDialog(t('template.delete_confirm', { name: pick(x.names) }), t('common.delete'), true))) return;
-              try { await api.del(`${BASE}/templates/${x.key}`); reload(); } catch (e) { toast(errorText(e), 'error'); }
-            })(), { variant: 'danger', ariaLabel: named(t('common.delete'), pick(x.names)) }),
-          ])),
-          ...code.map((x) => row(templateLabel(x.id), t('template.kind_code'), x.id, [
-            h('span', { class: 'ew-muted' }, t('template.code_note')),
-            tryButton(x.id, templateLabel(x.id)),
-            canSite && x.id !== site ? button(t('template.use_for_site'), () => void useForSite(x.id), { ariaLabel: named(t('template.use_for_site'), templateLabel(x.id)) }) : null,
-          ]))))),
+  panel.replaceChildren(
+    h('p', { class: 'ew-help' }, t('template.designer_help')),
+    data.length ? h('ul', { class: 'ew-plain-list' }, ...data.map((x) => h('li', null,
+      button(pick(x.names), () => ctx.open('designer', { t: x.key }), { variant: 'link', ariaLabel: named(t('common.edit'), pick(x.names)) }))))
+      : h('p', null, t('template.designer_none')),
     h('section', { class: 'ew-section', 'aria-labelledby': 'ewd-import-h' },
-      h('h2', { id: 'ewd-import-h' }, t('template.import')), field(t('template.import_file'), importInput, { help: t('template.import_help') })),
-    fontSection(fonts, reload),
-    trash.length ? h('section', { class: 'ew-section', 'aria-labelledby': 'ewd-trash-h' },
-      h('h2', { id: 'ewd-trash-h' }, t('template.trash')),
-      h('ul', { class: 'ew-plain-list' }, ...trash.map((x) => h('li', null, pick(x.names), ' ', !may(x).manage ? h('span', { class: 'ew-muted' }, t('template.limited')) : [
-        button(t('trash.restore'), () => void (async () => {
-          try { await api.post(`${BASE}/templates/${x.key}/restore`, {}); reload(); } catch (e) { toast(errorText(e), 'error'); }
-        })(), { ariaLabel: named(t('trash.restore'), pick(x.names)) }), ' ',
-        button(t('trash.purge'), () => void (async () => {
-          if (!(await confirmDialog(t('template.purge_confirm', { name: pick(x.names) }), t('trash.purge'), true))) return;
-          try { await api.del(`${BASE}/templates/${x.key}?purge=1`); reload(); } catch (e) { toast(errorText(e), 'error'); }
-        })(), { variant: 'danger', ariaLabel: named(t('trash.purge'), pick(x.names)) })])))) : null,
-  ].filter((n): n is HTMLElement => !!n));
+      h('h2', { id: 'ewd-import-h' }, t('template.import')), field(t('template.import_file'), importInput, { help: t('template.import_help') })));
 }
 
+async function fontsTab(panel: HTMLElement, ctx: TemplateTabContext): Promise<void> {
+  const fonts = await api.get<OwnFont[]>(`${BASE}/fonts`);
+  panel.replaceChildren(fontSection(fonts, () => ctx.open('fonts')));
+}
+
+/** The tab "Trash": deleted templates of data, to restore or delete for good. */
+async function trashTab(panel: HTMLElement, ctx: TemplateTabContext): Promise<void> {
+  const trash = await api.get<Tpl[]>(`${BASE}/templates?deleted=1`);
+  const reload = () => ctx.open('trash');
+  panel.replaceChildren(h('p', { class: 'ew-help' }, t('template.trash_help')),
+    trash.length ? h('ul', { class: 'ew-plain-list' }, ...trash.map((x) => h('li', null, pick(x.names), ' ', !may(x).manage ? h('span', { class: 'ew-muted' }, t('template.limited')) : [
+      button(t('trash.restore'), () => void (async () => {
+        try {
+          const r = await api.post<Tpl | null>(`${BASE}/templates/${x.key}/restore`, {});
+          if (r?.design) addDesign(r);
+          reload();
+        } catch (e) { toast(errorText(e), 'error'); }
+      })(), { ariaLabel: named(t('trash.restore'), pick(x.names)) }), ' ',
+      button(t('trash.purge'), () => void (async () => {
+        if (!(await confirmDialog(t('template.purge_confirm', { name: pick(x.names) }), t('trash.purge'), true))) return;
+        try { await api.del(`${BASE}/templates/${x.key}?purge=1`); reload(); } catch (e) { toast(errorText(e), 'error'); }
+      })(), { variant: 'danger', ariaLabel: named(t('trash.purge'), pick(x.names)) })]))) : h('p', null, t('template.trash_empty')));
+}
 
 // ---------------------------------------------------------------- own fonts
 

@@ -1,19 +1,8 @@
 {
- "template.admin_title": "Templates",
- "template.admin_help": "Website-Templates bestimmen, wie das ganze Wiki aussieht. Templates aus Code kommen mit Plugins und dienen als Referenz; Templates aus Daten lassen sich hier kopieren und ändern. Welches Template gilt, wählen Sie in den Einstellungen der Website und der Kategorien.",
- "template.list": "Website-Templates",
- "template.col_name": "Name",
- "template.col_kind": "Art",
- "template.col_id": "ID",
  "template.kind_shipped": "Daten (mitgeliefert, zum Ändern kopieren)",
  "template.kind_data": "Daten",
- "template.kind_code": "Code",
- "template.code_note": "Ein Template aus Code lässt sich hier nicht ändern oder kopieren.",
- "template.site_badge": "Template der Website",
  "template.edit_named": "Template {name} ändern",
  "template.export": "Exportieren",
- "template.use_for_site": "Für die Website verwenden",
- "template.used_for_site": "{name} ist jetzt das Template der Website.",
  "template.copy_of": "Kopie von {name}",
  "template.copied": "{name} wurde angelegt.",
  "template.delete_confirm": "Template {name} in den Papierkorb verschieben?",
@@ -289,5 +278,10 @@
  "template.d_dark_contrast": "Kontrast der dunklen Farben",
  "template.d_color_scheme": "Farbschema ohne Wahl der Person",
  "template.d_color_scheme_help": "Gilt, solange eine Person nichts gewählt hat (im Profil oder mit dem Baustein „Hell und dunkel“).",
- "plugin.name.core.template": "Template-Designer"
+ "plugin.name.core.template": "Template-Designer",
+ "template.tab_designer": "Designer",
+ "template.designer_help": "Wählen Sie ein Template aus Daten, um es zu ändern. Für ein neues kopieren Sie ein Template in der Übersicht.",
+ "template.designer_none": "Hier gibt es kein Template, das Sie ändern dürfen. Kopieren Sie zuerst ein Template in der Übersicht.",
+ "template.trash_help": "Gelöschte Templates aus Daten. Sie können sie wiederherstellen oder endgültig löschen.",
+ "template.trash_empty": "Der Papierkorb ist leer."
 }

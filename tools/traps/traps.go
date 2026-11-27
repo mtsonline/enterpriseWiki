@@ -2106,4 +2106,11 @@ var traps = []trap{
 		New:  "",
 		Pkg:  "./internal/server/", Tests: "^TestWorkflowBranchesAndHandovers$",
 	},
+	{
+		ID: "templates.usage-counts-deleted", About: "the count of categories that choose a template includes categories in the trash",
+		File: "internal/content/templatesources.go",
+		Old:  "WHERE template <> '' AND deleted_at IS NULL GROUP BY template",
+		New:  "WHERE template <> '' GROUP BY template",
+		Pkg:  "./internal/server/", Tests: "^TestTemplateUsage$",
+	},
 }

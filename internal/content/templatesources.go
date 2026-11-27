@@ -86,3 +86,29 @@ func (s *Service) ExtraTemplates(ctx context.Context) []TemplateName {
 	}
 	return out
 }
+
+// maxTemplateUsage bounds the list of TemplateUsage: one row per template
+// that categories choose (the templates of data are limited to far fewer).
+const maxTemplateUsage = 2000
+
+// TemplateUsage counts, per template, the categories that choose it
+// themselves (not inherited). Only counts: the names of the categories are
+// not given out here, so no right to see them is needed.
+func (s *Service) TemplateUsage(ctx context.Context) (map[string]int, error) {
+	rows, err := s.pool.Query(ctx, `SELECT template, count(*) FROM categories
+		WHERE template <> '' AND deleted_at IS NULL GROUP BY template ORDER BY template LIMIT $1`, maxTemplateUsage)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]int{}
+	for rows.Next() {
+		var id string
+		var n int
+		if err := rows.Scan(&id, &n); err != nil {
+			return nil, err
+		}
+		out[id] = n
+	}
+	return out, rows.Err()
+}
