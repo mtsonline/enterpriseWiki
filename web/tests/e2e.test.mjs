@@ -87,9 +87,15 @@ test('requests of the test itself are marked, so they do not count as interface 
  */
 async function opens(kind, action, pg = page) {
   const re = new RegExp(`^/${kind}/(\\d+)$`);
-  const seen = pg.waitForEvent('framenavigated', { predicate: (f) => f === pg.mainFrame() && re.test(new URL(f.url()).pathname) });
+  let id = 0; // taken when the address appears: the frame shows the readable path soon after
+  const seen = pg.waitForEvent('framenavigated', { predicate: (f) => {
+    const m = f === pg.mainFrame() && re.exec(new URL(f.url()).pathname);
+    if (m) id = Number(m[1]);
+    return !!m;
+  } });
   await action();
-  return Number(re.exec(new URL((await seen).url()).pathname)[1]);
+  await seen;
+  return id;
 }
 
 async function a11y(name, pg = page) {
