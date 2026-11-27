@@ -32,7 +32,6 @@ core.elements.restore
 core.elements.revision
 core.favorites.order
 core.feeds.category
-core.files.get
 core.groups.update
 core.html.to_markdown
 core.i18n.export

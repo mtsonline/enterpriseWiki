@@ -106,6 +106,24 @@ export function definePluginModule(id: string, mod: PluginModule): LoadedPlugin 
 export interface LayoutContext {
   /** Returns a live container for a position (re-rendered on changes). */
   position(name: string, tag?: keyof HTMLElementTagNameMap): HTMLElement;
+  /** The effective values of the settings the template declared (its
+   * manifest, "template_settings"); checked by the server. Images are
+   * { src, width, height }. */
+  settings: TemplateSettingValues;
+}
+
+/** The effective values of the settings of a template, by key. */
+export type TemplateSettingValues = Record<string, unknown>;
+
+/** The value of an image setting: its address and size in pixels. */
+export interface ImageSetting { src: string; width: number; height: number }
+
+/** The image of a setting, if one is set (null otherwise). */
+export function imageSetting(v: unknown): ImageSetting | null {
+  if (!v || typeof v !== 'object') return null;
+  const x = v as Partial<ImageSetting>;
+  return typeof x.src === 'string' && x.src.startsWith('/api/v1/files/') && Number(x.width) > 0 && Number(x.height) > 0
+    ? { src: x.src, width: Number(x.width), height: Number(x.height) } : null;
 }
 
 export interface Layout {
@@ -177,6 +195,50 @@ let shownTemplate = '';
 /** Records the template the page is shown with (set by the shell). */
 export function setShownTemplate(id: string): void {
   shownTemplate = id;
+}
+
+/** The id of the template the page is shown with now. */
+export function currentTemplateId(): string { return shownTemplate; }
+
+// the effective settings per template, loaded once per page load
+const tplSettings = new Map<string, TemplateSettingValues>();
+const tplSettingsLoading = new Map<string, Promise<void>>();
+let tplSettingsDraft: { id: string; values: TemplateSettingValues } | null = null;
+
+/** Loads the settings of a template (the template of the site comes with
+ * the site already). Failing, the template is built with its defaults. */
+export function loadTemplateSettings(id: string): Promise<void> {
+  if (tplSettings.has(id)) return Promise.resolve();
+  const first = state.site?.template_settings;
+  if (id === state.site?.template && first) {
+    tplSettings.set(id, first);
+    return Promise.resolve();
+  }
+  let p = tplSettingsLoading.get(id);
+  if (!p) {
+    p = api.get<TemplateSettingValues>(`templates/${encodeURIComponent(id)}/settings`)
+      .then((v) => { tplSettings.set(id, v); }, () => { tplSettings.set(id, {}); });
+    tplSettingsLoading.set(id, p);
+  }
+  return p;
+}
+
+/** Whether the settings of a template are loaded. */
+export function hasTemplateSettings(id: string): boolean { return tplSettings.has(id) || tplSettingsDraft?.id === id; }
+
+/** The settings of a template as the page uses them (a draft shown in the
+ * live preview of Administration → Templates → Settings wins). */
+export function templateSettingsOf(id: string): TemplateSettingValues {
+  return tplSettingsDraft?.id === id ? tplSettingsDraft.values : tplSettings.get(id) ?? {};
+}
+
+/** The settings of the template shown now (for blocks of a template, such as
+ * the hero of the CMS template). */
+export function shownTemplateSettings(): TemplateSettingValues { return templateSettingsOf(shownTemplate); }
+
+/** Shows a draft of the settings in this window only (the live preview). */
+export function setTemplateSettingsDraft(id: string, values: TemplateSettingValues): void {
+  tplSettingsDraft = { id, values };
 }
 
 let previewTpl = '';

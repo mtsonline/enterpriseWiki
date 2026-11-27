@@ -62,6 +62,8 @@ export interface Site {
   /** hint on long sentences and words while writing (ui.readability; max_kb: how much of a text is checked) */
   /** lists up to this length are checkboxes, longer ones a list with a filter (ui.choice_checkboxes) */
   choice_checkboxes?: number;
+  /** the effective settings of the template of the site (colours, logos …) */
+  template_settings?: Record<string, unknown>;
   readability?: { mode: 'off' | 'offered' | 'on'; sentence_words: number; word_letters: number; max_kb: number };
   /** Tiles offered for the own dashboard (empty = all). */
   dashboard_tiles?: string[];

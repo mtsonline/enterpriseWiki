@@ -14,6 +14,7 @@ import { listTemplateCardSources, listTemplateTabs, listTemplates, setTriedTempl
 import { button, errorText, field, select } from '../components/ui';
 import { placementEditor, typeLayouts } from '../components/placement';
 import { offeredTilesForm } from './dashboard';
+import { settingsTab } from './templateSettings';
 import { currentDevice, deviceSwitch, schematic } from '../components/templateSchema';
 import type { Device } from '../core/templateSchema';
 
@@ -29,7 +30,7 @@ export function mayOpenTemplates(): boolean {
 export async function templatesAdmin(panel: HTMLElement, query: URLSearchParams): Promise<void> {
   const tabs: Tab[] = [
     { id: 'overview', label: t('sitetpl.tab_overview'), render: overview },
-    ...(hasPerm('core.settings.manage') ? [{ id: 'positions', label: t('sitetpl.tab_positions'), render: positionsTab }] : []),
+    ...(hasPerm('core.settings.manage') ? [{ id: 'settings', label: t('sitetpl.tab_settings'), render: settingsTab }, { id: 'positions', label: t('sitetpl.tab_positions'), render: positionsTab }] : []),
     ...listTemplateTabs().filter((x) => !x.permission || hasPerm(x.permission)).map((x) => ({ id: x.id, label: x.label(), render: x.render })),
   ];
   const buttons: HTMLButtonElement[] = [];
@@ -110,6 +111,7 @@ async function overview(panel: HTMLElement, ctx: TemplateTabContext): Promise<vo
         h('p', { class: 'ew-muted' }, info.kind ?? t('sitetpl.kind_code'), ' · ', h('code', null, id)),
         schematic(id, device, { name }),
         h('div', { class: 'ew-actions' },
+          canSite ? button(t('sitetpl.tab_settings'), () => ctx.open('settings', { t: id }), { ariaLabel: named(t('sitetpl.tab_settings')) }) : null,
           ...info.actions,
           id === site || id === triedTemplate() ? null : button(t('template_try.try'), () => { setTriedTemplate(id); location.href = '/'; }, { ariaLabel: named(t('template_try.try')) }),
           canSite && id !== site ? button(t('sitetpl.use_for_site'), () => void useForSite(id), { ariaLabel: named(t('sitetpl.use_for_site')) }) : null));

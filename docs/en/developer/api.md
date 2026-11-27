@@ -524,6 +524,10 @@ Called by directories such as Entra ID or Okta with the token of a SCIM client (
 | `POST` | `/api/v1/admin/secrets/rewrap` |
 | `PUT` | `/api/v1/admin/limits` |
 | `GET` | `/api/v1/admin/templates/usage` |
+| `GET` | `/api/v1/admin/templates/{id}/settings` |
+| `PUT` | `/api/v1/admin/templates/{id}/settings` |
+| `DELETE` | `/api/v1/admin/templates/{id}/settings` |
+| `GET` | `/api/v1/templates/{id}/settings` |
 | `GET` | `/api/v1/admin/mfa` |
 | `PUT` | `/api/v1/admin/mfa` |
 | `POST` | `/api/v1/admin/auth/providers/{id}/preview` |
@@ -672,7 +676,6 @@ Called by directories such as Entra ID or Okta with the token of a SCIM client (
 | `GET` | `/api/v1/x/search.external/status` |
 | `POST` | `/api/v1/x/search.external/test` |
 | `POST` | `/api/v1/x/search.external/reindex` |
-| `GET` | `/api/v1/x/theme.cms/config` |
 | `GET` | `/api/v1/x/workflow.process/meta` |
 | `GET` | `/api/v1/x/core.waf/status` |
 | `GET` | `/api/v1/x/security.crowdsec/status` |

@@ -1038,6 +1038,14 @@ input.ew-dp-input::-webkit-calendar-picker-indicator { display: none; }
 .ew-placement-pos { margin-top: 1rem; padding: 1rem; border: 1px solid var(--ew-border); border-radius: 10px; }
 .ew-placement-pos h3 { margin-top: 0; }
 .ew-placement-addat { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .5rem 1rem; margin-top: 1rem; }
+/* the settings of a template: the form beside its live preview */
+.ew-tplset { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+@media (min-width: 1200px) { .ew-tplset { grid-template-columns: minmax(0, 26rem) minmax(0, 1fr); align-items: start; } .ew-tplset-preview { position: sticky; top: calc(var(--ew-sticky-top, 0px) + 1rem); } }
+.ew-tplset-field { margin-bottom: .75rem; }
+.ew-tplset-default { margin-top: .15rem; }
+.ew-input--color { inline-size: 3rem; block-size: 2.75rem; padding: .15rem; }
+.ew-tplset-framebox { overflow: auto; max-height: 80vh; border: 1px solid var(--ew-border); border-radius: 8px; background: var(--ew-bg-subtle); }
+.ew-tplset-frame { display: block; border: 0; background: var(--ew-bg); max-width: none; }
 .ew-tpl-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: 1rem; list-style: none; padding: 0; margin: 0; }
 .ew-tpl-card { display: grid; gap: .6rem; align-content: start; padding: 1rem; border: 1px solid var(--ew-border); border-radius: 10px; background: var(--ew-bg-raised); }
 .ew-tpl-card h3 { margin: 0; font-size: 1.1rem; }

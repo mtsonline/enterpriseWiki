@@ -140,6 +140,83 @@ actions:
       - name: refused
         as: outsider
         status: 403
+  - id: core.templates.settings.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/templates/{id}/settings
+    success_status: 200
+    summary:
+      text:
+        en: Show the settings a template offers, with their values
+        de: Einstellungen eines Templates mit ihren Werten anzeigen
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [templates, settings, get]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        as: member
+        path_params_json: '{"id": "theme.cms"}'
+      - name: refused
+        as: outsider
+        path_params_json: '{"id": "theme.cms"}'
+        status: 403
+  - id: core.templates.settings.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/templates/{id}/settings
+    success_status: 200
+    summary:
+      text:
+        en: Change settings of a template (null sets a value back to its default)
+        de: Einstellungen eines Templates ändern (null setzt einen Wert auf die Vorgabe zurück)
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [templates, settings, set]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        as: member
+        path_params_json: '{"id": "theme.cms"}'
+        body_json: '{"values": {"back_to_top": true}}'
+      - name: refused
+        as: outsider
+        path_params_json: '{"id": "theme.cms"}'
+        body_json: '{"values": {}}'
+        status: 403
+  - id: core.templates.settings.reset
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/templates/{id}/settings
+    success_status: 204
+    summary:
+      text:
+        en: Set all settings of a template back to their defaults
+        de: Alle Einstellungen eines Templates auf die Vorgaben zurücksetzen
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [templates, settings, reset]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        as: member
+        path_params_json: '{"id": "theme.cms"}'
+        status: 204
+  - id: core.templates.settings.effective
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/templates/{id}/settings
+    success_status: 200
+    summary:
+      text:
+        en: Show the effective settings of a template (as pages are built with them)
+        de: Wirksame Einstellungen eines Templates anzeigen (so werden Seiten damit aufgebaut)
+    public: true
+    cli: {command: [templates, settings, effective]}
+    ui: {entry: /}
+    examples:
+      - name: default
+        as: member
+        path_params_json: '{"id": "theme.cms"}'
   - id: core.limits.update
     category: CATEGORY_ACTION
     method: PUT

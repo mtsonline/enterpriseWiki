@@ -451,6 +451,45 @@ Widgets can appear at a fixed position (`registerSlot({ position: 'sidebar', …
 
 **Colours in plugins:** blocks and plugins always take their colours from the variables `--ew-*` in `web/src/styles/base.css`, never as fixed values. Only then do they fit every template and the dark colour scheme (class `ewc-dark`), which sets the same variables with dark values. For states there are ready pairs (e.g. `--ew-status-green-bg` and `--ew-status-green-text`, `--ew-danger-bg` and `--ew-danger-text`), for parts that stay dark in both schemes `--ew-inverse-*`. `web/tests/unit/themecolors.test.ts` checks the contrasts of both schemes. `web/tests/unit/csscolors.test.ts` counts fixed colours; their number per file may only become smaller (`csscolors-baseline.json`). Shadows and `transparent`, `currentColor` and `inherit` stay allowed.
 
+
+### Settings of a template {#template-settings}
+
+A template declares the settings it offers in the manifest of its plugin, under `"template_settings"`: colours, fonts, logos, texts, links and options. Administrators change them under *Administration → Templates → Settings*, with the defaults shown, a way back to each default and a live preview. Each listed template has its own values, also a variant that `extends` another. A variant without its own list uses the list of the template it extends, but keeps its own values.
+
+```json
+"template_settings": [
+  { "key": "primary_color", "kind": "color", "group": "colors", "default": "#0a3760", "contrast_on": ["#ffffff"],
+    "label": { "en": "Accent colour", "de": "Akzentfarbe" } },
+  { "key": "logo", "kind": "image", "group": "logos", "role": "logo",
+    "label": { "en": "Logo", "de": "Logo" }, "help": { "en": "PNG, WebP or JPEG.", "de": "PNG, WebP oder JPEG." } },
+  { "key": "logo_height", "kind": "number", "group": "logos", "default": 56, "min": 24, "max": 120, "step": 1,
+    "label": { "en": "Logo height (pixels)", "de": "Logo-Höhe (Pixel)" } },
+  { "key": "header", "kind": "select", "group": "header", "default": "overlay", "options": ["overlay", "solid"],
+    "label": { "en": "Header", "de": "Kopfbereich" },
+    "option_labels": { "overlay": { "en": "Over the image", "de": "Über dem Bild" }, "solid": { "en": "Always white", "de": "Immer weiß" } } }
+]
+```
+
+- **Kinds:** `color` (`#rrggbb`), `font` (`system`, `sans`, `serif`, `mono` or the name of an own font), `image`, `number` (with `min` and `max`), `select` (with `options`), `bool`, `text` (up to `max_len` characters, default 200), `link` (a path in the wiki `/…` or an `https://` address).
+- **Groups**, in the order of the form: `colors`, `fonts`, `logos`, `header`, `content`, `footer`, `layout`.
+- **Roles of logos:** `logo` (the wide logo), `logo_on_dark`, `mark` (the mark alone, for narrow screens and small places), `mark_on_dark`. Declare every logo your template shows. Other images (a start image, a banner) have no role.
+- **Defaults:** every setting except an image needs a `default`. An image has none: without an uploaded image the template shows its own.
+- **Images:** only uploaded PNG, WebP and JPEG files (no SVG: it can contain scripts). The server reads their size when they are saved.
+- **Contrast:** `contrast_on` lists the colours a colour is shown on (other colour settings by key, or `#rrggbb`). The form warns while the contrast is below 4.5:1.
+- **Checked on the server:** every value is checked against the description before it is stored (`internal/tplsettings`). A list with an error stops the plugin from starting. Stored values the template no longer declares, or that no longer fit, are left out.
+
+The layout gets the effective values in the field settings of its context (images as `{ src, width, height }`; `imageSetting(v)` returns such an image or `null`). Blocks of a template that are drawn later (such as a start image at a position) read them with `shownTemplateSettings()`. Give every image its `width` and `height`, so it reserves its room before it loads:
+
+```ts
+layout: (ctx) => {
+  const logo = imageSetting(ctx.settings.logo);
+  const brand = logo ? h('img', { src: logo.src, width: logo.width, height: logo.height, alt: state.site.name }) : brandHeader('acme-logo', 44);
+  // …
+}
+```
+
+The values come from `GET /api/v1/templates/{id}/settings` (those of the template of the site come with `/api/v1/site`). Administrators change them with `PUT` and `DELETE /api/v1/admin/templates/{id}/settings` or `ewiki templates settings set|reset`.
+
 ## UI texts
 
 `locales/en.json` (reference) and further languages contain flat keys. Prefix them with the plugin ID:

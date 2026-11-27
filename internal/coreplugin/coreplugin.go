@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/tplsettings"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -117,6 +118,11 @@ type Manifest struct {
 	// or "dark". Empty: the template has light colours only, and the choice
 	// of a scheme does not apply to it.
 	ColorScheme string `json:"color_scheme,omitempty"`
+	// TemplateSettings are the settings the template of this plugin offers
+	// (colours, fonts, logos …; Administration → Templates → Settings). The
+	// server checks every value against them before it is stored; the
+	// template gets the effective values (see docs/en/developer/plugins.md#template-settings).
+	TemplateSettings []tplsettings.Setting `json:"template_settings,omitempty"`
 }
 
 // Plugin is implemented by every plugin.
@@ -518,6 +524,12 @@ func (m Manifest) Validate() error {
 	}
 	if m.ColorScheme != "" && (!slices.Contains(ColorSchemes, m.ColorScheme) || !slices.Contains(m.Kinds, KindTemplate)) {
 		return fmt.Errorf("plugin %s: color_scheme %q: only for templates, one of %s", m.ID, m.ColorScheme, strings.Join(ColorSchemes, ", "))
+	}
+	if len(m.TemplateSettings) > 0 && !slices.Contains(m.Kinds, KindTemplate) {
+		return fmt.Errorf("plugin %s: template_settings are only for templates", m.ID)
+	}
+	if err := tplsettings.CheckDescription(m.TemplateSettings); err != nil {
+		return fmt.Errorf("plugin %s: template_settings: %w", m.ID, err)
 	}
 	return nil
 }

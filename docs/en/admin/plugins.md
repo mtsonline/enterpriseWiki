@@ -168,21 +168,21 @@ Every template offers positions where menus (`core.menu`), blocks (`core.blocks`
 
 With the wiki template (`theme.wiki`, `theme.wiki.dark`) the sidebar can be hidden on all screen sizes with the button in the header; the state is remembered in the browser.
 
-### Setting up the website template
+### Setting up the website templates
 
-*Administration → Website template* (applies to both website templates; or `plugin_settings.theme.cms` in `config.yaml`, API `PUT /api/v1/admin/settings`):
+*Administration → Templates → Settings*, for each of the two website templates on its own (`theme.cms` and `theme.cms.modern`; stored in `template_settings` of `config.yaml`, API `PUT /api/v1/admin/templates/{id}/settings`, CLI `ewiki templates settings set`). The server checks every value against the list the template declares. Without a change each setting has the default the template brings; *Reset* returns to it.
 
 | Setting | Meaning |
 |---|---|
 | `logo`, `logo_light`, `logo_height` | logo (uploaded image) and light variant for the transparent header above the start image; height in pixels; in the dark scheme the header always shows the light variant (without one, the normal logo) |
-| `primary_color`, `accent_color` | main colour (links, buttons, active navigation) and accent colour, `#rrggbb`; in the dark scheme the wiki lightens the main colour as far as needed for 4.5 : 1 |
+| `primary_color` | main colour (links, buttons, active navigation), `#rrggbb`; in the dark scheme the wiki lightens it as far as needed for 4.5 : 1 |
 | `header` | `overlay`: the header lies transparently above the start image and turns white when scrolling; `solid`: always white |
 | `hero_image`, `hero_title`, `hero_subtitle`, `hero_button_label`, `hero_button_link`, `hero_size` | start image only on the home page; size `large` or `medium` |
 | `banner`, `banner_image` | page title on sub-pages in an image banner (without an own image a gradient is used) |
 | `copyright` | text in the bottom line, `{year}` is replaced by the current year |
 | `back_to_top` | "Back to top" button when scrolling |
 
-Images are stored like attachments and not deleted by the storage clean-up as long as a setting refers to them. `GET /api/v1/x/theme.cms/config` delivers the public values. You create menus under *Administration → Menus*: main navigation at `header-nav` (it then replaces the automatic navigation), quick links at `top-bar`, footer columns with blocks or menus at `footer-1` … `footer-4`, legal links at `footer`.
+Logos and images are uploaded PNG, WebP or JPEG files (no SVG); they are not deleted by the storage clean-up as long as a setting refers to them. `GET /api/v1/templates/{id}/settings` delivers the effective values. You create menus under *Administration → Menus*: main navigation at `header-nav` (it then replaces the automatic navigation), quick links at `top-bar`, footer columns with blocks or menus at `footer-1` … `footer-4`, legal links at `footer`.
 
 With `?positions=1` on any address (or *Show positions on the page* under *Menus* or *Blocks*) administrators see all positions framed with their names. Menus and blocks at a position the active template does not have are marked in the management and not shown.
 

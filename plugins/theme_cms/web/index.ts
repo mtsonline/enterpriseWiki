@@ -3,24 +3,33 @@
 // (transparent over a hero image on the start page, solid and smaller when
 // scrolling), full-width hero, page title banners, light page background
 // with white content area, dark footer with columns and a socket bar.
-// Logo, colours and the start page hero are set under Administration →
-// Website template (plugin settings, public via GET /api/v1/x/theme.cms/config).
+// Logo, colours and the start page hero are the settings of the template
+// (declared in plugin.json, "template_settings"; Administration → Templates
+// → Settings), checked by the server and handed to the layout.
 import {
-  api, brandHeader, h, iconURL, MAIN, mediaMatches, mount, pick, poweredBy, readableOn, pluginSettingsForm, registerAdminPage, registerSlot, registerTemplate, state, t, type Category, type SchemaArea, type SettingField, type TemplateSchema,
+  api, brandHeader, h, iconURL, imageSetting, MAIN, mediaMatches, mount, pick, poweredBy, readableOn, registerSlot, registerTemplate, shownTemplateSettings, state, t,
+  type Category, type ImageSetting, type SchemaArea, type TemplateSchema, type TemplateSettingValues,
 } from '@ewiki/coreplugin';
 import './style.css';
 import { CMS_DARK_BGS } from './colors';
 
+/** The settings of the template, typed (the server checked them against plugin.json). */
 interface Config {
-  logo?: string; logo_light?: string; logo_height?: number; primary_color?: string; accent_color?: string; header?: 'overlay' | 'solid';
-  hero_image?: string; hero_title?: string; hero_subtitle?: string; hero_button_label?: string; hero_button_link?: string; hero_size?: 'medium' | 'large';
-  banner?: boolean; banner_image?: string; copyright?: string; back_to_top?: boolean;
+  logo: ImageSetting | null; logo_light: ImageSetting | null; logo_height: number; primary_color: string; header: string;
+  hero_image: ImageSetting | null; hero_title: string; hero_subtitle: string; hero_button_label: string; hero_button_link: string; hero_size: string;
+  banner: boolean; banner_image: ImageSetting | null; copyright: string; back_to_top: boolean;
 }
 
-const BASE = '/api/v1/x/theme.cms';
-let config: Promise<Config> | null = null;
-const getConfig = (): Promise<Config> => (config ??= api.get<Config>(`${BASE}/config`).catch(() => ({})));
-const img = (hash?: string) => (hash ? `/api/v1/files/${hash}` : '');
+function configOf(v: TemplateSettingValues): Config {
+  const str = (k: string) => (typeof v[k] === 'string' ? v[k] as string : '');
+  return {
+    logo: imageSetting(v.logo), logo_light: imageSetting(v.logo_light), logo_height: Number(v.logo_height) || 56, primary_color: str('primary_color'), header: str('header'),
+    hero_image: imageSetting(v.hero_image), hero_title: str('hero_title'), hero_subtitle: str('hero_subtitle'), hero_button_label: str('hero_button_label'),
+    hero_button_link: str('hero_button_link'), hero_size: str('hero_size'), banner: v.banner === true, banner_image: imageSetting(v.banner_image),
+    copyright: str('copyright'), back_to_top: v.back_to_top !== false,
+  };
+}
+
 const isHome = () => location.pathname === '/';
 const safeLink = (u?: string) => (u && (/^https?:\/\//i.test(u) || (u.startsWith('/') && !u.startsWith('//'))) ? u : '');
 
@@ -38,37 +47,17 @@ async function mainNav(): Promise<Node | null> {
 }
 
 // Start page hero from the template settings.
-async function hero(): Promise<Node | null> {
+function hero(): Node | null {
   if (!isHome()) return null;
-  const c = await getConfig();
+  const c = configOf(shownTemplateSettings());
   if (!c.hero_image && !c.hero_title) return null;
   const link = safeLink(c.hero_button_link);
   return h('section', { class: ['ewcms-hero', `ewcms-hero--${c.hero_size === 'medium' ? 'medium' : 'large'}`, !c.hero_image && 'ewcms-hero--plain'],
-    style: c.hero_image ? `--ewcms-hero-img:url("${img(c.hero_image)}")` : undefined, 'aria-label': c.hero_title || state.site.name },
+    style: c.hero_image ? `--ewcms-hero-img:url("${c.hero_image.src}")` : undefined, 'aria-label': c.hero_title || state.site.name },
   h('div', { class: 'ewcms-wrap ewcms-hero-inner' },
     c.hero_title ? h('p', { class: 'ewcms-hero-title' }, c.hero_title) : null,
     c.hero_subtitle ? h('p', { class: 'ewcms-hero-subtitle' }, c.hero_subtitle) : null,
     c.hero_button_label && link ? h('a', { href: link, class: 'ewcms-hero-button' }, c.hero_button_label) : null));
-}
-
-function settingsFields(): SettingField[] {
-  return [
-    { key: 'logo', label: t('cms.logo'), type: 'image', help: t('cms.logo_help') },
-    { key: 'logo_light', label: t('cms.logo_light'), type: 'image', help: t('cms.logo_light_help') },
-    { key: 'logo_height', label: t('cms.logo_height'), type: 'number', help: t('cms.logo_height_help') },
-    { key: 'primary_color', label: t('cms.primary_color'), type: 'color', default: '#0a3760', help: t('cms.primary_color_help') },
-    { key: 'header', label: t('cms.header'), type: 'select', options: [{ value: 'overlay', label: t('cms.header_overlay') }, { value: 'solid', label: t('cms.header_solid') }] },
-    { key: 'hero_image', label: t('cms.hero_image'), type: 'image', help: t('cms.hero_image_help') },
-    { key: 'hero_title', label: t('cms.hero_title') },
-    { key: 'hero_subtitle', label: t('cms.hero_subtitle') },
-    { key: 'hero_button_label', label: t('cms.hero_button_label') },
-    { key: 'hero_button_link', label: t('cms.hero_button_link'), placeholder: '/studium, https://…' },
-    { key: 'hero_size', label: t('cms.hero_size'), type: 'select', options: [{ value: 'large', label: t('cms.hero_large') }, { value: 'medium', label: t('cms.hero_medium') }] },
-    { key: 'banner', label: t('cms.banner'), type: 'bool', help: t('cms.banner_help') },
-    { key: 'banner_image', label: t('cms.banner_image'), type: 'image', help: t('cms.banner_image_help'), when: (v) => v.banner === true },
-    { key: 'copyright', label: t('cms.copyright'), placeholder: '© Organisation', help: t('cms.copyright_help') },
-    { key: 'back_to_top', label: t('cms.back_to_top'), type: 'bool' },
-  ];
 }
 
 /** Compact: the navigation and the tools behind their buttons (style.css). */
@@ -100,15 +89,6 @@ export const schema: TemplateSchema = (size) => {
 export function register(): void {
   registerSlot({ id: 'theme.cms.nav', position: 'cms-nav', order: 0, label: () => t('theme.cms.block_nav'), render: mainNav });
   registerSlot({ id: 'theme.cms.hero', position: 'hero', order: 0, label: () => t('theme.cms.block_hero'), render: hero });
-  registerAdminPage({
-    permission: 'core.settings.manage',
-    id: 'website', area: 'appearance', label: () => t('cms.admin_title'), order: 30,
-    render: async (el) => {
-      const f = await pluginSettingsForm('theme.cms', settingsFields(), t('cms.admin_title'));
-      el.replaceChildren(h('h1', null, t('cms.admin_title')), h('p', null, t('cms.admin_help')), f.el);
-      f.el.addEventListener('submit', () => { config = null; setTimeout(() => location.reload(), 900); });
-    },
-  });
   registerTemplate({
     id: 'theme.cms',
     className: 'ewcms',
@@ -178,30 +158,30 @@ export function register(): void {
         top);
 
       // settings: colours, logo, banner, copyright
-      void getConfig().then((c) => {
-        if (c.primary_color && /^#[0-9a-fA-F]{6}$/.test(c.primary_color)) {
-          // light scheme: the colour as chosen; dark scheme: made readable on
-          // the lightest dark background of the template (the area below the
-          // content), so links and buttons keep 4.5:1
-          root.style.setProperty('--ewcms-primary-l', c.primary_color);
-          root.style.setProperty('--ewcms-primary-d', CMS_DARK_BGS.reduce((col, bg) => readableOn(col, bg), c.primary_color));
-        }
-        if (c.logo) {
-          const height = Math.min(Math.max(Number(c.logo_height) || 56, 24), 120);
-          mount(brand,
-            h('img', { class: 'ewcms-logo-img', src: img(c.logo), alt: state.site.name, style: `--ewcms-logo-h:${height}px` }),
-            c.logo_light ? h('img', { class: 'ewcms-logo-img ewcms-logo-img--light', src: img(c.logo_light), alt: '', 'aria-hidden': 'true', style: `--ewcms-logo-h:${height}px` }) : null);
-          root.classList.toggle('ewcms--light-logo', !!c.logo_light);
-        }
-        if (c.copyright) copyright.textContent = c.copyright.replace('{year}', String(year));
-        root.classList.toggle('ewcms--solid', c.header === 'solid');
-        if (c.banner) {
-          root.classList.add('ewcms--banner');
-          const b = c.banner_image || c.hero_image;
-          if (b) root.style.setProperty('--ewcms-banner-img', `url("${img(b)}")`);
-        }
-        top.dataset.enabled = c.back_to_top === false ? '0' : '1';
-      });
+      const c = configOf(ctx.settings);
+      if (/^#[0-9a-f]{6}$/i.test(c.primary_color)) {
+        // light scheme: the colour as chosen; dark scheme: made readable on
+        // the lightest dark background of the template (the area below the
+        // content), so links and buttons keep 4.5:1
+        root.style.setProperty('--ewcms-primary-l', c.primary_color);
+        root.style.setProperty('--ewcms-primary-d', CMS_DARK_BGS.reduce((col, bg) => readableOn(col, bg), c.primary_color));
+      }
+      if (c.logo) {
+        const height = Math.min(Math.max(c.logo_height, 24), 120);
+        // width and height reserve the room of the logo before it loads
+        const logoImg = (x: ImageSetting, light: boolean) => h('img', { class: ['ewcms-logo-img', light && 'ewcms-logo-img--light'], src: x.src, width: x.width, height: x.height,
+          alt: light ? '' : state.site.name, 'aria-hidden': light ? 'true' : undefined, style: `--ewcms-logo-h:${height}px` });
+        mount(brand, logoImg(c.logo, false), c.logo_light ? logoImg(c.logo_light, true) : null);
+        root.classList.toggle('ewcms--light-logo', !!c.logo_light);
+      }
+      if (c.copyright) copyright.textContent = c.copyright.replace('{year}', String(year));
+      root.classList.toggle('ewcms--solid', c.header === 'solid');
+      if (c.banner) {
+        root.classList.add('ewcms--banner');
+        const b = c.banner_image ?? c.hero_image;
+        if (b) root.style.setProperty('--ewcms-banner-img', `url("${b.src}")`);
+      }
+      top.dataset.enabled = c.back_to_top ? '1' : '0';
 
       // the area below the content is only shown when it has more than the wiki page tree
       const aside = root.querySelector<HTMLElement>('.ewcms-aside')!;

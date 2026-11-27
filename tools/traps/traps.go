@@ -2113,4 +2113,25 @@ var traps = []trap{
 		New:  "WHERE template <> '' GROUP BY template",
 		Pkg:  "./internal/server/", Tests: "^TestTemplateUsage$",
 	},
+	{
+		ID: "tplsettings.link-protocol-relative", About: "a link setting of a template accepts //host (leaves the wiki)",
+		File: "internal/tplsettings/tplsettings.go",
+		Old:  "		return !strings.HasPrefix(x, \"//\")",
+		New:  "		return true",
+		Pkg:  "./internal/tplsettings/", Tests: "^TestCheckValues$",
+	},
+	{
+		ID: "tplsettings.image-any-format", About: "an image setting of a template accepts any uploaded file (SVG with scripts)",
+		File: "internal/tplsettings/tplsettings.go",
+		Old:  "		if format != \"png\" && format != \"webp\" && format != \"jpeg\" {",
+		New:  "		if format == \"\" && false {",
+		Pkg:  "./internal/tplsettings/", Tests: "^TestCheckValues$",
+	},
+	{
+		ID: "storage.gc-template-images", About: "the storage clean-up deletes logos the settings of templates refer to",
+		File: "internal/storage/storage.go",
+		Old:  "[]map[string]map[string]any{c.Settings, c.TemplateSettings}",
+		New:  "[]map[string]map[string]any{c.Settings}",
+		Pkg:  "./internal/server/", Tests: "^TestTemplateSettings$",
+	},
 }
