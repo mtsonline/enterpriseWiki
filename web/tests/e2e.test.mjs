@@ -78,6 +78,20 @@ test('requests of the test itself are marked, so they do not count as interface 
 
 // axe (WCAG 2.2 AA) and the overlap check (no control covered by another
 // element), from the top of the page; see a11y-lib.mjs
+/**
+ * Does what leads to a page (kind 'e') or a category ('c') and waits for its
+ * address /e/ID or /c/ID; returns the ID. The wiki replaces that address with
+ * the readable path (/wiki/…, on by default) as soon as the page has loaded,
+ * so waiting for the short form afterwards can miss it: the wait starts
+ * before the action.
+ */
+async function opens(kind, action, pg = page) {
+  const re = new RegExp(`^/${kind}/(\\d+)$`);
+  const seen = pg.waitForEvent('framenavigated', { predicate: (f) => f === pg.mainFrame() && re.test(new URL(f.url()).pathname) });
+  await action();
+  return Number(re.exec(new URL((await seen).url()).pathname)[1]);
+}
+
 async function a11y(name, pg = page) {
   if (!axeSource) return;
   await checkPage(name, pg);
@@ -168,8 +182,7 @@ test('create, edit, translate and search a page', async () => {
   await page.getByRole('button', { name: /^bold$|^fett$/i }).click();
   await page.keyboard.type(' bold');
   await a11y('page editor');
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   assert.match(await page.locator('.ew-content').innerText(), new RegExp(`quokka${run}`));
   assert.ok(await page.locator('.ew-content strong, .ew-content b').count() > 0, 'bold text saved');
@@ -181,8 +194,7 @@ test('create, edit, translate and search a page', async () => {
   await idle();
   await page.getByLabel(/^(title|titel)/i).fill(`Seite ${run}`);
   await page.locator('.ewe-prose').fill(`Hallo quokka${run} Welt`);
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   // search
   await page.goto(`${BASE}/search?q=quokka${run}`);
@@ -364,8 +376,7 @@ test('upload a PDF as file element and find its text', async () => {
   await page.locator('.ewa-editor input[type=file]').setInputFiles({ name: 'report.pdf', mimeType: 'application/pdf', buffer: Buffer.from(pdf) });
   await page.waitForFunction(() => /report\.pdf/.test(document.querySelector('.ewa-status')?.textContent ?? ''));
   await a11y('file editor');
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   assert.ok(await page.locator('iframe.ew-attachment-pdf').count() > 0, 'pdf preview shown');
   await a11y('file element');
@@ -499,8 +510,7 @@ test('insert macros with the macro dialog', async () => {
   await page.locator('dialog[open] button[type=submit]').click();
   await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="properties"]');
   await a11y('visual editor with macros');
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   assert.ok(await page.locator('.ew-content .ew-macro-panel--warning').count() === 1, 'panel rendered');
   assert.match(await page.locator('.ew-macro-panel').innerText(), /Very careful/);
@@ -710,8 +720,7 @@ test('visual editor: Markdown input, tables, Markdown mode, keyboard', async () 
   await sd.getByLabel(/^(text color|textfarbe)$/i).selectOption('red');
   await sd.locator('button[type=submit]').click();
   await ed.locator('.ewe-macro_inline[data-macro="style"]').waitFor();
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   const content = page.locator('.ew-content').first();
   assert.equal(await content.locator('input[type=checkbox][checked]').count(), 1, 'checked task saved');
@@ -766,14 +775,12 @@ test('live editing: two editors see each other', async () => {
     await page.waitForFunction((x) => document.querySelector('.ewe-prose')?.textContent?.includes(x), `source${run}`, { timeout: 10000 });
     assert.ok(await src1.isHidden(), 'the first editor followed back to the visual editor');
     // saving in one editor: the other continues on the new revision without conflict
-    await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-    await page.waitForURL(/\/e\/\d+$/);
+    await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
     await p2.locator('.ew-notice--info[role=status]').waitFor();
     await p2.locator('.ewe-prose h2').click();
     await p2.keyboard.press('End');
     await p2.keyboard.type('!');
-    await p2.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-    await p2.waitForURL(/\/e\/\d+$/);
+    await opens('e', () => p2.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), p2);
     const saved = await call('GET', `/api/v1/elements/${el.id}?edit=1`);
     assert.match(saved.body.source, new RegExp(`## Shared live${run}!`));
   } finally {
@@ -1342,9 +1349,7 @@ test('the simple editor as personal choice', async () => {
     await page.getByRole('button', { name: /^bold$|^fett$/i }).click();
     await page.keyboard.type(' bold');
     await a11y('simple editor');
-    await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-    await page.waitForURL(/\/e\/\d+$/);
-    const id = Number(/\/e\/(\d+)$/.exec(page.url())[1]);
+    const id = await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
     await idle();
     assert.match(await page.locator('.ew-content').first().innerText(), new RegExp(`koala${run}`));
     // saved as Markdown, whichever editor was used
@@ -1426,8 +1431,7 @@ test('hint on long sentences: offered by the site, chosen by the person, marks w
     await summary.filter({ hasText: /2 long sentences, 1 long word|2 lange sätze, 1 langes wort/i }).waitFor();
     await page.getByRole('button', { name: /^(visual mode|visueller modus)$/i }).click();
     // saved without any trace of the marks
-    await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-    await page.waitForURL(/\/e\/\d+$/);
+    await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
     const saved = (await call('GET', `/api/v1/elements/${el.id}?edit=1`)).body.source;
     assert.ok(!/ewe-rh|ew-rh/.test(saved), 'no marks in the saved text');
     assert.equal(saved.split(long).length - 1, 3, 'the text as written');
@@ -1486,8 +1490,7 @@ test('workflow: HR application from template, start and handle a case', async ()
   await page.waitForSelector('.ewf-step-row--condition');
   await a11y('workflow editor with approval and condition steps');
   await page.locator('.ewf-step-row').last().getByRole('button', { name: /^(delete|löschen)/i }).last().click();
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   await page.waitForSelector('.ewf-cases');
   await a11y('workflow page');
@@ -2018,8 +2021,7 @@ test('workflow: the step "Shell command" in the editor, its approval asked for o
   // values only as environment variables, chosen per field
   await row.getByRole('group', { name: /^(values for the command|werte für den befehl)$/i }).getByLabel(/EWIKI_FIELD_HOST/).check();
   await a11y('workflow editor with a shell step');
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   const body = (await call('GET', `/api/v1/elements/${wf.id}?lang=en&edit=1`)).body;
   const step = body.steps.find((x) => x.type === 'shell');
@@ -2114,8 +2116,7 @@ test('workflow: the start button carries the label of the workflow, set in the e
   await page.goto(`${BASE}/e/${wf.id}/edit`);
   await idle();
   await page.getByLabel(/^(label of the start button|beschriftung der startschaltfläche)/i).fill(`New leave request ${run}`);
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   // the button and the title of the start form
   await page.getByRole('button', { name: `New leave request ${run}` }).click();
@@ -2217,8 +2218,7 @@ test('drafts, preview, templates and publishing with options', async () => {
   const dlg = page.locator('dialog[open]');
   await dlg.getByLabel(/notify watchers|beobachter benachrichtigen/i).waitFor();
   await a11y('publish dialog');
-  await dlg.locator('button[type=submit]').click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => dlg.locator('button[type=submit]').click(), page);
   await idle();
   assert.match(await page.locator('main').innerText(), new RegExp(`wombat${run}`));
   // the template is offered for new pages
@@ -2630,8 +2630,7 @@ test('permissions of an instance: a blog editor without page permissions, own pe
     await p2.getByLabel(/^(title|titel)/i).fill(`Via ${run}`);
     await p2.locator('.ewe-prose').click();
     await p2.keyboard.type(`Written by the blogger ${run}`);
-    await p2.locator('form.ew-edit-form button[type=submit]').first().click();
-    await p2.waitForURL(new RegExp(`/e/${blog.id}$`));
+    assert.equal(await opens('e', () => p2.locator('form.ew-edit-form button[type=submit]').first().click(), p2), blog.id);
     const posts = await call('GET', `/api/v1/x/content.blog/elements/${blog.id}/posts?lang=en`);
     const written = posts.items.find((x) => x.title === `Via ${run}`);
     assert.ok(written, 'the post is in the blog');
@@ -2833,8 +2832,7 @@ test('editing page: tags in the side column, no formatting toolbar, actions stay
     await idle();
     assert.equal(await tags.inputValue(), `arranged${run}`, 'typed text kept');
     await page.getByRole('textbox', { name: /^(title|titel)/i }).fill(`Edited again ${run}`);
-    await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-    await page.waitForURL(new RegExp(`/e/${el.id}$`));
+    assert.equal(await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click()), el.id);
     const saved = await call('GET', `/api/v1/elements/${el.id}`);
     assert.equal(saved.title, `Edited again ${run}`);
     assert.deepEqual(saved.tags, [`arranged${run}`]);
@@ -2961,9 +2959,10 @@ test('dashboard as the start page: set in the settings, tiles of the plugins, th
     await board.locator('.ew-tile-status').getByText(/^(version)$/i).waitFor();
     await a11y('dashboard with all tiles');
     // the start page of the site stays reachable
+    // (the start page of the site may lead on to its only category; its address may turn readable at once)
+    const home = page.waitForEvent('framenavigated', { predicate: (f) => f === page.mainFrame() && /^\/(start|c\/\d+)$/.test(new URL(f.url()).pathname) });
     await page.getByRole('link', { name: /^(go to the start page of the wiki|zur startseite des wikis)$/i }).click();
-    // (the start page of the site may lead on to its only category)
-    await page.waitForURL(/\/(start|c\/\d+)$/);
+    await home;
     await idle();
     assert.equal(await page.locator('.ew-dashboard').count(), 0, 'the start page of the site, not the dashboard');
   } finally {
@@ -3174,8 +3173,7 @@ test('layout blocks: a section with options from the macro dialog, an icon box w
   await iconDlg.getByLabel(/^(link \(the whole box\)|link \(der ganze kasten\))/i).fill('/search');
   await iconDlg.locator('button[type=submit]').click();
   await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="iconbox"]');
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   const frame = page.locator('.ew-content .ew-bo', { hasText: 'Section body' });
   await frame.waitFor();
@@ -3320,8 +3318,7 @@ test('emoji: found by a word, chosen with the keyboard, inserted as text', async
   // inserts the emoji) comes a moment later: wait for the text, not the dialog
   await page.waitForFunction((want) => document.querySelector('.ewe-prose')?.textContent?.includes(want), `Thanks ${chosen}`, { timeout: 5000 })
     .catch(async () => assert.fail(`inserted at the cursor: ${JSON.stringify(await page.locator('.ewe-prose').textContent())}`));
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   await page.locator('.ew-content').getByText(`Thanks ${chosen}`).waitFor();
 });
@@ -3354,8 +3351,7 @@ test('wiki blocks: include a page chosen by title, a date, page tree with filter
   await a11y('date dialog');
   await dd.locator('button[type=submit]').click();
   await page.waitForSelector('.ewe-prose .ewe-macro_inline[data-macro="date"]');
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   await page.locator('time.ew-date[datetime="2026-12-15"]').waitFor();
   await page.locator('.ew-include').getByText('In short: lights off.').waitFor();
@@ -3443,8 +3439,7 @@ test('code blocks and attachments: colours, line numbers, copy, language in the 
   await cd.getByLabel(/^(line numbers|zeilennummern)$/i).uncheck();
   await a11y('code block settings');
   await cd.locator('button[type=submit]').click();
-  await page.getByRole('button', { name: /^(publish|veröffentlichen|save|speichern)$/i }).first().click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen|save|speichern)$/i }).first().click(), page);
   await idle();
   await page.locator('.ew-codeblock .ew-code-lang', { hasText: 'Python' }).waitFor();
   assert.equal(await page.locator('.ew-code-gutter').count(), 0);
@@ -3527,8 +3522,7 @@ test('shared block: the selection saved as a block of its own, included, changed
   await a11y('save a shared block');
   await dlg.locator('button[type=submit]').click();
   await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="include"]');
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   await page.locator('.ew-content').getByText(`Reception okapi ${run}`).waitFor();
   // the block itself: never listed, changed in one place
@@ -3571,8 +3565,7 @@ test('block templates: save selected blocks, insert them into another page', asy
   await a11y('insert a block template');
   await ins.getByRole('treeitem', { name: `Hours ${run}`, exact: true }).click();
   await page.locator('.ewe-prose').getByText(`Opening hours ${run}`).waitFor();
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   await page.locator('.ew-content').getByText('Monday to Friday').waitFor();
 });
@@ -5282,8 +5275,7 @@ test('team page and business card', async () => {
   assert.equal(await pub.isChecked(), false, 'not public at first');
   await pub.check();
   await a11y('team editor');
-  await page.getByRole('button', { name: /^(publish|veröffentlichen|save|speichern)$/i }).first().click();
-  await page.waitForURL(new RegExp(`/e/${team.id}$`));
+  assert.equal(await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen|save|speichern)$/i }).first().click()), team.id);
   const saved = await call('GET', `/api/v1/elements/${team.id}?edit=1`);
   assert.equal(saved.body?.public, true, 'saved as public');
 });
@@ -5307,8 +5299,7 @@ test('people blocks: a profile card chosen by name and the people of a group', a
   await dlg2.locator('select').filter({ has: page.locator(`option[value="${g.id}"]`) }).selectOption(String(g.id));
   await dlg2.locator('button[type=submit]').click();
   await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="people"]');
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   await page.locator('.ewt--card').getByText('Deck officer').waitFor();
   await page.locator('.ew-macro--people').getByText(name).waitFor();
@@ -5337,8 +5328,7 @@ test('decisions: a decision in a page, the report of decisions and the data for 
   await a11y('decision dialog');
   await dlg.locator('button[type=submit]').click();
   await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="decision"]');
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   await page.locator('.ew-decision-title', { hasText: title }).waitFor();
   await page.locator('.ew-decisions tr', { hasText: title }).getByText(/^(decided|entschieden)$/i).waitFor();
@@ -5449,8 +5439,7 @@ test('editor: suggestions of blocks while typing ("/" and ":name"), the task wit
   await page.waitForFunction(() => /\n::tasks\{?/.test(document.querySelector('textarea.ewe-markdown').value) && !document.querySelector('textarea.ewe-markdown').value.includes('::tasks\n::tasks'));
   assert.equal((await src.inputValue()).match(/::tasks/g).length, 1, 'the typed name is replaced by the block');
   await page.getByRole('button', { name: /^(visual mode|visueller modus)$/i }).click();
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   await page.getByRole('region', { name: /^(tasks|aufgaben)$/i }).locator('tr', { hasText: `Water the okapi ${run}` }).waitFor();
 });
@@ -5473,8 +5462,7 @@ test('dates in pages: an appointment with the date block, the report of dates, a
   await page.keyboard.press('Enter');
   const dlg2 = await insertBlock('dates');
   await dlg2.locator('button[type=submit]').click();
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   await idle();
   await page.locator('time.ew-date', { hasText: /10:00–11:30/ }).waitFor();
   const report = page.getByRole('region', { name: /^(dates|termine)$/i });
@@ -5968,8 +5956,7 @@ test('editor: blocks move with the mouse, the buttons and Alt+Arrow keys; their 
   assert.match(await hsize.getAttribute('aria-valuetext'), /^20 rem$/);
   const bh = (await blocks.nth(0).boundingBox()).height;
   assert.ok(bh >= 20 * 16 - 1, `block is at least 20 rem high (${bh})`);
-  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
-  await page.waitForURL(/\/e\/\d+$/);
+  await opens('e', () => page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click(), page);
   const md = (await call('GET', `/api/v1/elements/${el.id}?edit=1`)).body.source;
   assert.ok(md.indexOf('lynx') < md.indexOf('okapi'), 'saved in the new order');
   assert.match(md, /max_width:32/);
@@ -6407,8 +6394,7 @@ test('demo content: create, browse accessibly, remove', async () => {
     await page.setViewportSize(wide);
   }
   // the first button leads into the example company
-  await page.locator('main a.ewl-cta[href^="/c/"]').first().click();
-  await page.waitForURL(/\/c\/\d+$/);
+  await opens('c', () => page.locator('main a.ewl-cta[href^="/c/"]').first().click(), page);
   await idle();
   const company = new URL(page.url()).pathname;
   await a11y('demo company');
@@ -7901,6 +7887,9 @@ test('people: the menu on names and the person page – mouse, keyboard, touch, 
     const mail = menu.getByRole('menuitem', { name: /^(send e-mail|e-mail senden)$/i });
     assert.equal(await mail.getAttribute('href'), `mailto:${name}@example.com`);
     await a11y('menu on a name');
+    // a box beside the name that scrolls (the page tree) leaves the menu open, the focus stays
+    await page.evaluate(() => document.querySelector('#ewc-sidebar')?.dispatchEvent(new Event('scroll')));
+    assert.equal(await menu.isVisible(), true, 'open after a scroll beside the name');
     // keyboard: the first entry has the focus, the arrows move, Escape closes, the focus returns
     assert.match(await focused(page), /^(open profile|profil öffnen)$/i);
     await page.keyboard.press('ArrowDown');
@@ -7913,6 +7902,12 @@ test('people: the menu on names and the person page – mouse, keyboard, touch, 
     await menu.waitFor({ state: 'detached' });
     assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('ew-person')), true, 'the focus is back on the name');
     assert.equal(await who.getAttribute('aria-expanded'), 'false');
+    // the page scrolls: the name moves, the menu closes
+    await page.keyboard.press('Enter');
+    await menu.waitFor();
+    // (the menu listens from the next tick on: the scroll repeats until it closes)
+    await page.waitForFunction((m) => { document.dispatchEvent(new Event('scroll')); return !document.getElementById(m); }, await menu.getAttribute('id'));
+    await who.focus();
     // Enter opens the menu, Enter on "Open profile" opens the person page
     await page.keyboard.press('Enter');
     await menu.waitFor();

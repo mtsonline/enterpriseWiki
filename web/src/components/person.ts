@@ -79,7 +79,15 @@ async function openMenu(btn: HTMLButtonElement, id: number, name: string): Promi
   // a link chosen: the menu closes (the page changes)
   el.addEventListener('click', (e) => { if ((e.target as Element).closest('a')) close(false); });
   const outside = (e: Event) => { if (!el.contains(e.target as Node) && e.target !== btn && !btn.contains(e.target as Node)) close(false); };
-  const onMove = () => close(false);
+  // the menu stands at the name: it closes when the name moves, that is when
+  // the window changes size or a box around the name scrolls (the page or a
+  // box that contains the name). A box elsewhere that scrolls (the page tree
+  // bringing its current entry into view, the menu itself) leaves it open.
+  const onScroll = (e: Event) => {
+    const box = e.target;
+    if (box === document || box === window || (box instanceof Node && box.contains(btn))) close(false);
+  };
+  const onResize = () => close(false);
   function close(back: boolean) {
     if (!open || open.el !== el) return;
     open = null;
@@ -87,8 +95,8 @@ async function openMenu(btn: HTMLButtonElement, id: number, name: string): Promi
     btn.setAttribute('aria-expanded', 'false');
     btn.removeAttribute('aria-controls');
     document.removeEventListener('pointerdown', outside, true);
-    window.removeEventListener('scroll', onMove, true);
-    window.removeEventListener('resize', onMove);
+    window.removeEventListener('scroll', onScroll, true);
+    window.removeEventListener('resize', onResize);
     if (back && btn.isConnected) btn.focus();
   }
   // inside a modal dialog (the rest of the page is inert there)
@@ -104,8 +112,8 @@ async function openMenu(btn: HTMLButtonElement, id: number, name: string): Promi
   btn.setAttribute('aria-controls', menuId);
   setTimeout(() => {
     document.addEventListener('pointerdown', outside, true);
-    window.addEventListener('scroll', onMove, true);
-    window.addEventListener('resize', onMove);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
   }, 0);
   focusAt(0);
 }
