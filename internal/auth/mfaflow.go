@@ -378,7 +378,7 @@ type pending struct {
 }
 
 func (s *Service) loadPending(ctx context.Context, token string) (*pending, error) {
-	if token == "" || len(token) > 100 {
+	if token == "" || len(token) > 200 {
 		return nil, ErrMFAExpired
 	}
 	p := &pending{token: token}

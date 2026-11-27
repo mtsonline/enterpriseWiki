@@ -2,9 +2,7 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/subtle"
-	"encoding/base64"
 	"net/http"
 	"strings"
 
@@ -16,11 +14,7 @@ import (
 // feeds with the permissions of a user. They are only accepted by feed and
 // calendar subscription routes, never by the rest of the API.
 
-func newFeedToken() string {
-	b := make([]byte, 24)
-	_, _ = rand.Read(b)
-	return "ft_" + base64.RawURLEncoding.EncodeToString(b)
-}
+func newFeedToken() string { return NewToken("ft_") }
 
 // FeedToken returns the feed token of a user, creating it if needed.
 func (s *Service) FeedToken(ctx context.Context, uid int64) (string, error) {
@@ -56,7 +50,8 @@ func (s *Service) FeedContext(r *http.Request) (context.Context, bool, error) {
 	if tok == "" {
 		return ctx, identity.From(ctx) != nil, nil
 	}
-	if !strings.HasPrefix(tok, "ft_") || len(tok) > 64 {
+	// "ft_" and the hexadecimal digits of NewToken
+	if !strings.HasPrefix(tok, "ft_") || len(tok) > 3+2*TokenBytes {
 		return nil, false, apperr.ErrUnauthorized
 	}
 	var uid int64

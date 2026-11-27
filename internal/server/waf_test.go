@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/corazawaf/coraza/v3"
 	"github.com/corazawaf/coraza/v3/types"
 
+	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 )
 
@@ -86,15 +88,26 @@ func wafCheck(t *testing.T, waf coraza.WAF, method, uri, body string) (rules []s
 // wafCheckType is wafCheck with a body of the given content type.
 func wafCheckType(t *testing.T, waf coraza.WAF, method, uri, ctype, body string) (rules []string, blocked bool) {
 	t.Helper()
+	return wafCheckHeaders(t, waf, method, uri, ctype, body, nil)
+}
+
+// wafCheckHeaders is wafCheckType with some headers replaced (for example
+// the Cookie); the others are those of a browser on the wiki.
+func wafCheckHeaders(t *testing.T, waf coraza.WAF, method, uri, ctype, body string, headers map[string]string) (rules []string, blocked bool) {
+	t.Helper()
 	tx := waf.NewTransaction()
 	defer func() { _ = tx.Close() }()
 	tx.ProcessConnection("192.0.2.10", 50000, "192.0.2.1", 443)
 	tx.ProcessURI(uri, method, "HTTP/1.1")
-	for k, v := range map[string]string{
+	all := map[string]string{
 		"Host": "wiki.example.com", "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0",
 		"Accept": "application/json", "Accept-Language": "de", "Accept-Encoding": "gzip, deflate, br",
 		"Origin": "https://wiki.example.com", "X-Requested-With": "ewiki", "Cookie": "ewiki_session=abcdefghijklmnopqrstuvwxyz0123456789ABCDEF",
-	} {
+	}
+	for k, v := range headers {
+		all[k] = v
+	}
+	for k, v := range all {
 		tx.AddRequestHeader(k, v)
 	}
 	if body != "" {
@@ -450,4 +463,41 @@ func wafCheckForm(t *testing.T, waf coraza.WAF, uri, body string) ([]string, boo
 		}
 	}
 	return nil, it != nil || n > 0
+}
+
+// TestTokensPassWAF: the wiki's random tokens never look like an attack to
+// a firewall with the Core Rule Set, without any exception for them. Found
+// 27.11.2026: about one in 20,000 base64url tokens started with a digit and
+// "--", which rule 942100 reads as an SQL comment; a session cookie like
+// that had every request of its person refused. Tokens are hexadecimal now.
+func TestTokensPassWAF(t *testing.T) {
+	// the form: prefix and 96 hexadecimal digits (no "-", no SQL keyword)
+	form := regexp.MustCompile(`^ft_[0-9a-f]{96}$`)
+	for range 100 {
+		if tok := auth.NewToken("ft_"); !form.MatchString(tok) {
+			t.Fatalf("token %q is not hexadecimal with 384 bits", tok)
+		}
+	}
+	waf := wafFor(t, "4", "")
+	get := func(uri, cookie string) ([]string, bool) {
+		return wafCheckHeaders(t, waf, "GET", uri, "", "", map[string]string{"Cookie": cookie})
+	}
+	// tokens of the old form that the rules refuse (found with random
+	// tokens): the check below would see such a token
+	for _, tok := range []string{"4--4bojnggho5RnLgIy1PlIGvqQ5JDmQDpUpIHFjJLY", "1--_S4Gn88Re1DuTMqcRaGfACPI1ZLFEHiOctoaO-Jw"} {
+		if _, b := get("/api/v1/auth/me", "ewiki_session="+tok); !b {
+			t.Errorf("the old token %s passes: the sample no longer shows the problem", tok)
+		}
+	}
+	// new tokens pass: in the session cookie and in the address (links in
+	// e-mails, feeds, the office server)
+	for range 300 {
+		tok := auth.NewToken("")
+		if rules, b := get("/api/v1/auth/me", "ewiki_session="+tok); b {
+			t.Fatalf("new token %s refused in the session cookie: %v", tok, rules)
+		}
+		if rules, b := get("/password-reset/confirm?token="+tok, ""); b {
+			t.Fatalf("new token %s refused in an address: %v", tok, rules)
+		}
+	}
 }

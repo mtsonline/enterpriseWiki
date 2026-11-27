@@ -31,6 +31,9 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/secrets"
 )
 
+// pkceVerifier is the form of a PKCE code verifier (RFC 7636, section 4.1).
+var pkceVerifier = regexp.MustCompile(`^[A-Za-z0-9._~-]{43,128}$`)
+
 // browser is a client that does not follow redirects automatically.
 func (c *client) noRedirect() *http.Client {
 	return &http.Client{Jar: c.http.Jar, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
@@ -160,8 +163,11 @@ func newFakeOIDC(t *testing.T) *fakeOIDC {
 	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		c, ok := f.codes[r.FormValue("code")]
-		sum := sha256.Sum256([]byte(r.FormValue("code_verifier")))
-		if !ok || base64.RawURLEncoding.EncodeToString(sum[:]) != c["challenge"] || r.FormValue("redirect_uri") != c["redirect"] {
+		// as a real identity provider: the verifier has 43 to 128 of the
+		// characters of RFC 7636 (found 27.11.2026: a longer one failed with Keycloak)
+		v := r.FormValue("code_verifier")
+		sum := sha256.Sum256([]byte(v))
+		if !ok || !pkceVerifier.MatchString(v) || base64.RawURLEncoding.EncodeToString(sum[:]) != c["challenge"] || r.FormValue("redirect_uri") != c["redirect"] {
 			http.Error(w, `{"error":"invalid_grant"}`, 400)
 			return
 		}
@@ -366,6 +372,10 @@ func (f *fakeSAML) login(t *testing.T, e *env, c *client, next string) string {
 	res, err := hc.Get(e.srv.URL + "/api/v1/auth/sso/shib/start?next=" + url.QueryEscape(next))
 	if err != nil || res.StatusCode != 302 {
 		t.Fatalf("start %v %d", err, res.StatusCode)
+	}
+	// as a strict identity provider: RelayState has at most 80 bytes (SAML bindings, 3.4.3)
+	if u, err := url.Parse(res.Header.Get("Location")); err != nil || u.Query().Get("RelayState") == "" || len(u.Query().Get("RelayState")) > 80 {
+		t.Fatalf("RelayState in %s: SAML allows 1 to 80 bytes", res.Header.Get("Location"))
 	}
 	res, err = hc.Get(res.Header.Get("Location")) // IdP renders an auto-submit form
 	if err != nil || res.StatusCode != 200 {
