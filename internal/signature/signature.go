@@ -17,7 +17,6 @@ import (
 	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -33,6 +32,7 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/secrets"
@@ -292,11 +292,7 @@ func (s *Service) Begin(ctx context.Context, st Start) (token string, ch Challen
 	if err != nil {
 		return "", ch, err
 	}
-	raw := make([]byte, 24)
-	if _, err := rand.Read(raw); err != nil {
-		return "", ch, err
-	}
-	token = base64.RawURLEncoding.EncodeToString(raw)
+	token = auth.NewToken("")
 	th := sha256.Sum256([]byte(token))
 	if _, err := s.pool.Exec(ctx, `DELETE FROM signature_pending WHERE expires_at < now()`); err != nil {
 		return "", ch, err

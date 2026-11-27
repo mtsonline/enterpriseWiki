@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -91,13 +92,34 @@ func CheckPasswordPolicy(pw string, minLen int) error {
 	return nil
 }
 
-// NewToken returns a random URL-safe token with the given prefix.
-func NewToken(prefix string) string {
-	b := make([]byte, 32)
+// TokenBytes is the randomness of a token: 384 bits, far more than can
+// ever be guessed (96 hexadecimal digits).
+const TokenBytes = 48
+
+// NewToken returns a random token with the given prefix, for sessions,
+// links in e-mails, feeds and other secrets that the server compares
+// itself.
+//
+// Only digits and a-f (hexadecimal): these never look like an attack to a
+// web application firewall, so no exception for them is needed. Found
+// 27.11.2026: about one in 20,000 base64url tokens started with a digit and
+// "--", which the OWASP Core Rule Set reads as an SQL comment (rule 942100);
+// a session cookie like that had every request of its person refused.
+// Digits and a-f form no SQL comment and no SQL keyword (TestTokensPassWAF).
+func NewToken(prefix string) string { return newHexToken(prefix, TokenBytes) }
+
+// NewShortToken is NewToken with 256 bits (64 hexadecimal digits), for
+// values that a standard limits: the state of a sign-in travels as SAML
+// RelayState, which may have at most 80 bytes (SAML bindings, 3.4.3). Such a
+// value is used once and expires after minutes.
+func NewShortToken(prefix string) string { return newHexToken(prefix, 32) }
+
+func newHexToken(prefix string, n int) string {
+	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
 		panic(err)
 	}
-	return prefix + base64.RawURLEncoding.EncodeToString(b)
+	return prefix + hex.EncodeToString(b)
 }
 
 // HashToken returns the SHA-256 of a token; only hashes are stored.

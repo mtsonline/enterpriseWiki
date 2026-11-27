@@ -2057,4 +2057,32 @@ var traps = []trap{
 		New:  "if n := c.UI.ChoiceCheckboxes; false && (n < 0 || n > ChoiceCheckboxesMax) {",
 		Pkg:  "./internal/server/", Tests: "^TestChoiceCheckboxes$",
 	},
+	{
+		ID: "auth.tokens-short", About: "random tokens get shorter than 384 bits",
+		File: "internal/auth/password.go",
+		Old:  "const TokenBytes = 48",
+		New:  "const TokenBytes = 16",
+		Pkg:  "./internal/server/", Tests: "^TestTokensPassWAF$",
+	},
+	{
+		ID: "auth.tokens-with-dash", About: "random tokens may contain \"-\" again (a digit and \"--\" is an SQL comment to firewalls)",
+		File: "internal/auth/password.go",
+		Old:  "return prefix + hex.EncodeToString(b)",
+		New:  "return prefix + hex.EncodeToString(b)[:95] + \"-\"",
+		Pkg:  "./internal/server/", Tests: "^TestTokensPassWAF$",
+	},
+	{
+		ID: "auth.pkce-verifier-too-long", About: "the PKCE verifier is longer than RFC 7636 allows (real identity providers refuse the sign-in)",
+		File: "internal/auth/sso.go",
+		Old:  "Verifier: NewToken(\"\"), TrustedProxy",
+		New:  "Verifier: NewToken(\"\") + NewToken(\"\"), TrustedProxy",
+		Pkg:  "./internal/server/", Tests: "^TestOIDCLogin$",
+	},
+	{
+		ID: "auth.relay-state-too-long", About: "the state of a sign-in gets longer than the 80 bytes SAML allows for RelayState",
+		File: "internal/auth/sso.go",
+		Old:  "State: NewShortToken(\"\")",
+		New:  "State: NewToken(\"\")",
+		Pkg:  "./internal/server/", Tests: "^TestSAMLLogin$",
+	},
 }

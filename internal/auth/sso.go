@@ -119,7 +119,9 @@ func (s *Service) SSOStart(ctx context.Context, provider string, r *http.Request
 	if !s.limiter.allow("sso:"+ip, 60, 5*time.Minute) {
 		return "", nil, apperr.TooMany("too many login attempts, try again later")
 	}
-	req := &SSORequest{State: NewToken(""), Nonce: NewToken(""), Verifier: NewToken("") + NewToken(""), TrustedProxy: trusted, Data: map[string]string{},
+	// the state is the SAML RelayState (at most 80 bytes); the PKCE verifier
+	// has 43 to 128 characters (RFC 7636), one token has 96
+	req := &SSORequest{State: NewShortToken(""), Nonce: NewToken(""), Verifier: NewToken(""), TrustedProxy: trusted, Data: map[string]string{},
 		CallbackURL: strings.TrimRight(s.cfg.Get().Server.BaseURL, "/") + "/api/v1/auth/sso/" + provider + "/callback"}
 	redirect, ext, err := p.Start(ctx, r, req)
 	if err != nil {

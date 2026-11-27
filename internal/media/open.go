@@ -10,9 +10,7 @@ package media
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
-	"encoding/base64"
 	"errors"
 	"io"
 	"net/http"
@@ -27,6 +25,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 )
 
@@ -333,11 +332,7 @@ func hashToken(tok string) []byte {
 }
 
 func (s *Service) issueToken(ctx context.Context, mediaID, userID int64, viewer, mode string, restricted bool, ttl time.Duration) (string, time.Time, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", time.Time{}, err
-	}
-	tok := base64.RawURLEncoding.EncodeToString(b)
+	tok := auth.NewToken("") // also in addresses of the office server (access_token): see auth.NewToken
 	exp := time.Now().Add(ttl).Truncate(time.Second)
 	var uid *int64
 	if userID > 0 {
