@@ -45,7 +45,7 @@ export function register(): void {
     return () => ed.destroyEditor?.();
   });
   registerAdminPage({
-    id: 'onlyoffice', permission: 'core.settings.manage', label: () => t(`${ID}.title`), order: 72,
+    id: 'onlyoffice', area: 'integrations', permission: 'core.settings.manage', label: () => t(`${ID}.title`), order: 72,
     render: officeAdminRender(ID, [
       { key: 'url', label: t(`${ID}.url`), placeholder: 'https://docs.example.com', help: t(`${ID}.url_help`) },
       { key: 'mode', label: t(`${ID}.mode`), type: 'select', help: t(`${ID}.mode_help`), options: [

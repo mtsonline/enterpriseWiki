@@ -648,9 +648,18 @@ export function getEditor(type: string): EditorFactory | undefined {
 
 // ---------------------------------------------------------------- admin pages
 
+/**
+ * The areas of the administration menu, in their order. A page without an
+ * area (plugins written before) is listed under 'extensions'.
+ */
+export const ADMIN_AREAS = ['overview', 'auth', 'people', 'appearance', 'content', 'integrations', 'security', 'operations', 'extensions'] as const;
+export type AdminArea = typeof ADMIN_AREAS[number];
+
 export interface AdminPage {
   id: string;
   label: () => string;
+  /** where the page is listed in the administration menu (default 'extensions') */
+  area?: AdminArea;
   order?: number;
   /** global permission needed for the page (declared in plugin.json); default: administrators only */
   permission?: string;

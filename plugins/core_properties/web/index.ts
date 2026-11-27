@@ -58,7 +58,7 @@ export function register(): void {
   registerWidget('core.properties.report', reportWidget);
   registerWidget('core.properties.database', databaseWidget);
   registerControls();
-  registerAdminPage({ id: 'properties', label: () => t('props.admin_title'), permission: 'core.properties.admin', order: 40, render: (el) => defsManager(el, null) });
+  registerAdminPage({ id: 'properties', area: 'content', label: () => t('props.admin_title'), permission: 'core.properties.admin', order: 40, render: (el) => defsManager(el, null) });
   registerCategorySettingsTab({
     id: 'properties', order: 20, label: () => t('props.title'),
     visible: (c) => !!state.user && ((c.permissions ?? []).includes('manage') || hasPerm('core.properties.admin')),

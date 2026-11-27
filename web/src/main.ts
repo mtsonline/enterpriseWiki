@@ -103,7 +103,7 @@ function registerCore(): void {
   registerMacroParamControl('image', imageControl);
   registerMacroParamControl('user', userControl);
   registerMacroParamControl('group', groupControl);
-  registerAdminPage({ id: 'placement', permission: 'core.settings.manage', order: 15, label: () => t('placement.admin'), render: async (panel) => { panel.append(pageHeader(t('placement.admin')), await placementEditor('site', ''), await typeLayouts(), await offeredTilesForm()); } });
+  registerAdminPage({ id: 'placement', area: 'appearance', permission: 'core.settings.manage', order: 15, label: () => t('placement.admin'), render: async (panel) => { panel.append(pageHeader(t('placement.admin')), await placementEditor('site', ''), await typeLayouts(), await offeredTilesForm()); } });
   registerProfileSection({ id: 'core.placement', order: 60, render: async () => (state.site.personal_placement && state.user ? placementEditor('user', String(state.user.id)) : null) });
   // building blocks of the core: default positions; the administration,
   // categories and (if allowed) every person can place them elsewhere

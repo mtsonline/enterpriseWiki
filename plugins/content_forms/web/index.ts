@@ -83,7 +83,7 @@ async function adminPage(panel: HTMLElement): Promise<void> {
 }
 
 export function register(): void {
-  registerAdminPage({ id: 'forms', label: () => t('forms.admin.title'), render: adminPage });
+  registerAdminPage({ id: 'forms', area: 'content', label: () => t('forms.admin.title'), render: adminPage });
   // macro "form-results": choose the form
   registerMacroParamControl('forms.form', (value, ctx) => {
     const box = h('div', { class: 'ewfm-pick' }, h('p', { class: 'ew-label' }, ctx.label));

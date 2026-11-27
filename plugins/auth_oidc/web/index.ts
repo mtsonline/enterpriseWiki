@@ -4,7 +4,7 @@ import { api, button, errorText, h, MAPPING_FIELDS, registerAdminPage, renderAut
 export function register(): void {
   registerAdminPage({
     permission: 'core.settings.manage',
-    id: 'oidc', label: () => t('auth.oidc.title'), order: 21,
+    id: 'oidc', area: 'auth', label: () => t('auth.oidc.title'), order: 21,
     render: (el) => renderAuthProviderPage(el, {
       pluginId: 'auth.oidc', base: 'oidc', title: t('auth.oidc.title'), help: t('auth.oidc.help'),
       fields: () => [

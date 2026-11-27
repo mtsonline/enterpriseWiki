@@ -401,5 +401,5 @@ export function register(): void {
     // every menu is a block of its own; its location is the default position
     instances: async () => (await menus()).map((m) => ({ key: String(m.id), label: `${t('core.menu.block')}: ${m.name}`, position: m.location, order: 20 + m.position })),
   });
-  registerAdminPage({ id: 'menus', permission: 'core.menu.edit', label: () => t('core.menu.admin_title'), order: 10, render: adminPage });
+  registerAdminPage({ id: 'menus', area: 'appearance', permission: 'core.menu.edit', label: () => t('core.menu.admin_title'), order: 10, render: adminPage });
 }

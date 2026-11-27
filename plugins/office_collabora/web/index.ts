@@ -5,7 +5,7 @@ const ID = 'office.collabora';
 
 export function register(): void {
   registerAdminPage({
-    id: 'collabora', permission: 'core.settings.manage', label: () => t(`${ID}.title`), order: 70,
+    id: 'collabora', area: 'integrations', permission: 'core.settings.manage', label: () => t(`${ID}.title`), order: 70,
     render: officeAdminRender(ID, [
       { key: 'url', label: t(`${ID}.url`), placeholder: 'https://collabora.example.com', help: t(`${ID}.url_help`) },
       { key: 'verify_proof', label: t(`${ID}.verify_proof`), type: 'bool', default: true, help: t(`${ID}.verify_proof_help`) },

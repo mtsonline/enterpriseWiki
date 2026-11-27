@@ -20,5 +20,5 @@ async function render(el: HTMLElement): Promise<void> {
 }
 
 export function register(): void {
-  registerAdminPage({ id: 'waf', permission: 'core.waf.manage', label: () => t('waf.title'), order: 66, render: (el) => render(el).catch((e) => toast(errorText(e), 'error')) });
+  registerAdminPage({ id: 'waf', area: 'security', permission: 'core.waf.manage', label: () => t('waf.title'), order: 66, render: (el) => render(el).catch((e) => toast(errorText(e), 'error')) });
 }

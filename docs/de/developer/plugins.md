@@ -92,7 +92,7 @@ Elementtypen können zusätzlich `content.Guard` implementieren: `CheckCreate(ct
 
 Im Frontend: `hasPerm('acme.kanban.export')` für globale Rechte, `el.permissions` / `category.permissions` enthält die Grundrechte und benannten Rechte der aktuellen Kategorie. Die Oberfläche blendet nur aus – entscheidend ist immer die Prüfung im Backend.
 
-Admin-Seiten (`registerAdminPage`) geben mit `permission: 'acme.kanban.export'` an, wer sie sieht; ohne Angabe nur Administratoren.
+Admin-Seiten (`registerAdminPage`) geben mit `permission: 'acme.kanban.export'` an, wer sie sieht; ohne Angabe nur Administratoren. Mit `area` wählen sie, wo das Menü der Verwaltung sie aufführt: `auth` (Anmeldung), `people` (Personen und Rechte), `appearance` (Darstellung), `content` (Inhalte), `integrations` (Anbindungen), `security` (Sicherheit und Datenschutz) oder `operations` (Betrieb); ohne Angabe stehen sie unter *Erweiterungen*.
 
 ### Erweiterungspunkte im Frontend
 
@@ -414,7 +414,7 @@ export function register(): void {
     render: async () => h('p', null, t('acme.kanban.hello')) });
 
   // Seite im Admin-Bereich (/admin/kanban)
-  registerAdminPage({ id: 'kanban', label: () => t('acme.kanban.admin'),
+  registerAdminPage({ id: 'kanban', area: 'content', label: () => t('acme.kanban.admin'),
     render: async (el) => { el.append(h('h1', null, t('acme.kanban.admin'))); } });
 }
 ```

@@ -92,7 +92,7 @@ Element types can additionally implement `content.Guard`: `CheckCreate(ctx, svc,
 
 In the frontend: `hasPerm('acme.kanban.export')` for global permissions; `el.permissions` / `category.permissions` contains the basic permissions and named permissions of the current category. The interface only hides – what counts is always the check in the backend.
 
-Admin pages (`registerAdminPage`) state with `permission: 'acme.kanban.export'` who sees them; without it only administrators.
+Admin pages (`registerAdminPage`) state with `permission: 'acme.kanban.export'` who sees them; without it only administrators. With `area` they choose where the menu of the administration lists them: `auth` (sign-in), `people` (people and permissions), `appearance`, `content`, `integrations` (connections), `security` (security and privacy) or `operations`; without it they are listed under *Extensions*.
 
 ### Extension points in the frontend
 
@@ -414,7 +414,7 @@ export function register(): void {
     render: async () => h('p', null, t('acme.kanban.hello')) });
 
   // page in the admin area (/admin/kanban)
-  registerAdminPage({ id: 'kanban', label: () => t('acme.kanban.admin'),
+  registerAdminPage({ id: 'kanban', area: 'content', label: () => t('acme.kanban.admin'),
     render: async (el) => { el.append(h('h1', null, t('acme.kanban.admin'))); } });
 }
 ```

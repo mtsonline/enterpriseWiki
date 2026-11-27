@@ -4,7 +4,7 @@ import { h, MAPPING_FIELDS, registerAdminPage, renderAuthProviderPage, t } from 
 export function register(): void {
   registerAdminPage({
     permission: 'core.settings.manage',
-    id: 'shibboleth', label: () => t('auth.shib.title'), order: 22,
+    id: 'shibboleth', area: 'auth', label: () => t('auth.shib.title'), order: 22,
     render: (el) => {
       const saml = (v: Record<string, unknown>) => (v.mode ?? 'saml') === 'saml';
       const header = (v: Record<string, unknown>) => v.mode === 'header';

@@ -63,7 +63,7 @@ async function adminPage(panel: HTMLElement): Promise<void> {
 }
 
 export function register(): void {
-  registerAdminPage({ id: 'workflow', label: () => t('workflow.admin.title'), render: adminPage });
+  registerAdminPage({ id: 'workflow', area: 'content', label: () => t('workflow.admin.title'), render: adminPage });
   registerEditor('workflow.process', createWorkflowEditor);
   registerWidget('workflow', workflowWidget);
   registerTaskSection({ id: 'workflow.process', order: 10, render: taskSections });
