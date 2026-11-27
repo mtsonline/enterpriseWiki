@@ -994,3 +994,4 @@ export function pageActionButtons(target: PageTarget): HTMLElement[] {
   }
   return out;
 }
+export { iconURL } from './core/icons';

@@ -3252,6 +3252,8 @@
  "plugin.name.core.layout": "Layout builder macros",
  "plugin.name.core.macros": "Standard macros",
  "plugin.name.macro.http": "HTTP macro",
+ "nav.tools_toggle": "Search and tools",
+ "nav.menu_close": "Close menu",
  "datepicker.open": "Choose date",
  "datepicker.open_for": "Choose date for {field}",
  "datepicker.chosen": "chosen: {date}",

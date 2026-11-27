@@ -14,7 +14,7 @@ Choose the **language** at the top. Interface and content change together. If a 
 
 **Buttons with only an icon** (✎, ×, ☰, 🔔 …) show their name when the mouse rests on them, when they get the keyboard focus and – on tablets and phones – on a long press (the long press only shows the name; a short tap presses the button). Escape hides the name.
 
-**On phones and small tablets** (up to 900 pixels wide) the page starts with its content: the menu button ☰ at the top opens the navigation, search, language, edit mode and user menu together with the side column, and closes them again (also with Escape or by following a link).
+**On phones and tablets** (up to 1100 pixels wide, or up to 520 pixels high, as on a phone held sideways) the page starts with its content. Two buttons at the top open what is closed at first: the menu button ☰ opens the navigation with the side column – held upright across the whole width below the bar, held sideways as a column of the full height at the side with its own close button – and the button with the magnifier opens search, language, edit mode and user menu. Escape, a click beside the menu or following a link closes them again. Large blocks such as the carousel and sections take less height there, so more of the page is in view.
 
 **Maintenance:** a bar at the top says when the wiki is read-only for maintenance – you can read everything, but saving, commenting and uploading are not possible until it ends. While the wiki is closed for maintenance you see only a message; administrators can still sign in.
 

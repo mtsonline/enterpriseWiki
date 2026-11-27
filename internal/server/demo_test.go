@@ -143,7 +143,7 @@ func TestDemo(t *testing.T) {
 			HTML string `json:"html"`
 		}
 		admin.must("GET", "/api/v1/elements/"+strconv.FormatInt(home.HomeElement, 10), nil, &land, 200)
-		if strings.Contains(land.HTML, "ew-macro-error") || strings.Count(land.HTML, `class="ewl-iconbox `) != 12 || !strings.Contains(land.HTML, `src="/brand/logo.webp"`) {
+		if strings.Contains(land.HTML, "ew-macro-error") || strings.Count(land.HTML, `class="ewl-iconbox `) != 12 {
 			t.Errorf("demo start page: %s", land.HTML)
 		}
 		var hidden int

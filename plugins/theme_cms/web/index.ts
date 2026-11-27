@@ -6,7 +6,7 @@
 // Logo, colours and the start page hero are set under Administration →
 // Website template (plugin settings, public via GET /api/v1/x/theme.cms/config).
 import {
-  api, brandHeader, h, mount, pick, poweredBy, readableOn, pluginSettingsForm, registerAdminPage, registerSlot, registerTemplate, state, t, type Category, type SettingField,
+  api, brandHeader, h, iconURL, mount, pick, poweredBy, readableOn, pluginSettingsForm, registerAdminPage, registerSlot, registerTemplate, state, t, type Category, type SettingField,
 } from '@ewiki/coreplugin';
 import './style.css';
 import { CMS_DARK_BGS } from './colors';
@@ -100,17 +100,34 @@ export function register(): void {
         toggle.setAttribute('aria-expanded', String(open));
         nav.classList.toggle('is-open', open);
         document.documentElement.classList.toggle('ewcms-nav-open', open);
+        // portrait: the menu starts right below the header
+        if (open) document.documentElement.style.setProperty('--ewcms-head-h', `${Math.round(header.getBoundingClientRect().bottom)}px`);
+        // one thing open at a time: the menu closes the tools
+        if (open) { tools.classList.remove('is-open'); toolsToggle.setAttribute('aria-expanded', 'false'); }
       };
       toggle.addEventListener('click', () => setOpen(toggle.getAttribute('aria-expanded') !== 'true'));
       nav.addEventListener('click', (ev) => { if ((ev.target as Element).closest('a')) setOpen(false); });
       const brand = h('a', { href: '/', class: 'ewcms-brand' }, ...brandHeader('ewcms-logo', 60));
-      const header = h('div', { class: 'ewcms-header' }, h('div', { class: 'ewcms-wrap ewcms-header-inner' }, brand, toggle, nav));
+      // compact screens (CSS: the same query as the wiki template): search,
+      // language, edit and account stay closed behind one button, so the
+      // page starts with its content
+      const tools = h('div', { id: 'ewcms-tools', class: 'ewcms-tools' }, ctx.position('header-tools'));
+      const toolsToggle = h('button', { type: 'button', class: 'ewcms-tools-toggle', 'aria-expanded': 'false', 'aria-controls': 'ewcms-tools' },
+        h('span', { class: 'ew-icon', 'aria-hidden': 'true', style: `--ew-icon: url("${iconURL('search')}")` }), h('span', { class: 'sr-only' }, t('nav.tools_toggle')));
+      const setTools = (open: boolean) => {
+        tools.classList.toggle('is-open', open);
+        toolsToggle.setAttribute('aria-expanded', String(open));
+        if (open) { setOpen(false); tools.querySelector<HTMLElement>('input, select, button, a[href]')?.focus(); }
+      };
+      toolsToggle.addEventListener('click', () => setTools(!tools.classList.contains('is-open')));
+      tools.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && tools.classList.contains('is-open')) { setTools(false); toolsToggle.focus(); } });
+      const header = h('div', { class: 'ewcms-header' }, h('div', { class: 'ewcms-wrap ewcms-header-inner' }, brand, toolsToggle, toggle, nav));
       // Escape closes the menu (from the button or from inside the menu)
       header.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && nav.classList.contains('is-open')) { setOpen(false); toggle.focus(); } });
       const heroPos = ctx.position('hero');
       // one banner landmark for the top bar (tools, language) and the header
       const head = h('header', { class: 'ewcms-head' },
-        h('div', { class: 'ewcms-topbar' }, h('div', { class: 'ewcms-wrap ewcms-topbar-inner' }, ctx.position('top-bar'), ctx.position('header-tools'))),
+        h('div', { class: 'ewcms-topbar' }, h('div', { class: 'ewcms-wrap ewcms-topbar-inner' }, ctx.position('top-bar'), tools)),
         header);
       const year = new Date().getFullYear();
       const copyright = h('p', { class: 'ewcms-copyright' }, `© ${year} ${state.site.name}`);

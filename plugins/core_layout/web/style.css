@@ -1,4 +1,6 @@
 .ewl-section { padding: 2.5rem 1.25rem; border-radius: var(--ew-radius); }
+/* small or low screens: less room around a section, so more of the page is in view */
+@media (max-width: 40rem), (max-height: 520px) { .ewl-section { padding: 1.5rem 1rem; } }
 .ewl-section-inner { margin: 0 auto; max-width: 60rem; }
 .ewl-section--w-wide .ewl-section-inner { max-width: 80rem; }
 .ewl-section--w-full .ewl-section-inner { max-width: none; }

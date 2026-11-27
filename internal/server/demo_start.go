@@ -64,14 +64,13 @@ func landingPage(d *demoRun, r *demoRefs) {
 	links := []string{cURL(r.company), cURL(r.handbook), cURL(r.faq), cURL(r.forms), stationOr(r, "events", cURL(r.tour)), stationOr(r, "website", cURL(r.tour))}
 	build := func(tr trf) string {
 		var b strings.Builder
-		// the opening: the promise and the two ways in, the logo beside it
-		b.WriteString(macro("section", map[string]string{"background": "light", "width": "wide"},
-			macro("grid", map[string]string{"desktop": "2", "tablet": "2", "mobile": "1", "widths": "3 2", "align": "center", "gap": "large"},
-				macro("heading", map[string]string{"text": tr("Knowledge that gets through.", "Wissen, das ankommt."), "size": "xl",
-					"subtitle": tr("Intranet, handbook and website in one – secure, accessible and run by you.", "Intranet, Handbuch und Website in einem – sicher, barrierefrei und bei Ihnen betrieben.")}, "")+
-					macro("buttons", map[string]string{"text1": tr("See the example company", "Beispiel-Firma ansehen"), "link1": cURL(r.company), "icon1": "building-community",
-						"text2": tr("Start the tour", "Rundgang starten"), "link2": cURL(r.tour), "icon2": "route-2", "look2": "secondary"}, "")+
-					`<hr><p><img src="/brand/logo.webp" alt="Enterprise Wiki" width="315" height="128"></p>`)))
+		// the opening: the promise and the two ways in (the logo is only in the
+		// header of the page, never a second time – wish of the owner, 26.11.)
+		b.WriteString(macro("section", map[string]string{"background": "light", "width": "wide", "align": "center"},
+			macro("heading", map[string]string{"text": tr("Knowledge that gets through.", "Wissen, das ankommt."), "size": "xl", "align": "center",
+				"subtitle": tr("Intranet, handbook and website in one – secure, accessible and run by you.", "Intranet, Handbuch und Website in einem – sicher, barrierefrei und bei Ihnen betrieben.")}, "")+
+				macro("buttons", map[string]string{"text1": tr("See the example company", "Beispiel-Firma ansehen"), "link1": cURL(r.company), "icon1": "building-community",
+					"text2": tr("Start the tour", "Rundgang starten"), "link2": cURL(r.tour), "icon2": "route-2", "look2": "secondary", "align": "center"}, "")))
 		b.WriteString(macro("heading", map[string]string{"text": tr("What you use it for", "Wofür Sie es nutzen"), "subtitle": tr("Choose a use – the demo shows it right away.", "Wählen Sie einen Einsatz – die Demo zeigt ihn sofort."), "align": "center"}, ""))
 		var cards []string
 		for i, u := range landingUses {
