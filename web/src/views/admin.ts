@@ -546,7 +546,7 @@ async function updates(panel: HTMLElement, force: boolean): Promise<void> {
 
 interface Settings {
   config: {
-    ui: { site_name: string; template: string; home_category: number; home_element: number; prerender: boolean; preview_image: string; readable_urls: boolean; editor?: string; collaboration?: boolean; personal_placement?: boolean; custom_css?: boolean; editor_tools?: string[]; dashboard_home?: boolean; not_found_element?: number; forbidden_element?: number; readability?: { mode?: string; sentence_words?: number; word_letters?: number } };
+    ui: { site_name: string; template: string; home_category: number; home_element: number; prerender: boolean; preview_image: string; readable_urls: boolean; editor?: string; collaboration?: boolean; personal_placement?: boolean; custom_css?: boolean; editor_tools?: string[]; dashboard_home?: boolean; choice_checkboxes?: number; not_found_element?: number; forbidden_element?: number; readability?: { mode?: string; sentence_words?: number; word_letters?: number } };
     i18n: { default_language: string; languages: string[] };
     auth: { order: string[]; session_ttl: string; session_idle?: string; photo_visibility?: string; photo_visibility_max?: string; photo_visibility_fixed?: boolean; api_key_max_ttl: string; ssh_token_ttl: string; max_login_failures: number; lockout_duration: string; min_password_length: number };
     retention: { revisions_keep_days: number; revisions_keep_min: number; trash_days: number; audit_days: number };
@@ -656,6 +656,9 @@ async function settings(panel: HTMLElement): Promise<void> {
   const rhLetters = textInput({ type: 'number', value: String(rh.word_letters || 22) });
   rhLetters.min = '8';
   rhLetters.max = '60';
+  const choiceBoxes = textInput({ type: 'number', value: String(c.ui.choice_checkboxes || 0) });
+  choiceBoxes.min = '0';
+  choiceBoxes.max = '50';
   const listsMax = textInput({ type: 'number', value: String(c.lists?.max_items ?? 0) });
   listsMax.min = '0';
   listsMax.max = '10000';
@@ -676,7 +679,8 @@ async function settings(panel: HTMLElement): Promise<void> {
       field(t('settings.readability_sentence_words'), rhWords, { help: t('settings.readability_sentence_words_help') }),
       field(t('settings.readability_word_letters'), rhLetters, { help: t('settings.readability_word_letters_help') })),
     fs(t('settings.people'), field(t('settings.email_visibility'), mailVis, { help: t('settings.email_visibility_help') }), mailHide.el,
-      field(t('settings.mention_display'), mentionShow, { help: t('settings.mention_display_help') })),
+      field(t('settings.mention_display'), mentionShow, { help: t('settings.mention_display_help') }),
+      field(t('settings.choice_checkboxes'), choiceBoxes, { help: t('settings.choice_checkboxes_help') })),
     fs(t('settings.lists'), field(t('settings.lists_max'), listsMax, { help: t('settings.lists_max_help') })),
     fs(t('settings.retention'), h('p', { class: 'ew-help' }, t('settings.retention_help')), field(t('settings.revisions_keep_days'), keepDays, { help: t('settings.zero_forever') }), field(t('settings.revisions_keep_min'), keepMin),
       field(t('settings.trash_days'), trashDays, { help: t('settings.zero_never') }), field(t('settings.audit_days'), auditDays, { help: t('settings.zero_forever') })),
@@ -690,7 +694,7 @@ async function settings(panel: HTMLElement): Promise<void> {
     try {
       await api.put('admin/settings', {
         // each section complete: fields this form does not show are kept
-        ui: { ...c.ui, dashboard_home: dashHome.input.checked, not_found_element: nfPage.value(), forbidden_element: fbPage.value(), personal_placement: personalBox.input.checked, custom_css: cssBox.input.checked, editor_tools: toolsField.get(), site_name: siteName.value, template: tpl.value, home_category: homeMode.value === 'category' ? homeCat.value() : 0, home_element: homeMode.value === 'element' ? homeEl.value() : 0, prerender: prerender.input.checked, readable_urls: readable.input.checked, preview_image: sitePreview.value(), editor: editorSel.value, collaboration: collabBox.input.checked,
+        ui: { ...c.ui, choice_checkboxes: Math.max(0, Math.min(50, Math.trunc(Number(choiceBoxes.value) || 0))), dashboard_home: dashHome.input.checked, not_found_element: nfPage.value(), forbidden_element: fbPage.value(), personal_placement: personalBox.input.checked, custom_css: cssBox.input.checked, editor_tools: toolsField.get(), site_name: siteName.value, template: tpl.value, home_category: homeMode.value === 'category' ? homeCat.value() : 0, home_element: homeMode.value === 'element' ? homeEl.value() : 0, prerender: prerender.input.checked, readable_urls: readable.input.checked, preview_image: sitePreview.value(), editor: editorSel.value, collaboration: collabBox.input.checked,
           readability: { mode: rhMode.value, sentence_words: Number(rhWords.value) || 0, word_letters: Number(rhLetters.value) || 0 } },
         i18n: { default_language: defLang.value, languages: c.i18n.languages },
         auth: { ...c.auth, order: order.value.split(',').map((x) => x.trim()).filter(Boolean), session_ttl: sessionTTL.value, session_idle: sessionIdle.value.trim(),

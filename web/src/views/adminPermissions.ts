@@ -2,14 +2,14 @@
 // permissions in all categories the caller manages (including where they
 // come from: own rule, group, role, inherited).
 import { api, qs } from '../core/api';
-import { newest } from '../core/newest';
-import { h, mount, uid } from '../core/dom';
+import { h, mount } from '../core/dom';
 import { pick, t } from '../core/i18n';
 
 import { state } from '../core/state';
 import type { Group, Role, Rule } from '../core/types';
 import { toast } from '../core/announce';
-import { button, checkbox, confirmDialog, errorText, field, formDialog, pageHeader, select, textInput } from '../components/ui';
+import { userPicker } from '../components/subjects';
+import { button, checkbox, confirmDialog, errorText, field, formDialog, pageHeader, select } from '../components/ui';
 import { loadCatalog, ruleEditor, summary, type PermDef } from '../components/permissions';
 import { editRuleDialog } from './categorySettings';
 import { elementRightsDialog } from '../components/elementRights';
@@ -26,23 +26,13 @@ export async function permissionsAdmin(panel: HTMLElement, query: URLSearchParam
   const type = select(['user', 'group', 'role', 'authenticated', 'guest'].map((x) => ({ value: x, label: t(`acl.${x}`) })), query.get('subject_type') ?? 'group');
   const groupSel = select(groups.map((g) => ({ value: String(g.id), label: g.name })), query.get('subject_type') === 'group' ? query.get('subject_id') ?? undefined : undefined);
   const roleSel = select(roles.map((r) => ({ value: String(r.id), label: r.name })), query.get('subject_type') === 'role' ? query.get('subject_id') ?? undefined : undefined);
-  const userInput = textInput({ placeholder: t('acl.user_search'), value: query.get('user') ?? '' });
-  const userList = h('datalist', { id: uid('users') });
-  userInput.setAttribute('list', userList.id);
-  const userMap = new Map<string, number>();
-  if (query.get('subject_type') === 'user' && query.get('user') && query.get('subject_id')) userMap.set(query.get('user')!, Number(query.get('subject_id')));
-  const freshUsers = newest();
-  userInput.addEventListener('input', async () => {
-    const current = freshUsers();
-    if (userInput.value.length < 2) return;
-    const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(userInput.value)}`).catch(() => null);
-    if (!res || !current()) return;
-    userList.replaceChildren(...res.map((u) => { userMap.set(u.handle, u.id); return h('option', { value: u.handle }, u.display_name); }));
-  });
+  // a person from the address (?subject_type=user&subject_id=…&user=name), so the view can be shared as a link
+  const fromQuery = query.get('subject_type') === 'user' && Number(query.get('subject_id')) > 0;
+  const user = userPicker({ label: t('acl.user'), help: t('acl.user_help'), initial: fromQuery ? [{ id: Number(query.get('subject_id')), name: query.get('user') || `#${query.get('subject_id')}` }] : [] });
   const subjectWrap = h('div');
   const showSubject = () => subjectWrap.replaceChildren(
     type.value === 'group' ? field(t('acl.group'), groupSel) : type.value === 'role' ? field(t('acl.role'), roleSel)
-      : type.value === 'user' ? h('div', null, field(t('acl.user'), userInput, { help: t('acl.user_help') }), userList) : h('span'));
+      : type.value === 'user' ? user.el : h('span'));
   type.addEventListener('change', showSubject);
   showSubject();
   const result = h('div', { 'aria-live': 'polite' });
@@ -50,7 +40,7 @@ export async function permissionsAdmin(panel: HTMLElement, query: URLSearchParam
     switch (type.value) {
       case 'group': return groupSel.value ? { type: 'group', id: Number(groupSel.value), name: groups.find((g) => String(g.id) === groupSel.value)?.name ?? '' } : null;
       case 'role': return roleSel.value ? { type: 'role', id: Number(roleSel.value), name: roles.find((r) => String(r.id) === roleSel.value)?.name ?? '' } : null;
-      case 'user': { const id = userMap.get(userInput.value); return id ? { type: 'user', id, name: userInput.value } : null; }
+      case 'user': { const id = user.value()[0]; return id ? { type: 'user', id, name: user.names()[0] } : null; }
       default: return { type: type.value, id: null, name: t(`acl.${type.value}`) };
     }
   };
@@ -66,7 +56,7 @@ export async function permissionsAdmin(panel: HTMLElement, query: URLSearchParam
     if (!sub) { mount(result, h('p', { role: 'alert' }, t('acl.user_not_found'))); return; }
     const params: Record<string, string> = { subject_type: sub.type };
     if (sub.id !== null) params.subject_id = String(sub.id);
-    if (sub.type === 'user') params.user = userInput.value;
+    if (sub.type === 'user') params.user = sub.name;
     history.replaceState(null, '', `/admin/permissions${qs(params)}`);
     let rows: Row[];
     try {

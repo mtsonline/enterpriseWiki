@@ -22,7 +22,6 @@
  "acl.user": "User",
  "acl.user_help": "Type at least two characters and pick a user.",
  "acl.user_not_found": "Please pick a user from the list.",
- "acl.user_search": "name or user name",
  "admin.active": "active",
  "admin.audit": "Audit log",
  "admin.delete_named": "Delete {name}",
@@ -3264,5 +3263,18 @@
  "datepicker.next_year": "Next year",
  "datepicker.today": "today",
  "datepicker.unavailable": "not available",
- "datepicker.keys": "Arrow keys: day and week. Page up and down: month. With Shift: year. Enter: choose. Escape: close."
+ "datepicker.keys": "Arrow keys: day and week. Page up and down: month. With Shift: year. Enter: choose. Escape: close.",
+ "choice.filter_placeholder": "Type to filter",
+ "choice.search_placeholder": "At least {n} letters of the name",
+ "choice.search_min": "Please type at least {n} letters.",
+ "choice.keys_multiple": "In the list: arrow keys move, Space chooses or removes, Shift+arrow chooses a range, Ctrl+A chooses all shown entries.",
+ "choice.keys_single": "In the list: arrow keys move, Space chooses.",
+ "choice.chosen": "Chosen: {label}",
+ "choice.removed": "{name} removed.",
+ "choice.added_n": "{n} chosen.",
+ "choice.removed_n": "{n} removed.",
+ "choice.found": "{n} found.",
+ "choice.more": "Showing {n} of {total}. Type more to narrow the list.",
+ "settings.choice_checkboxes": "Checkboxes up to",
+ "settings.choice_checkboxes_help": "Lists of groups, roles and similar with up to this many entries appear as checkboxes; longer lists as a list with a filter. 0 = 5, at most 50."
 }

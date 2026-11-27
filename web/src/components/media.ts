@@ -3,13 +3,14 @@
 // Server: /api/v1/media (docs/en/developer/media.md).
 import { api, ApiError, humanSize, qs } from '../core/api';
 import { newest } from '../core/newest';
-import { append, fmtDate, h, uid, type Child } from '../core/dom';
+import { append, fmtDate, h, type Child } from '../core/dom';
 import { t } from '../core/i18n';
 import { navigate } from '../core/router';
 import { state } from '../core/state';
 import { toast } from '../core/announce';
 import type { Group, MediaRule, MediaVersion, Medium, Role, Watermark, WatermarkMode } from '../core/types';
 import { categorySelect } from './pickers';
+import { userPicker } from './subjects';
 import { externalDefault, officeButtons, officeURL } from './office';
 import { ctx } from './widgets';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, select, textArea, textInput } from './ui';
@@ -95,27 +96,13 @@ async function rightsFields(own: boolean, rules: MediaRule[]): Promise<{ el: HTM
   const enable = checkbox(t('media.own_rights'), own, { help: t('media.own_rights_help') });
   const list = h('ul', { class: 'ew-media-rules' });
   const rows: { el: HTMLElement; value: () => MediaRule | null }[] = [];
-  const userNames = new Map<string, number>();
   const addRow = (r: MediaRule) => {
     const type = select(['user', 'group', 'role', 'authenticated', 'guest'].map((x) => ({ value: x, label: t(`acl.${x}`) })), r.subject_type);
     const groupSel = select(groups.map((g) => ({ value: String(g.id), label: g.name })), r.subject_type === 'group' ? String(r.subject_id) : undefined);
     const roleSel = select(roles.map((x) => ({ value: String(x.id), label: x.name })), r.subject_type === 'role' ? String(r.subject_id) : undefined);
-    const userInput = textInput({ placeholder: t('acl.user_search') });
-    const dl = h('datalist', { id: uid('users') });
-    userInput.setAttribute('list', dl.id);
-    let userId = r.subject_type === 'user' ? r.subject_id ?? null : null;
-    if (userId) userInput.value = `#${userId}`;
-    const freshUsers = newest();
-    userInput.addEventListener('input', async () => {
-      userId = userNames.get(userInput.value) ?? null;
-      const current = freshUsers();
-      if (userInput.value.length < 2) return;
-      const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(userInput.value)}`).catch(() => null);
-      if (!res || !current()) return;
-      dl.replaceChildren(...res.map((u) => { userNames.set(u.handle, u.id); return h('option', { value: u.handle }, u.display_name); }));
-    });
+    const user = userPicker({ label: t('acl.user'), initial: r.subject_type === 'user' && r.subject_id ? [{ id: r.subject_id, name: `#${r.subject_id}` }] : [] });
     const who = h('span', { class: 'ew-media-rule-who' });
-    const showWho = () => who.replaceChildren(type.value === 'group' ? groupSel : type.value === 'role' ? roleSel : type.value === 'user' ? h('span', null, userInput, dl) : '');
+    const showWho = () => who.replaceChildren(type.value === 'group' ? groupSel : type.value === 'role' ? roleSel : type.value === 'user' ? user.el : '');
     type.addEventListener('change', showWho);
     showWho();
     const boxes = MEDIA_RIGHTS.map((p) => checkbox(t(`media.right.${p}`), r.perms.includes(p)));
@@ -131,7 +118,7 @@ async function rightsFields(own: boolean, rules: MediaRule[]): Promise<{ el: HTM
         if (type.value === 'group') id = Number(groupSel.value);
         if (type.value === 'role') id = Number(roleSel.value);
         if (type.value === 'user') {
-          id = userId ?? userNames.get(userInput.value) ?? null;
+          id = user.value()[0] ?? null;
           if (!id) throw new Error(t('acl.user_not_found'));
         }
         return { subject_type: type.value, subject_id: id, perms: [...perms] };

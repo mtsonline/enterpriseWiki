@@ -4,8 +4,7 @@ import { personName } from '../components/person';
 import { placementEditor } from '../components/placement';
 import { shortOnlyBox, shortURLInput } from '../components/shorturl';
 import { api } from '../core/api';
-import { newest } from '../core/newest';
-import { fmtDate, h, mount, uid } from '../core/dom';
+import { fmtDate, h, mount } from '../core/dom';
 import { pick, pluginName, t } from '../core/i18n';
 import { navigate, rerender, type RouteCtx } from '../core/router';
 import { state } from '../core/state';
@@ -13,6 +12,7 @@ import { loadCatalog, ruleEditor, summary, type PermDef } from '../components/pe
 import { type AuditEntry, type Category, type ElementSummary, type Group, type SpaceInfo, type Role, type Rule } from '../core/types';
 import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, langFields, select, textInput } from '../components/ui';
+import { userPicker } from '../components/subjects';
 import { breadcrumbs, can, ctx, invalidateTree, setContext, setSpace } from '../components/widgets';
 import { errorPage, splitTags } from './content';
 import { invalidatePlacements, listCategorySettingsTabs } from '../coreplugin';
@@ -254,23 +254,12 @@ async function addRuleDialog(c: Category, groups: Group[], roles: Role[]): Promi
   const type = select(['group', 'role', 'user', 'authenticated', 'guest'].map((x) => ({ value: x, label: t(`acl.${x}`) })), 'group');
   const groupSel = select(groups.map((g) => ({ value: String(g.id), label: g.name })));
   const roleSel = select(roles.map((r) => ({ value: String(r.id), label: r.name })));
-  const userInput = textInput({ placeholder: t('acl.user_search') });
-  const userList = h('datalist', { id: uid('users') });
-  userInput.setAttribute('list', userList.id);
-  const userMap = new Map<string, number>();
-  const freshUsers = newest();
-  userInput.addEventListener('input', async () => {
-    const current = freshUsers();
-    if (userInput.value.length < 2) return;
-    const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(userInput.value)}`).catch(() => null);
-    if (!res || !current()) return;
-    userList.replaceChildren(...res.map((u) => { userMap.set(u.handle, u.id); return h('option', { value: u.handle }, u.display_name); }));
-  });
+  const user = userPicker({ label: t('acl.user'), help: t('acl.user_help') });
   const subjectWrap = h('div');
   const showSubject = () => {
     subjectWrap.replaceChildren(
       type.value === 'group' ? field(t('acl.group'), groupSel) : type.value === 'role' ? field(t('acl.role'), roleSel)
-        : type.value === 'user' ? h('div', null, field(t('acl.user'), userInput, { help: t('acl.user_help') }), userList) : h('span'));
+        : type.value === 'user' ? user.el : h('span'));
   };
   type.addEventListener('change', showSubject);
   showSubject();
@@ -281,7 +270,7 @@ async function addRuleDialog(c: Category, groups: Group[], roles: Role[]): Promi
     if (type.value === 'group') subjectId = Number(groupSel.value);
     if (type.value === 'role') subjectId = Number(roleSel.value);
     if (type.value === 'user') {
-      subjectId = userMap.get(userInput.value) ?? null;
+      subjectId = user.value()[0] ?? null;
       if (!subjectId) throw new Error(t('acl.user_not_found'));
     }
     const v = ed.value();

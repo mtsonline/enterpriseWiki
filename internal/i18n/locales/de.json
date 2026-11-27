@@ -22,7 +22,6 @@
  "acl.user": "Benutzer",
  "acl.user_help": "Mindestens zwei Zeichen eingeben und Benutzer auswählen.",
  "acl.user_not_found": "Bitte einen Benutzer aus der Liste wählen.",
- "acl.user_search": "Name oder Benutzername",
  "admin.active": "aktiv",
  "admin.audit": "Protokoll",
  "admin.delete_named": "{name} löschen",
@@ -3264,5 +3263,18 @@
  "datepicker.next_year": "Nächstes Jahr",
  "datepicker.today": "heute",
  "datepicker.unavailable": "nicht wählbar",
- "datepicker.keys": "Pfeiltasten: Tag und Woche. Bild auf und ab: Monat. Mit Umschalt: Jahr. Eingabe: wählen. Escape: schließen."
+ "datepicker.keys": "Pfeiltasten: Tag und Woche. Bild auf und ab: Monat. Mit Umschalt: Jahr. Eingabe: wählen. Escape: schließen.",
+ "choice.filter_placeholder": "Tippen Sie, um zu filtern",
+ "choice.search_placeholder": "Mindestens {n} Buchstaben des Namens",
+ "choice.search_min": "Bitte geben Sie mindestens {n} Buchstaben ein.",
+ "choice.keys_multiple": "In der Liste: Pfeiltasten bewegen, Leertaste wählt aus oder ab, Umschalt+Pfeil wählt einen Bereich, Strg+A wählt alle gezeigten Einträge.",
+ "choice.keys_single": "In der Liste: Pfeiltasten bewegen, Leertaste wählt aus.",
+ "choice.chosen": "Ausgewählt: {label}",
+ "choice.removed": "{name} entfernt.",
+ "choice.added_n": "{n} ausgewählt.",
+ "choice.removed_n": "{n} entfernt.",
+ "choice.found": "{n} gefunden.",
+ "choice.more": "{n} von {total} gezeigt. Tippen Sie weiter, um die Liste einzugrenzen.",
+ "settings.choice_checkboxes": "Kästchen bis",
+ "settings.choice_checkboxes_help": "Listen von Gruppen, Rollen und Ähnlichem mit bis zu so vielen Einträgen erscheinen als Kästchen, längere als Liste mit Filter. 0 = 5, höchstens 50."
 }

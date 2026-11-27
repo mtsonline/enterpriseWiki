@@ -967,3 +967,20 @@ input.ew-dp-input::-webkit-calendar-picker-indicator { display: none; }
 .ew-dp-day--off { color: var(--ew-text-muted); text-decoration: line-through; cursor: not-allowed; }
 .ew-dp-day:focus-visible { outline: 3px solid var(--ew-focus); outline-offset: -2px; }
 @media (forced-colors: active) { .ew-dp-day[aria-selected="true"] { background: Highlight; color: HighlightText; } }
+
+/* choice of several entries (components/choicelist.ts): list after the listbox pattern */
+.ew-choice-list { max-block-size: 16rem; overflow-y: auto; border: 1px solid var(--ew-input-border); border-radius: var(--ew-radius); background: var(--ew-bg); padding: .25rem; }
+.ew-choice-list:focus-visible { outline: 3px solid var(--ew-focus); outline-offset: 2px; }
+.ew-choice-list:empty { display: none; }
+.ew-choice-option { display: flex; gap: .25rem; align-items: baseline; padding: .35rem .5rem .35rem 2rem; border-radius: calc(var(--ew-radius) / 2); cursor: pointer; position: relative; min-block-size: 24px; }
+.ew-choice-option::before { content: ""; position: absolute; inset-inline-start: .5rem; inset-block-start: .5rem; inline-size: 1rem; block-size: 1rem; border: 2px solid var(--ew-input-border); border-radius: 3px; box-sizing: border-box; }
+.ew-choice-option[aria-selected="true"] { background: var(--ew-info-bg); color: var(--ew-info-text); }
+.ew-choice-option[aria-selected="true"]::before { content: "✓"; display: grid; place-items: center; font-size: .75rem; line-height: 1; background: var(--ew-primary); border-color: var(--ew-primary); color: var(--ew-on-primary); }
+.ew-choice-option:hover { background: var(--ew-hover); }
+.ew-choice-list:focus-visible .ew-choice-option.is-active { outline: 2px solid var(--ew-focus); outline-offset: -2px; }
+.ew-choice-detail { color: var(--ew-text-muted); }
+.ew-choice-option[aria-selected="true"] .ew-choice-detail { color: inherit; }
+.ew-choice [hidden] { display: none !important; }
+.ew-choice-note:empty { display: none; }
+/* the hint on the keys is seen while the focus is in this choice; screen readers get it from aria-describedby */
+.ew-choice:not(:focus-within) .ew-choice-keys { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

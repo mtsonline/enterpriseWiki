@@ -76,8 +76,22 @@ test('requests of the test itself are marked, so they do not count as interface 
   assert.deepEqual(bare, []);
 });
 
-// axe (WCAG 2.2 AA) and the overlap check (no control covered by another
-// element), from the top of the page; see a11y-lib.mjs
+// chooses a person in a people search (components/choicelist.ts): type, wait for the hit, click it
+async function pickPerson(scope, text) {
+  await scope.getByPlaceholder(/at least 2 letters|mindestens 2 buchstaben/i).first().fill(text);
+  await scope.getByRole('option', { name: new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).first().click();
+}
+
+// chooses an entry of a choice of several: a checkbox (short lists) or the filter and the option of the list
+async function chooseEntry(scope, label, name) {
+  const box = scope.getByRole('checkbox', { name, exact: true });
+  const filter = scope.getByRole('textbox', { name: label });
+  await box.or(filter).first().waitFor(); // the dialog may still be building
+  if (await box.count()) return box.check();
+  await filter.fill(name);
+  await scope.getByRole('listbox', { name: label }).getByRole('option', { name, exact: true }).click();
+}
+
 /**
  * Does what leads to a page (kind 'e') or a category ('c') and waits for its
  * address /e/ID or /c/ID; returns the ID. The wiki replaces that address with
@@ -98,6 +112,8 @@ async function opens(kind, action, pg = page) {
   return id;
 }
 
+// axe (WCAG 2.2 AA) and the overlap check (no control covered by another
+// element), from the top of the page; see a11y-lib.mjs
 async function a11y(name, pg = page) {
   if (!axeSource) return;
   await checkPage(name, pg);
@@ -2268,7 +2284,7 @@ test('share a page, notification bell, assigned watches', async () => {
   await idle();
   await page.getByRole('button', { name: /^(share|teilen):/i }).click();
   const dlg = page.locator('dialog[open]');
-  await dlg.getByRole('checkbox', { name: 'hr', exact: true }).check();
+  await chooseEntry(dlg, /^(groups|gruppen)$/i, 'hr');
   await dlg.getByRole('button', { name: /^(check recipients|empfänger prüfen)$/i }).click();
   await dlg.getByText(/recipient|empfänger/i).first().waitFor();
   await a11y('share dialog');
@@ -2302,6 +2318,73 @@ test('share a page, notification bell, assigned watches', async () => {
   await box.uncheck();
   await page.waitForFunction(() => document.querySelector('[role=status]')?.textContent?.length);
   await call('DELETE', `/api/v1/admin/watch-assignments/${a.id}`);
+});
+
+test('choice of several: a long list gets a filter and keys, people appear after 2 letters, the length is a setting', async () => {
+  // more groups than the default of 5 checkboxes
+  for (let i = 1; i <= 6; i++) await call('POST', '/api/v1/admin/groups', { name: `Quokka ${run} ${i}` });
+  const openShare = async () => {
+    await page.goto(`${BASE}/search?q=wombat${run}`);
+    await idle();
+    await page.locator('.ew-result a').first().click();
+    await idle();
+    await page.getByRole('button', { name: /^(share|teilen):/i }).click();
+    return page.locator('dialog[open]');
+  };
+  let dlg = await openShare();
+  const label = /^(groups|gruppen)$/i;
+  const list = dlg.getByRole('listbox', { name: label });
+  assert.equal(await list.getAttribute('aria-multiselectable'), 'true');
+  const chosen = list.locator('[role=option][aria-selected=true]');
+  const chips = dlg.getByRole('list', { name: /^(chosen|ausgewählt): (groups|gruppen)$/i }).getByRole('listitem');
+  // the filter narrows the list; arrow down goes into it
+  await dlg.getByRole('textbox', { name: label }).fill(`Quokka ${run}`);
+  assert.equal(await list.getByRole('option').count(), 6);
+  await page.keyboard.press('ArrowDown');
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('role')), 'listbox');
+  // Space chooses, Shift+arrow chooses the next one too
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Shift+ArrowDown');
+  assert.equal(await chosen.count(), 2);
+  assert.equal(await chips.count(), 2);
+  assert.match(await list.getAttribute('aria-activedescendant'), /-o\d+$/);
+  await a11y('choice list with a filter');
+  // Ctrl+A chooses all shown entries, a second time none; Ctrl+Space chooses the active one
+  await page.keyboard.press('ControlOrMeta+a');
+  assert.equal(await chosen.count(), 6);
+  await page.keyboard.press('ControlOrMeta+a');
+  assert.equal(await chosen.count(), 0);
+  await page.keyboard.press('Control+Space');
+  assert.equal(await chosen.count(), 1);
+  // typing a letter goes to the filter; the chosen entry stays chosen although hidden
+  await page.keyboard.press('x');
+  assert.equal(await dlg.getByRole('textbox', { name: label }).inputValue(), `Quokka ${run}x`);
+  assert.equal(await list.getByRole('option').count(), 0);
+  assert.equal(await chips.count(), 1);
+  // removed with the button of the chip
+  await chips.first().getByRole('button').click();
+  assert.equal(await chips.count(), 0);
+  // people: nothing with one letter, hits from two letters
+  const people = dlg.getByRole('textbox', { name: /^(people|personen)/i });
+  await people.fill('a');
+  await dlg.getByText(/please type at least 2 letters|bitte geben sie mindestens 2 buchstaben ein/i).waitFor();
+  assert.equal(await dlg.getByRole('listbox', { name: /^(people|personen)/i }).isVisible(), false);
+  await pickPerson(dlg, 'admin');
+  assert.equal(await dlg.getByRole('list', { name: /^(chosen|ausgewählt): (people|personen)$/i }).getByRole('listitem').count(), 1);
+  await dlg.getByRole('button', { name: /^(check recipients|empfänger prüfen)$/i }).click();
+  await dlg.getByText(/recipient|empfänger/i).first().waitFor();
+  await dlg.getByRole('button', { name: /close|schließen/i }).first().click();
+  // with a higher setting the same groups are checkboxes
+  const settings = (await call('GET', '/api/v1/admin/settings')).config;
+  try {
+    await call('PUT', '/api/v1/admin/settings', { ui: { ...settings.ui, choice_checkboxes: 50 } });
+    dlg = await openShare();
+    await dlg.getByRole('checkbox', { name: `Quokka ${run} 1`, exact: true }).waitFor();
+    assert.equal(await dlg.getByRole('listbox', { name: label }).count(), 0);
+    await dlg.getByRole('button', { name: /close|schließen/i }).first().click();
+  } finally {
+    await call('PUT', '/api/v1/admin/settings', { ui: settings.ui });
+  }
 });
 
 test('comments on a page', async () => {
@@ -2600,10 +2683,7 @@ test('permissions of an instance: a blog editor without page permissions, own pe
   const dlg = page.locator('dialog[open]');
   await dlg.getByText(/independent of the permissions for pages|unabhängig von den rechten für seiten/i).waitFor({ state: 'attached' }); // an explanation: hidden unless the person shows help texts
   await dlg.getByLabel(/^(applies to|gilt für)/i).selectOption('user');
-  const who = dlg.getByPlaceholder(/name or user name|name oder benutzername/i);
-  await who.fill(name);
-  await page.waitForFunction((n) => [...document.querySelectorAll('dialog[open] datalist option')].some((o) => o.value.includes(n)), name);
-  await who.fill(await page.evaluate((n) => [...document.querySelectorAll('dialog[open] datalist option')].find((o) => o.value.includes(n)).value, name));
+  await pickPerson(dlg, name);
   await dlg.getByRole('button', { name: /^(add a person, group or role|person, gruppe oder rolle hinzufügen)$/i }).click();
   const rule = dlg.getByRole('group', { name: new RegExp(`Blogger ${run}`) });
   await rule.getByRole('checkbox', { name: /^(edit all posts|alle beiträge bearbeiten)/i }).check();
@@ -5293,11 +5373,8 @@ test('people blocks: a profile card chosen by name and the people of a group', a
   await newPage('core.html', `People ${run}`);
   await page.locator('.ewe-prose').click();
   const dlg = await insertBlock('profilecard');
-  const who = dlg.getByPlaceholder(/name or user name|name oder benutzername/i);
   const name = `Crew Okapi ${run}`;
-  await who.fill(name);
-  await page.waitForFunction((n) => [...document.querySelectorAll('dialog[open] datalist option')].some((o) => o.value.includes(n)), name);
-  await who.fill(await page.evaluate((n) => [...document.querySelectorAll('dialog[open] datalist option')].find((o) => o.value.includes(n)).value, name));
+  await pickPerson(dlg, name);
   await a11y('profile card dialog');
   await dlg.locator('button[type=submit]').click();
   await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="profilecard"]');
@@ -5326,10 +5403,7 @@ test('decisions: a decision in a page, the report of decisions and the data for 
   await dlg.getByLabel(/^status/i).selectOption('decided');
   await dlg.getByLabel(/^(day|datum)/i).fill('2026-11-20');
   // the responsible person, chosen by name, and a text
-  const who = dlg.getByPlaceholder(/name or user name|name oder benutzername/i);
-  await who.fill(person);
-  await page.waitForFunction((n) => [...document.querySelectorAll('dialog[open] datalist option')].some((o) => o.value.includes(n)), person);
-  await who.fill(await page.evaluate((n) => [...document.querySelectorAll('dialog[open] datalist option')].find((o) => o.value.includes(n)).value, person));
+  await pickPerson(dlg, person);
   await dlg.getByLabel(/^(responsible \(text|verantwortlich \(text)/i).fill('Board');
   await a11y('decision dialog');
   await dlg.locator('button[type=submit]').click();
@@ -5411,10 +5485,7 @@ test('editor: suggestions of blocks while typing ("/" and ":name"), the task wit
   await page.keyboard.press('Enter');
   const dlg = page.locator('dialog[open]').last();
   await dlg.getByLabel(/^(task|aufgabe)/i).first().fill(`Water the okapi ${run}`);
-  const who = dlg.getByPlaceholder(/name or user name|name oder benutzername/i);
-  await who.fill(me.username);
-  await page.waitForFunction(() => document.querySelectorAll('dialog[open] datalist option').length > 0);
-  await who.fill(await page.evaluate(() => document.querySelector('dialog[open] datalist option').value));
+  await pickPerson(dlg, me.username);
   await dlg.getByLabel(/^(due|fällig)/i).fill('2026-12-24');
   await a11y('task dialog');
   await dlg.getByRole('button', { name: /^(insert|einfügen)$/i }).click();
@@ -7334,9 +7405,7 @@ test('category administration: a permission for a person takes effect and ends, 
     await page.getByRole('button', { name: /^(add permission|berechtigung hinzufügen)$/i }).click();
     let dlg = page.getByRole('dialog');
     await dlg.getByLabel(/^(applies to|gilt für)/i).selectOption('user');
-    const lookup = page.waitForResponse((r) => r.url().includes('/api/v1/users/lookup') && r.ok());
-    await dlg.getByLabel(/^(user|benutzer)$/i).fill(`${name}@local`);
-    await lookup;
+    await pickPerson(dlg, `${name}@local`);
     await dlg.getByRole('button', { name: /^(add permission|berechtigung hinzufügen)$/i }).click();
     await toastOn(/permission added|berechtigung hinzugefügt/i);
     // the rule names the person, not only an id

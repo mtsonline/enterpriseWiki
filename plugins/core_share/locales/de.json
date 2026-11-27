@@ -17,7 +17,6 @@
  "core.share.sent_one": "Mit {n} Person geteilt.",
  "core.share.sent_other": "Mit {n} Personen geteilt.",
  "core.share.none": "Bitte mindestens eine Person, Gruppe oder Rolle wählen.",
- "core.share.remove": "{name} entfernen",
  "core.share.mail_subject": "{by} hat „{title}“ mit Ihnen geteilt",
  "core.share.mail_body": "{by} hat „{title}“ mit Ihnen geteilt.",
  "core.share.mail_message": "Nachricht: {message}",

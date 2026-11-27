@@ -1,13 +1,13 @@
 // Administration → Sites (instance administrators): sites of the instance
 // with their host names, and the instance administrators.
 import { api } from '../core/api';
-import { newest } from '../core/newest';
-import { fmtDate, h, mount, uid } from '../core/dom';
+import { fmtDate, h, mount } from '../core/dom';
 import { t } from '../core/i18n';
 import { toast } from '../core/announce';
 import { navigate } from '../core/router';
 import { state } from '../core/state';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, pageHeader, select, textInput } from '../components/ui';
+import { userPicker } from '../components/subjects';
 
 interface Site { name: string; title: string; hostnames: string[]; disabled: boolean; running: boolean; accounts: 'shared' | 'separate'; created_at: string }
 interface InstanceAdmin { user_id: number; username: string; display_name: string; implicit: boolean }
@@ -88,22 +88,9 @@ function siteDialog(s: Site | null): void {
 }
 
 function addAdminDialog(): void {
-  const input = textInput({ placeholder: t('acl.user_search'), required: true });
-  const list = h('datalist', { id: uid('instadm') });
-  input.setAttribute('list', list.id);
-  const ids = new Map<string, number>();
-  const freshUsers = newest();
-  input.addEventListener('input', async () => {
-    const current = freshUsers();
-    if (input.value.length < 2) return;
-    try {
-      const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(input.value)}`);
-      if (!current()) return;
-      list.replaceChildren(...res.map((u) => { ids.set(u.handle, u.id); return h('option', { value: u.handle }, u.display_name); }));
-    } catch { /* lookup is optional */ }
-  });
-  formDialog(t('sites.admin_add'), [field(t('acl.user'), input, { required: true, help: t('acl.user_help') }), list], t('sites.admin_add'), async () => {
-    const id = ids.get(input.value.trim());
+  const who = userPicker({ label: t('acl.user'), help: t('acl.user_help'), required: true });
+  formDialog(t('sites.admin_add'), [who.el], t('sites.admin_add'), async () => {
+    const id = who.value()[0];
     if (!id) throw new Error(t('sites.admin_unknown'));
     await api.post('instance/admins', { user_id: id });
     toast(t('sites.admin_added'));
