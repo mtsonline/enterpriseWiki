@@ -599,23 +599,48 @@ test('editor: macros with parts, pictures of blocks, preview keeps the work, lea
   const d = (drafts.items ?? drafts).find((x) => x.title === `Parts ${run}`);
   assert.ok(d, 'draft kept');
   await call('DELETE', `/api/v1/drafts/${d.id}`);
-  // phone: the page starts with its content, the menu button opens navigation and tools
+  // phone: the page starts with its content; one button opens the menu
+  // (navigation and sidebar), another one search and tools
   const size = page.viewportSize();
   try {
     await page.setViewportSize({ width: 390, height: 800 });
     await page.goto(`${BASE}/`);
     await idle();
-    const panel = page.locator('#ewc-header-panel');
-    assert.ok(await panel.isHidden(), 'navigation and tools closed at first');
+    const drawer = page.locator('#ewc-sidebar');
+    const tools = page.locator('#ewc-tools');
+    assert.ok(await drawer.isHidden(), 'menu closed at first');
+    assert.ok(await tools.isHidden(), 'tools closed at first');
     const menu = page.locator('.ewc-sidebar-toggle');
     await menu.click();
     assert.equal(await menu.getAttribute('aria-expanded'), 'true');
-    await panel.locator('.ew-pos--header-tools').waitFor();
+    await drawer.waitFor();
+    // portrait: across the whole width, below the bar
+    const box0 = await drawer.boundingBox();
+    assert.ok(box0.width >= 389 && box0.y > 0, `portrait menu: ${JSON.stringify(box0)}`);
     await a11y('phone menu open');
     await page.keyboard.press('Escape');
     assert.equal(await menu.getAttribute('aria-expanded'), 'false');
-    assert.ok(await panel.isHidden());
+    assert.ok(await drawer.isHidden());
     assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('ewc-sidebar-toggle')), true, 'focus back on the menu button');
+    const toolsButton = page.locator('.ewc-tools-toggle');
+    await toolsButton.click();
+    await tools.locator('.ew-pos--header-tools').waitFor();
+    assert.equal(await toolsButton.getAttribute('aria-expanded'), 'true');
+    await a11y('phone tools open');
+    await page.keyboard.press('Escape');
+    assert.ok(await tools.isHidden());
+    // landscape: the menu is a drawer of the full height with its own close button
+    await page.setViewportSize({ width: 844, height: 390 });
+    await idle();
+    assert.ok(await drawer.isHidden() && await tools.isHidden(), 'closed in landscape too');
+    await menu.click();
+    const box1 = await drawer.boundingBox();
+    assert.ok(box1.y === 0 && box1.height >= 389 && box1.width < 844 * 0.8, `landscape drawer: ${JSON.stringify(box1)}`);
+    await a11y('phone landscape menu open');
+    await drawer.getByRole('button', { name: /^(close menu|menü schließen)$/i }).click();
+    assert.ok(await drawer.isHidden());
+    await page.setViewportSize({ width: 390, height: 800 });
+    await idle();
     // a long press on an icon button names it instead of pressing it
     const cdp = await page.context().newCDPSession(page);
     const box = await menu.boundingBox();
@@ -2396,6 +2421,34 @@ test('CMS template', async () => {
   } finally {
     await page.setViewportSize({ width: 1280, height: 900 });
     await set('theme.wiki');
+  }
+});
+
+test('templates on phones and tablets: content first, menu and tools closed, nothing too large', async () => {
+  const set = (tpl) => call('GET', '/api/v1/admin/settings').then((cur) => call('PUT', '/api/v1/admin/settings', { ui: { ...cur.config.ui, template: tpl } }));
+  // portrait and landscape of the usual sizes (WCAG 1.4.10 asks for 320 px)
+  const sizes = [[320, 640], [375, 812], [414, 896], [768, 1024], [1024, 768], [640, 320], [812, 375], [896, 414], [1024, 600]];
+  const tools = { 'theme.wiki': ['#ewc-sidebar', '#ewc-tools'], 'theme.cms': ['#ewcms-nav', '#ewcms-tools'], 'theme.cms.modern': ['#ewcms-nav', '#ewcms-tools'] };
+  // what the later tests find again: the template and the size of the window before
+  const before = { template: (await call('GET', '/api/v1/admin/settings')).config.ui.template, viewport: page.viewportSize() };
+  try {
+    for (const tpl of Object.keys(tools)) {
+      await set(tpl);
+      for (const [w, hgt] of sizes) {
+        await page.setViewportSize({ width: w, height: hgt });
+        await page.goto(BASE + '/');
+        await idle();
+        const where = `${tpl} ${w}×${hgt}`;
+        for (const sel of tools[tpl]) assert.ok(await page.locator(sel).isHidden(), `${where}: ${sel} closed at first`);
+        const m = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, head: document.querySelector('header')?.getBoundingClientRect().height ?? 0 }));
+        assert.ok(m.scroll <= w, `${where}: no sideways scrolling (${m.scroll})`);
+        // the header leaves the screen to the content: at most a fifth of the height (a bar of 72 px always fits)
+        assert.ok(m.head <= Math.max(72, hgt * 0.2), `${where}: header ${m.head} px`);
+      }
+    }
+  } finally {
+    await page.setViewportSize(before.viewport);
+    await set(before.template);
   }
 });
 
@@ -6384,6 +6437,9 @@ test('demo content: create, browse accessibly, remove', async () => {
     const h1 = (await page.locator('main h1').first().textContent().catch(() => '')) ?? '';
     if (errorTitle.test(h1.trim())) { failed.push(`${p}: ${h1}`); continue; }
     await a11y(`demo page ${p}`);
+    // the large logo once, in the header (the small "e" may appear elsewhere)
+    const logos = await page.locator('img[src*="/brand/logo"]:visible').count();
+    if (logos > 1) failed.push(`${p}: the large logo ${logos} times`);
     const links = await page.$$eval('main a[href^="/"], header nav a[href^="/"]', (as) => as.map((a) => a.getAttribute('href') ?? ''));
     for (const l of links) {
       const path = l.split('#')[0];

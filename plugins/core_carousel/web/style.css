@@ -19,3 +19,5 @@
 .ewcar-preview { min-height: calc(9rem + 2px); display: flex; align-items: center; }
 .ewcar-preview img { max-width: 16rem; max-height: 9rem; border-radius: 6px; }
 @media (max-width: 40rem) { .ewcar-slide { grid-template-columns: 1fr; } .ewcar-img { height: 12rem; min-height: 12rem; max-height: 12rem; } }
+/* low screens (phones in landscape): the slide takes at most half of the height */
+@media (max-height: 520px) { .ewcar-slide { min-height: 0; } .ewcar-img { height: 40vh; min-height: 0; max-height: 40vh; } }

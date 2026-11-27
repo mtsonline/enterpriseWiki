@@ -3252,6 +3252,8 @@
  "plugin.name.core.layout": "Layout-Bausteine",
  "plugin.name.core.macros": "Standard-Bausteine",
  "plugin.name.macro.http": "HTTP-Baustein",
+ "nav.tools_toggle": "Suche und Werkzeuge",
+ "nav.menu_close": "Menü schließen",
  "datepicker.open": "Datum wählen",
  "datepicker.open_for": "Datum wählen für {field}",
  "datepicker.chosen": "gewählt: {date}",

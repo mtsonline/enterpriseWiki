@@ -23,6 +23,7 @@ import (
 //     stations are in a row without gaps (previous and next) and the first
 //     one lists them all;
 //   - the start page leads into both areas;
+//   - no page shows the large logo in its content (only the header has it);
 //   - the German version of a page has no English text.
 //
 // The accessibility of every page (axe, light and dark) is checked by the
@@ -166,6 +167,10 @@ func checkDemoRules(t *testing.T, e *env, admin *client) {
 			}
 			// the demo company's domain, never valid on the internet
 			// (decision of the project owner of 26.11.2026)
+			// the large logo is in the header of every page: never again in the content
+			if strings.Contains(v.HTML, "/brand/logo") {
+				t.Errorf("demo page %s (%s): the large logo in the content", name, v.ShownLang)
+			}
 			for _, mail := range demoMailRe.FindAllString(v.HTML, -1) {
 				if !strings.HasSuffix(mail, "@enterpriseit.local") {
 					t.Errorf("demo page %s: e-mail address %q is not of the demo company", name, mail)
@@ -244,7 +249,7 @@ func checkDemoRules(t *testing.T, e *env, admin *client) {
 	}
 	for _, l := range []string{"en", "de"} {
 		v := views[l][home]
-		for _, want := range []string{`href="/c/` + strconv.FormatInt(company, 10) + `"`, `href="/c/` + strconv.FormatInt(tour, 10) + `"`, `src="/brand/logo.webp"`} {
+		for _, want := range []string{`href="/c/` + strconv.FormatInt(company, 10) + `"`, `href="/c/` + strconv.FormatInt(tour, 10) + `"`} {
 			if !strings.Contains(v.HTML, want) {
 				t.Errorf("start page (%s): %s missing", l, want)
 			}

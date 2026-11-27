@@ -5,7 +5,6 @@
 }
 .ewc-brand { display: flex; flex: none; align-items: center; gap: .5rem; font-weight: 800; font-size: 1.1rem; color: var(--ew-text); text-decoration: none; }
 .ewc-logo { display: block; width: auto; height: 44px; flex: none; }
-.ewc-header-panel { flex: 1; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; min-width: 0; }
 .ewc-header .ew-pos--header-nav { flex: 1; }
 .ewc-header .ew-pos--header-tools { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .ewc-shell { display: grid; grid-template-columns: var(--ew-sidebar-w) minmax(0, 1fr); min-height: calc(100vh - var(--ew-header-h)); }
@@ -25,18 +24,46 @@
 .ewc-shell--collapsed { grid-template-columns: minmax(0, 1fr); }
 .ewc-shell--collapsed .ewc-sidebar { display: none; }
 @media (min-width: 1600px) { .ewc-app { --ew-sidebar-w: 272px; } }
-@media (max-width: 900px) {
+/* Compact (phones in both orientations, tablets; the same query as in
+   index.ts): the page starts with its content. Menu and tools are closed
+   behind two buttons; the menu opens across the whole width below the bar
+   in portrait and as a drawer of the full height in landscape. */
+.ewc-tools-toggle, .ewc-drawer-close { display: none; }
+/* the menu keeps its smallest width: a long menu moves the tools to the next line instead of lying over them */
+.ewc-nav { flex: 1; }
+.ewc-tools { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+@media (max-width: 1100px), (max-height: 520px) {
+  .ewc-header { flex-wrap: wrap; gap: .5rem; padding: .3rem .75rem; }
+  .ewc-brand { flex: 1; }
+  .ewc-logo { height: 36px; }
+  .ewc-tools-toggle { display: inline-flex; min-inline-size: 2.75rem; min-block-size: 2.75rem; justify-content: center; }
+  .ewc-tools { display: none; flex-basis: 100%; padding: .25rem 0 .5rem; }
+  .ewc-tools.is-open { display: flex; }
+  .ewc-tools .ew-pos--header-tools { justify-content: flex-start; }
+  .ew-search-input { min-width: 8rem; }
   .ewc-shell { grid-template-columns: 1fr; }
-  .ewc-sidebar { display: none; position: static; max-height: none; border-right: none; border-bottom: 1px solid var(--ew-border); }
-  .ewc-sidebar.is-open { display: block; }
   .ewc-main { padding: 1rem; }
   .ewc-content > .ew-pos--content-top:not(:empty), .ewc-content > .ew-pos--content-bottom:not(:empty) { padding: 1rem 1rem 0; }
-  .ew-search-input { min-width: 8rem; }
-  /* the menu button opens navigation and tools below the bar */
-  .ewc-header-panel { display: none; flex-basis: 100%; flex-direction: column; align-items: stretch; gap: .75rem; padding: .25rem 0 .5rem; }
-  .ewc-header-panel.is-open { display: flex; }
-  .ewc-header:has(.ewc-header-panel.is-open) { max-height: 100vh; overflow-y: auto; }
-  .ewc-header .ew-pos--header-tools { justify-content: flex-start; }
+  .ewc-sidebar {
+    display: none; position: fixed; z-index: 45; align-self: stretch; overflow-y: auto; overscroll-behavior: contain; min-height: 0; max-height: none;
+    background: var(--ew-bg-raised); border: none; padding: 1rem; box-shadow: 0 0 0 100vmax rgb(0 0 0 / .45);
+  }
+  .ewc-sidebar.is-open { display: block; }
+  .ewc-menu-open, .ewc-menu-open body { overflow: hidden; }
+  .ewc-drawer-close { display: inline-flex; float: right; min-inline-size: 2.75rem; min-block-size: 2.75rem; justify-content: center; font-size: 1.5rem; margin: -.5rem -.5rem 0 .5rem; }
+  .ewc-sidebar .ewc-nav { margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 1px solid var(--ew-border); }
+  /* menus of the main navigation as a list inside the menu */
+  .ewc-sidebar .ewc-nav .ewm--dropdown > nav > .ewm-level-0 { flex-direction: column; align-items: stretch; }
+  .ewc-sidebar .ewmm-bar { flex-direction: column; }
+  .ewc-sidebar .ewmm-panel { position: static; min-width: 0; box-shadow: none; margin: 0 0 .5rem; padding: .75rem; }
+  .ewc-sidebar .ewmm-cols { grid-template-columns: 1fr; gap: .75rem; }
+  .ewc-sidebar .ewc-nav .ewm--dropdown .ewm-level:not(.ewm-level-0) { position: static; box-shadow: none; border: none; border-left: 2px solid var(--ew-border); border-radius: 0; margin: 0 0 0 .8rem; padding: 0 0 0 .4rem; min-width: 0; }
+}
+@media ((max-width: 1100px) or (max-height: 520px)) and (orientation: portrait) {
+  .ewc-sidebar { top: var(--ewc-bar-h, 3.6rem); left: 0; right: 0; bottom: 0; }
+}
+@media ((max-width: 1100px) or (max-height: 520px)) and (orientation: landscape) {
+  .ewc-sidebar { top: 0; bottom: 0; left: 0; inline-size: min(24rem, 75vw); }
 }
 
 /* core.menu: menus in the header (dropdowns) and the sidebar (collapsible tree) */

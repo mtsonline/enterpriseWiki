@@ -14,7 +14,7 @@ Wählen Sie oben die **Sprache**. Oberfläche und Inhalte wechseln gemeinsam. Gi
 
 **Knöpfe, die nur ein Symbol zeigen** (✎, ×, ☰, 🔔 …), nennen ihren Namen, wenn die Maus auf ihnen ruht, wenn sie den Tastaturfokus bekommen und – auf Tablets und Handys – bei langem Drücken (langes Drücken zeigt nur den Namen; kurzes Tippen drückt den Knopf). Escape blendet den Namen aus.
 
-**Auf Handys und kleinen Tablets** (bis 900 Pixel Breite) beginnt die Seite mit ihrem Inhalt: Der Menü-Knopf ☰ oben öffnet Navigation, Suche, Sprache, Bearbeiten und Benutzermenü zusammen mit der Seitenspalte und schließt sie wieder (auch mit Escape oder beim Folgen eines Links).
+**Auf Handys und Tablets** (bis 1100 Pixel Breite oder bis 520 Pixel Höhe, wie bei einem quer gehaltenen Handy) beginnt die Seite mit ihrem Inhalt. Zwei Knöpfe oben öffnen, was zuerst zu ist: Der Menü-Knopf ☰ öffnet die Navigation mit der Seitenspalte – hochkant über die ganze Breite unter der Leiste, quer als Spalte über die ganze Höhe an der Seite mit eigenem Schließen-Knopf –, und der Knopf mit der Lupe öffnet Suche, Sprache, Bearbeiten und Benutzermenü. Escape, ein Klick neben das Menü oder das Folgen eines Links schließt sie wieder. Große Bausteine wie Karussell und Abschnitte nehmen dort weniger Höhe ein, damit mehr von der Seite zu sehen ist.
 
 **Wartung:** Ein Balken oben sagt, wenn das Wiki wegen Wartung nur lesbar ist – Sie können alles lesen, aber Speichern, Kommentieren und Hochladen gehen erst wieder danach. Ist das Wiki wegen Wartung geschlossen, sehen Sie nur einen Hinweis; die Administration kann sich weiterhin anmelden.
 
