@@ -2560,8 +2560,10 @@ test('menus, blocks and positions', async () => {
   await idle();
   await page.waitForSelector(`.ew-pos--footer .ewb-block:has-text("block${run}")`);
   // the blocks are offered in the placement of the administration
+  // the old address of the placement leads to its tab of the templates
   await page.goto(BASE + '/admin/placement');
-  await idle();
+  await page.waitForURL(`${BASE}/admin/templates?tab=positions`);
+  await page.locator('button.ew-sch-posbtn').first().waitFor();
   // position preview
   await page.goto(BASE + '/?positions=1');
   await idle();
@@ -2637,6 +2639,49 @@ test('templates on phones and tablets: content first, menu and tools closed, not
   }
 });
 
+test('templates: positions and placements in the schematic', async () => {
+  const before = await call('GET', '/api/v1/placements/site');
+  try {
+    // the search, hidden on phones only
+    await call('PUT', '/api/v1/placements/site', { placements: [{ block: 'core.search', position: 'footer', sort: 10, options: { hide: ['mobile'] } }] });
+    await page.goto(`${BASE}/admin/templates?tab=positions`);
+    await idle();
+    assert.equal(await page.getByRole('tab', { name: /^(positions and placements|positionen und platzierungen)$/i }).getAttribute('aria-selected'), 'true');
+    const footer = page.locator('button.ew-sch-posbtn[data-schema-position="footer"]');
+    const count = async () => Number(/\d+/.exec(await footer.locator('.ew-sch-count').textContent())[0]);
+    const n = await count();
+    assert.ok(n >= 1, 'the search is in the footer');
+    await openPosition('footer');
+    const sec = page.locator('.ew-placement-pos');
+    const badge = sec.getByText(/^(hidden on this device|auf diesem gerät ausgeblendet)$/i);
+    assert.equal(await badge.count(), 0, 'shown on a desktop');
+    await page.locator('.ew-sch-devices button[data-device="phone"]').click();
+    await page.locator('button.ew-sch-posbtn[data-schema-position="footer"]').click();
+    await badge.waitFor();
+    // on a phone the tools of the wiki template are behind their button
+    assert.equal(await page.locator('button.ew-sch-posbtn[data-schema-position="header-tools"]').getAttribute('data-state'), 'behind');
+    await a11y('positions and placements on a phone');
+    await page.locator('.ew-sch-devices button[data-device="desktop"]').click();
+    // the content shows the positions of the page chosen
+    await page.locator('.ew-placement-view').getByRole('button', { name: /^(dashboard)$/i }).click();
+    await page.locator('button.ew-sch-posbtn[data-schema-position="dashboard-wide"]').waitFor();
+    assert.equal(await page.locator('button.ew-sch-posbtn[data-schema-position="element-header"]').count(), 0);
+    // add a block at the footer, a second one there; then save
+    await page.locator('button.ew-sch-posbtn[data-schema-position="footer"]').click();
+    const add = page.getByRole('combobox', { name: /^(block to add at footer|baustein für fußbereich)$/i });
+    await add.selectOption('core.lang');
+    await sec.getByRole('button', { name: /^(show|anzeigen)$/i }).click();
+    await footer.locator('.ew-sch-count', { hasText: new RegExp(`^${n + 1} `) }).waitFor();
+    await page.getByRole('region', { name: /^(placement of the building blocks|platzierung der bausteine)$/i }).getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toast', { hasText: /placement saved|platzierung gespeichert/i }).first().waitFor();
+    const saved = await call('GET', '/api/v1/placements/site');
+    assert.ok(saved.placements.some((p) => p.block === 'core.lang' && p.position === 'footer'), JSON.stringify(saved.placements));
+    assert.ok(saved.placements.some((p) => p.block === 'core.search' && p.position === 'footer'));
+  } finally {
+    await call('PUT', '/api/v1/placements/site', { placements: before.placements });
+  }
+});
+
 test('templates: the schematic of each device shows the positions where the page has them', async () => {
   const set = (tpl) => call('GET', '/api/v1/admin/settings').then((cur) => call('PUT', '/api/v1/admin/settings', { ui: { ...cur.config.ui, template: tpl } }));
   // the sizes of the devices of the schematic (core/templateSchema.ts)
@@ -2699,6 +2744,17 @@ test('templates: the schematic of each device shows the positions where the page
     await set(before.template);
   }
 });
+
+/** Opens a position in the schematic of the placements (Administration →
+ * Templates → Positions and placements, or the placement of a category),
+ * first choosing the page shown in the content when given. */
+async function openPosition(pos, view) {
+  if (view) await page.locator('.ew-placement-view').getByRole('button', { name: view }).click();
+  const b = page.locator(`button.ew-sch-posbtn[data-schema-position="${pos}"]`).first();
+  await b.click();
+  assert.equal(await b.getAttribute('aria-pressed'), 'true');
+  await page.locator('.ew-placement-pos h3', { hasText: `(${pos})` }).waitFor();
+}
 
 /** Calls the API with the browser session (the page must be on the wiki). */
 const call = (method, path, body) => page.evaluate(async ([method, path, body]) => {
@@ -2890,7 +2946,10 @@ test('placement: scope for a category – only on its page, without the subcateg
   try {
     await page.goto(`${BASE}/c/${cat}/settings?tab=placement`);
     await idle();
+    await openPosition('header-tools');
     await page.getByRole('combobox', { name: /^(position of search|position von suche)$/i }).selectOption('footer');
+    // the schematic follows the block to the footer
+    assert.equal(await page.locator('button.ew-sch-posbtn[data-schema-position="footer"]').getAttribute('aria-pressed'), 'true');
     const pages = page.getByRole('checkbox', { name: /^(on all pages of the category|auf allen seiten der kategorie): (search|suche)$/i });
     const subs = page.getByRole('checkbox', { name: /^(include subcategories|unterkategorien einbeziehen): (search|suche)$/i });
     assert.ok(await pages.isChecked() && await subs.isChecked(), 'by default everywhere');
@@ -2919,6 +2978,7 @@ test('placement: scope for a category – only on its page, without the subcateg
     await call('PUT', `/api/v1/placements/category?target=${cat}`, { placements: [] });
     await page.goto(`${BASE}/c/${cat}/settings?tab=placement`);
     await idle();
+    await openPosition('header-tools');
     await page.getByRole('combobox', { name: /^(position of search|position von suche)$/i }).selectOption('');
     const hidden = page.getByRole('region', { name: /^(hidden in this category|in dieser kategorie ausgeblendet)$/i });
     await hidden.getByText(/^(search|suche)$/i).waitFor();
@@ -2954,9 +3014,10 @@ test('placement: scope for a category – only on its page, without the subcateg
 test('placement: search in the footer for the site, no category tree in one category, the user menu stays', async () => {
   const cat = await m6Category();
   try {
-    await page.goto(`${BASE}/admin/placement`);
+    await page.goto(`${BASE}/admin/templates?tab=positions`);
     await idle();
     await page.getByRole('heading', { name: /^(placement of the building blocks|platzierung der bausteine)$/i }).waitFor();
+    await openPosition('header-tools');
     await a11y('placement administration');
     await page.getByRole('combobox', { name: /^(position of search|position von suche)$/i }).selectOption('footer');
     await page.getByRole('region', { name: /^(placement of the building blocks|platzierung der bausteine)$/i }).getByRole('button', { name: /^(save|speichern)$/i }).click();
@@ -2966,6 +3027,7 @@ test('placement: search in the footer for the site, no category tree in one cate
     // a category without the category tree (its subcategories too)
     await page.goto(`${BASE}/c/${cat}/settings?tab=placement`);
     await idle();
+    await openPosition('sidebar');
     await page.getByRole('combobox', { name: /^(position of category tree|position von kategoriebaum)$/i }).selectOption('');
     await a11y('placement of a category');
     await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
@@ -2980,8 +3042,9 @@ test('placement: search in the footer for the site, no category tree in one cate
     // a menu is a block of its own: placed a second time in the footer
     const menu = await call('POST', '/api/v1/x/core.menu/menus', { name: `Placed ${run}`, location: 'sidebar', items: [{ label: { en: 'Home', de: 'Start' }, type: 'url', url: '/' }] });
     try {
-      await page.goto(`${BASE}/admin/placement`);
+      await page.goto(`${BASE}/admin/templates?tab=positions`);
       await idle();
+      await openPosition('sidebar');
       await page.getByRole('combobox', { name: new RegExp(`^(position of|position von) (menu|menü): placed ${run}$`, 'i') }).waitFor();
       await call('PUT', '/api/v1/placements/site', { placements: [{ block: `core.menu/${menu.id}`, position: 'sidebar', sort: 1 }, { block: `core.menu/${menu.id}`, position: 'footer', sort: 1 }] });
       await page.goto(`${BASE}/`);
@@ -3008,10 +3071,13 @@ test('arrange one page: title hidden (kept for screen readers), share below the 
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Arranged ${run}`, body: { format: 'html', source: '<p>arranged</p>' } });
   try {
     // the site placement offers the positions of a page
-    await page.goto(`${BASE}/admin/placement`);
+    await page.goto(`${BASE}/admin/templates?tab=positions`);
     await idle();
+    await openPosition('element-toolbar', /^(page|seite)$/i);
     await page.getByRole('heading', { name: /^(page: toolbar|seite: werkzeugleiste) \(element-toolbar\)$/i }).waitFor();
+    await openPosition('element-header');
     await page.getByRole('combobox', { name: /^(position of title of the page|position von titel der seite)$/i }).waitFor();
+    await a11y('the placements of a page in the schematic');
     // the page: title in the header, actions in the toolbar
     await page.goto(`${BASE}/e/${el.id}`);
     await idle();
@@ -3163,7 +3229,7 @@ test('own dashboard: default tiles, arranged with the dialog and with the mouse,
     assert.ok(own.placements.some((p) => p.block === 'core.dash.notifications' && p.position === 'dashboard-3'), 'notifications in column 3');
     assert.ok(own.placements.some((p) => p.block === 'core.dash.recent' && p.position === 'dashboard-wide'), 'recent kept over the full width');
     // the administration offers fewer tiles: watched pages disappear
-    await page.goto(`${BASE}/admin/placement`);
+    await page.goto(`${BASE}/admin/templates?tab=positions`);
     await idle();
     const offered = page.getByRole('group', { name: /^(tiles for the own dashboard|kacheln für das eigene dashboard)$/i });
     await offered.getByRole('checkbox', { name: /^(watched pages|beobachtete seiten)$/i }).uncheck();
@@ -3733,7 +3799,7 @@ test('layout of an element type: the pages of one type get the title bar, others
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Typed ${run}` } })).id;
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Typed page ${run}`, body: { format: 'markdown', source: 'x' } });
   try {
-    await page.goto(`${BASE}/admin/placement`);
+    await page.goto(`${BASE}/admin/templates?tab=positions`);
     await idle();
     const sec = page.getByRole('region', { name: /^(pages by element type|seiten nach elementtyp)$/i });
     await sec.getByLabel(/^(element type|elementtyp)$/i).selectOption('core.html');
@@ -3995,8 +4061,9 @@ test('own CSS of a template: switched off by default, checked while typing, used
 test('options of a placed block: background with checked contrast, hidden on the phone, spacing; the wiki shows it', async () => {
   const before = await call('GET', '/api/v1/placements/site');
   try {
-    await page.goto(`${BASE}/admin/placement`);
+    await page.goto(`${BASE}/admin/templates?tab=positions`);
     await idle();
+    await openPosition('sidebar');
     await page.getByRole('button', { name: /^(options|optionen): (my favorites|meine favoriten)$/i }).first().click();
     const dlg = page.locator('dialog[open]');
     await dlg.getByText(/^(no problems|keine probleme)\.$/i).waitFor();

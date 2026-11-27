@@ -1025,6 +1025,19 @@ input.ew-dp-input::-webkit-calendar-picker-indicator { display: none; }
 .ew-sch-brand { font-weight: 700; }
 .ew-sch-pos { display: inline-block; padding: .1rem .4rem; border-radius: 4px; background: var(--ew-bg-subtle); border: 1px solid var(--ew-border); overflow-wrap: anywhere; }
 .ew-sch-main { flex-basis: 100%; min-height: 3.5rem; display: grid; place-items: center; border-radius: 4px; background: color-mix(in srgb, var(--ew-primary) 12%, var(--ew-bg)); font-weight: 600; text-align: center; }
+/* the device and the page shown: the button chosen is filled (not only a thin line) */
+.ew-sch-devices .ew-btn[aria-pressed="true"], .ew-placement-view .ew-btn[aria-pressed="true"] { background: var(--ew-primary); border-color: var(--ew-primary); color: var(--ew-on-primary); box-shadow: none; }
+@media (forced-colors: active) { .ew-sch-devices .ew-btn[aria-pressed="true"], .ew-placement-view .ew-btn[aria-pressed="true"], .ew-sch-posbtn[aria-pressed="true"] { background: Highlight; color: HighlightText; } }
+.ew-sch-page { display: grid; gap: .3rem; place-items: stretch; padding: .3rem; text-align: start; font-weight: 400; }
+.ew-sch-posbtn { font: inherit; display: inline-flex; flex-direction: column; align-items: flex-start; gap: .1rem; min-height: 2.75rem; min-width: 2.75rem; padding: .3rem .5rem;
+  border: 1px solid var(--ew-border); border-radius: 4px; background: var(--ew-bg); color: var(--ew-text); cursor: pointer; text-align: start; overflow-wrap: anywhere; }
+.ew-sch-posbtn:hover { border-color: var(--ew-primary); }
+.ew-sch-posbtn[aria-pressed="true"] { border: 2px solid var(--ew-primary); background: color-mix(in srgb, var(--ew-primary) 14%, var(--ew-bg)); font-weight: 700; }
+.ew-sch-count { font-size: .75rem; color: var(--ew-text-muted); font-weight: 400; }
+.ew-placement-view { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: 1rem 0 .5rem; }
+.ew-placement-pos { margin-top: 1rem; padding: 1rem; border: 1px solid var(--ew-border); border-radius: 10px; }
+.ew-placement-pos h3 { margin-top: 0; }
+.ew-placement-addat { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .5rem 1rem; margin-top: 1rem; }
 .ew-tpl-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: 1rem; list-style: none; padding: 0; margin: 0; }
 .ew-tpl-card { display: grid; gap: .6rem; align-content: start; padding: 1rem; border: 1px solid var(--ew-border); border-radius: 10px; background: var(--ew-bg-raised); }
 .ew-tpl-card h3 { margin: 0; font-size: 1.1rem; }

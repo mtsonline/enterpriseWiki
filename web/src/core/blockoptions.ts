@@ -4,6 +4,7 @@
 // and its CSS. The CSS is built only from values of a valid form, so options
 // that are not checked yet (a draft in the form) cannot inject anything.
 import schemaFile from '../../../internal/content/blockoptions.json';
+import { mediaMatches, type WindowSize } from './templateSchema';
 
 export type ViewName = 'desktop' | 'tablet' | 'mobile';
 export type OptionValue = string | number | boolean | string[] | Partial<Record<ViewName, number | string>>;
@@ -213,6 +214,12 @@ const MEDIA: Record<ViewName, string> = {
   tablet: `(min-width: ${SCHEMA.view_min_px.tablet}px) and (max-width: ${SCHEMA.view_min_px.desktop - 0.02}px)`,
   mobile: `(max-width: ${SCHEMA.view_min_px.tablet - 0.02}px)`,
 };
+/** Whether the option "hide on" hides a block in a window of this size (the
+ * schematic of the placements marks such blocks per device). */
+export function hiddenAt(o: BlockOptions | undefined, size: WindowSize): boolean {
+  return Array.isArray(o?.hide) && (o.hide as ViewName[]).some((v) => MEDIA[v] !== undefined && mediaMatches(MEDIA[v], size));
+}
+
 // cascading: tablet applies to the phone too unless the phone has its own
 const BELOW: Record<'tablet' | 'mobile', string> = {
   tablet: `(max-width: ${SCHEMA.view_min_px.desktop - 0.02}px)`,

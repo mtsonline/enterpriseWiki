@@ -38,6 +38,9 @@ export type SchemaState = 'shown' | 'behind' | 'hidden';
 export interface SchematicOptions {
   /** the name of the template (default: its label) */
   name?: string;
+  /** the rows of the page drawn in place of the content (a category page,
+   * a page, the editor or the dashboard) */
+  main?: SchemaRow[];
   /** what a position offers (a button in the schematic of the placements) */
   position?: (name: string, state: SchemaState) => HTMLElement;
 }
@@ -73,7 +76,8 @@ function areaEl(a: SchemaArea, opts: SchematicOptions): HTMLElement {
   if (a.hidden) box.append(h('span', { class: 'ew-sch-behind' }, t('sitetpl.schema_hidden')));
   for (const p of a.positions) {
     if (p === MAIN) {
-      box.append(h('span', { class: 'ew-sch-main' }, t('sitetpl.schema_main')));
+      box.append(opts.main?.length ? h('div', { class: 'ew-sch-main ew-sch-page' }, ...opts.main.map((r) => rowEl(r, { ...opts, main: undefined })))
+        : h('span', { class: 'ew-sch-main' }, t('sitetpl.schema_main')));
       continue;
     }
     box.append(opts.position ? opts.position(p, state) : h('span', { class: 'ew-sch-pos', 'data-schema-position': p, 'data-state': state }, positionLabel(p)));

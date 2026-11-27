@@ -8,12 +8,14 @@ import { api } from '../core/api';
 import { h, uid } from '../core/dom';
 import { t } from '../core/i18n';
 import { toast } from '../core/announce';
-import { activeTemplate, typeLabel, CATEGORY_POSITIONS, DASHBOARD_POSITIONS, EDITOR_POSITIONS, ELEMENT_POSITIONS, invalidatePlacements, placeableBlocks, positionFits, positionLabel, refreshPositions, resolvePlacements, tileOffered, type PlaceableBlock, type Placement, type PlacementLevel, type PositionKind } from '../coreplugin';
+import { activeTemplate, resolveTemplate, typeLabel, CATEGORY_POSITIONS, DASHBOARD_POSITIONS, EDITOR_POSITIONS, ELEMENT_POSITIONS, invalidatePlacements, placeableBlocks, positionFits, positionLabel, refreshPositions, resolvePlacements, tileOffered, type PlaceableBlock, type Placement, type PlacementLevel, type PositionKind } from '../coreplugin';
 import { state } from '../core/state';
 import { kindOf as positions0Kind } from '../core/placement';
 import { button, checkbox, errorText, field, select } from './ui';
 import { optionsDialog } from './blockoptions';
-import type { BlockOptions } from '../core/blockoptions';
+import { hiddenAt, type BlockOptions } from '../core/blockoptions';
+import { deviceSize, pageSchema, type Device, type PageView } from '../core/templateSchema';
+import { currentDevice, deviceSwitch, schematic } from './templateSchema';
 
 // onlyPage, noSub: the scope of a placement for a category
 interface Row { block: string; position: string; required: boolean; options?: BlockOptions; onlyPage?: boolean; noSub?: boolean }
@@ -21,10 +23,25 @@ interface Row { block: string; position: string; required: boolean; options?: Bl
 /** placementEditor edits the placements of one level. Rows of the level
  * replace the placements from above for the same block; blocks without a
  * row keep what the levels above say ("inherited"). */
-export async function placementEditor(level: 'site' | 'type' | 'category' | 'category_page' | 'instance' | 'user', target: string, opts: { onSaved?: () => void; heading?: boolean; category?: number; kinds?: PositionKind[] } = {}): Promise<HTMLElement> {
+export interface PlacementEditorOptions {
+  onSaved?: () => void;
+  heading?: boolean;
+  category?: number;
+  kinds?: PositionKind[];
+  /** the template whose positions are arranged (default: the one shown now) */
+  templateId?: string;
+  /** the positions as buttons in the schematic of the template, for a view
+   * (website, category page, page, editor, dashboard) and a device; a click
+   * shows what is at that position */
+  schematic?: boolean;
+}
+
+export async function placementEditor(level: 'site' | 'type' | 'category' | 'category_page' | 'instance' | 'user', target: string, opts: PlacementEditorOptions = {}): Promise<HTMLElement> {
   // the own level without personal placement: only the own dashboard
   const kinds: PositionKind[] | undefined = opts.kinds ?? (level === 'user' && !state.site.personal_placement ? ['dashboard'] : level === 'instance' || level === 'type' ? ['element'] : level === 'category_page' ? ['category'] : undefined);
   const kindOK = (k: PositionKind) => !kinds || kinds.includes(k);
+  const tplId = opts.templateId ?? activeTemplate()?.id ?? '';
+  const tpl = resolveTemplate(tplId, tplId);
   const box = h('section', { class: 'ew-placement', 'aria-labelledby': uid('pl') });
   const headingId = box.getAttribute('aria-labelledby')!;
   let current: PlacementLevel;
@@ -33,7 +50,7 @@ export async function placementEditor(level: 'site' | 'type' | 'category' | 'cat
   try {
     current = await api.get<PlacementLevel>(`placements/${level}${target ? `?target=${encodeURIComponent(target)}` : ''}`);
     // what the levels above say (to show the inherited state)
-    const q = new URLSearchParams({ template: activeTemplate()?.id ?? '' });
+    const q = new URLSearchParams({ template: tplId });
     if (level === 'category' || level === 'category_page') q.set('category', target);
     if (level === 'instance') {
       if (opts.category) q.set('category', String(opts.category));
@@ -50,7 +67,7 @@ export async function placementEditor(level: 'site' | 'type' | 'category' | 'cat
   const nameOf = (id: string) => blocks.find((b) => b.id === id)?.label ?? id;
   // the positions of the template, of a page and of the editing page (one
   // page: only its own)
-  const positions = [...(activeTemplate()?.positions ?? []), ...ELEMENT_POSITIONS, ...CATEGORY_POSITIONS, ...EDITOR_POSITIONS, ...DASHBOARD_POSITIONS]
+  const positions = [...(tpl?.positions ?? []), ...ELEMENT_POSITIONS, ...CATEGORY_POSITIONS, ...EDITOR_POSITIONS, ...DASHBOARD_POSITIONS]
     .filter((p) => kindOK(positions0Kind(p)));
   const fitting = (b: PlaceableBlock) => positions.filter((p) => positionFits(b.kind, p));
   const posOptionsOf = (b: PlaceableBlock) => [...fitting(b).map((p) => ({ value: p, label: `${positionLabel(p)} (${p})` })),
@@ -82,69 +99,127 @@ export async function placementEditor(level: 'site' | 'type' | 'category' | 'cat
     sub.input.addEventListener('change', () => { row().noSub = !sub.input.checked; status.textContent = t(sub.input.checked ? 'placement.scope_sub_on' : 'placement.scope_sub_off', { block: b.label }); draw(`${key}:sub`); });
     return h('div', { class: 'ew-placement-scope' }, pages.el, sub.el);
   };
-  const draw = (focusKey?: string) => {
-    const groups = positions.map((pos) => {
-      const here = blocks.filter((b) => effective(b.id).some((x) => x.position === pos))
-        .sort((a, b) => (effective(a.id).find((x) => x.position === pos)!.sort) - (effective(b.id).find((x) => x.position === pos)!.sort));
-      const items = here.map((b, i) => {
-        const inherited = !own.has(b.id);
-        const key = `${b.id}@${pos}`;
-        const move = (delta: number) => {
-          const other = here[i + delta];
-          if (!other) return;
-          takeOver(b.id);
-          takeOver(other.id);
-          // renumber the position in steps of 10
-          const ids = here.map((x) => x.id);
-          [ids[i], ids[i + delta]] = [ids[i + delta], ids[i]];
-          ids.forEach((id, n) => order.set(`${id}@${pos}`, (n + 1) * 10));
-          status.textContent = t('placement.moved', { block: b.label, n: String(i + delta + 1) });
-          draw(`${b.id}@${pos}:${delta < 0 ? 'up' : 'down'}`);
-        };
-        const where = select(posOptionsOf(b), pos);
-        where.setAttribute('aria-label', t('placement.position_of', { block: b.label }));
-        where.addEventListener('change', () => {
-          takeOver(b.id);
-          const rows = own.get(b.id)!;
-          const r = rows.find((x) => x.position === pos)!;
-          if (where.value === '') {
-            // hidden: only an empty row when nothing else remains
-            rows.splice(rows.indexOf(r), 1);
-            if (!rows.some((x) => x.position)) own.set(b.id, [{ block: b.id, position: '', required: r.required }]);
-          } else {
-            r.position = where.value;
-            order.set(`${b.id}@${where.value}`, 9999);
-          }
-          status.textContent = where.value ? t('placement.moved_to', { block: b.label, position: positionLabel(where.value) }) : t('placement.hidden_now', { block: b.label });
-          draw();
-        });
-        const up = button('↑', () => move(-1), { variant: 'subtle', ariaLabel: t('placement.up', { block: b.label }) });
-        const down = button('↓', () => move(1), { variant: 'subtle', ariaLabel: t('placement.down', { block: b.label }) });
-        up.dataset.key = `${key}:up`;
-        down.dataset.key = `${key}:down`;
-        up.toggleAttribute('disabled', i === 0);
-        down.toggleAttribute('disabled', i === here.length - 1);
-        // options of this placement (look, when and for whom it is shown)
-        const optsOf = () => (own.has(b.id) ? own.get(b.id)!.find((x) => x.position === pos)?.options : effective(b.id).find((x) => x.position === pos)?.options);
-        const has = !!optsOf() && Object.keys(optsOf()!).length > 0;
-        const optBtn = button(has ? t('bo.edit_set') : t('bo.edit'), () => optionsDialog(b.label, optsOf() ?? {}, (o) => {
-          takeOver(b.id);
-          const r = own.get(b.id)!.find((x) => x.position === pos);
-          if (r) r.options = Object.keys(o).length ? o : undefined;
-          status.textContent = Object.keys(o).length ? t('bo.changed', { block: b.label }) : t('bo.cleared', { block: b.label });
-          draw(`${key}:opts`);
-        }), { variant: 'subtle', ariaLabel: `${has ? t('bo.edit_set') : t('bo.edit')}: ${b.label}` });
-        optBtn.dataset.key = `${key}:opts`;
-        const req = level === 'site' ? checkbox(t('placement.required'), own.get(b.id)?.some((x) => x.required) ?? false, { help: t('placement.required_help') }) : null;
-        req?.input.addEventListener('change', () => { takeOver(b.id); own.get(b.id)!.forEach((x) => { x.required = req.input.checked; }); });
-        const scope = level === 'category' ? scopeOf(b, pos) : null;
-        return h('li', { class: 'ew-placement-item' },
-          h('span', { class: 'ew-placement-name' }, b.label, inherited ? h('span', { class: 'ew-muted' }, ` – ${t('placement.inherited')}`) : null),
-          h('span', { class: 'ew-actions' }, up, down, where, optBtn), req?.el ?? null, scope);
+  // schematic: the view shown in the content, the device and the position chosen
+  let view: PageView = 'site';
+  let device: Device = currentDevice();
+  let selected = '';
+  /** The blocks at one position, in their order, with their buttons. */
+  const groupFor = (pos: string): { count: number; list: HTMLElement } => {
+    const here = blocks.filter((b) => effective(b.id).some((x) => x.position === pos))
+      .sort((a, b) => (effective(a.id).find((x) => x.position === pos)!.sort) - (effective(b.id).find((x) => x.position === pos)!.sort));
+    const items = here.map((b, i) => {
+      const inherited = !own.has(b.id);
+      const key = `${b.id}@${pos}`;
+      const move = (delta: number) => {
+        const other = here[i + delta];
+        if (!other) return;
+        takeOver(b.id);
+        takeOver(other.id);
+        // renumber the position in steps of 10
+        const ids = here.map((x) => x.id);
+        [ids[i], ids[i + delta]] = [ids[i + delta], ids[i]];
+        ids.forEach((id, n) => order.set(`${id}@${pos}`, (n + 1) * 10));
+        status.textContent = t('placement.moved', { block: b.label, n: String(i + delta + 1) });
+        draw(`${b.id}@${pos}:${delta < 0 ? 'up' : 'down'}`);
+      };
+      const where = select(posOptionsOf(b), pos);
+      where.setAttribute('aria-label', t('placement.position_of', { block: b.label }));
+      where.dataset.key = `${key}:where`;
+      where.addEventListener('change', () => {
+        takeOver(b.id);
+        const rows = own.get(b.id)!;
+        const r = rows.find((x) => x.position === pos)!;
+        if (where.value === '') {
+          // hidden: only an empty row when nothing else remains
+          rows.splice(rows.indexOf(r), 1);
+          if (!rows.some((x) => x.position)) own.set(b.id, [{ block: b.id, position: '', required: r.required }]);
+        } else {
+          r.position = where.value;
+          order.set(`${b.id}@${where.value}`, 9999);
+        }
+        status.textContent = where.value ? t('placement.moved_to', { block: b.label, position: positionLabel(where.value) }) : t('placement.hidden_now', { block: b.label });
+        // the schematic follows the block to its new position (and the focus with it)
+        if (opts.schematic && where.value) selected = where.value;
+        draw(where.value ? `${b.id}@${where.value}:where` : undefined);
       });
-      return h('li', null, h('h3', null, `${positionLabel(pos)} (${pos})`),
-        items.length ? h('ol', { class: 'ew-placement-list' }, ...items) : h('p', { class: 'ew-muted' }, t('placement.empty')));
+      const up = button('↑', () => move(-1), { variant: 'subtle', ariaLabel: t('placement.up', { block: b.label }) });
+      const down = button('↓', () => move(1), { variant: 'subtle', ariaLabel: t('placement.down', { block: b.label }) });
+      up.dataset.key = `${key}:up`;
+      down.dataset.key = `${key}:down`;
+      up.toggleAttribute('disabled', i === 0);
+      down.toggleAttribute('disabled', i === here.length - 1);
+      // options of this placement (look, when and for whom it is shown)
+      const optsOf = () => (own.has(b.id) ? own.get(b.id)!.find((x) => x.position === pos)?.options : effective(b.id).find((x) => x.position === pos)?.options);
+      const has = !!optsOf() && Object.keys(optsOf()!).length > 0;
+      const optBtn = button(has ? t('bo.edit_set') : t('bo.edit'), () => optionsDialog(b.label, optsOf() ?? {}, (o) => {
+        takeOver(b.id);
+        const r = own.get(b.id)!.find((x) => x.position === pos);
+        if (r) r.options = Object.keys(o).length ? o : undefined;
+        status.textContent = Object.keys(o).length ? t('bo.changed', { block: b.label }) : t('bo.cleared', { block: b.label });
+        draw(`${key}:opts`);
+      }), { variant: 'subtle', ariaLabel: `${has ? t('bo.edit_set') : t('bo.edit')}: ${b.label}` });
+      optBtn.dataset.key = `${key}:opts`;
+      const req = level === 'site' ? checkbox(t('placement.required'), own.get(b.id)?.some((x) => x.required) ?? false, { help: t('placement.required_help') }) : null;
+      req?.input.addEventListener('change', () => { takeOver(b.id); own.get(b.id)!.forEach((x) => { x.required = req.input.checked; }); });
+      const scope = level === 'category' ? scopeOf(b, pos) : null;
+      // in the schematic: hidden on the device shown (option "hide on")
+      const hiddenHere = opts.schematic && hiddenAt(optsOf(), deviceSize(device));
+      return h('li', { class: 'ew-placement-item' },
+        h('span', { class: 'ew-placement-name' }, b.label, inherited ? h('span', { class: 'ew-muted' }, ` – ${t('placement.inherited')}`) : null,
+          hiddenHere ? h('span', { class: 'ew-badge' }, t('placement.hidden_on_device')) : null),
+        h('span', { class: 'ew-actions' }, up, down, where, optBtn), req?.el ?? null, scope);
     });
+    return { count: items.length, list: items.length ? h('ol', { class: 'ew-placement-list' }, ...items) : h('p', { class: 'ew-muted' }, t('placement.empty')) };
+  };
+  /** Adds a block at one more position (a block can be shown in several places). */
+  const addAt = (pos: string): HTMLElement | null => {
+    const fit = blocks.filter((b) => positionFits(b.kind, pos) && !effective(b.id).some((x) => x.position === pos));
+    if (!fit.length) return null;
+    const sel = select(fit.map((b) => ({ value: b.id, label: b.label })));
+    return h('div', { class: 'ew-placement-addat' }, field(t('placement.add_at', { position: positionLabel(pos) }), sel), button(t('placement.add_button'), () => {
+      takeOver(sel.value);
+      const rows = own.get(sel.value)!.filter((x) => x.position);
+      rows.push({ block: sel.value, position: pos, required: false });
+      own.set(sel.value, rows);
+      order.set(`${sel.value}@${pos}`, 9999);
+      status.textContent = t('placement.moved_to', { block: nameOf(sel.value), position: positionLabel(pos) });
+      draw();
+    }, { variant: 'secondary' }));
+  };
+  /** The schematic of the template with the positions as buttons, and below
+   * it what is at the position chosen. */
+  const schematicView = (): HTMLElement[] => {
+    const views = (['site', 'category', 'element', 'editor', 'dashboard'] as PageView[]).filter((v) => kindOK(v));
+    if (!views.includes(view)) view = views[0];
+    const viewButtons = views.map((v) => {
+      const b = button(t(`placement.view_${v}`), () => { view = v; draw(`view:${v}`); }, { variant: 'secondary' });
+      b.setAttribute('aria-pressed', String(v === view));
+      b.dataset.key = `view:${v}`;
+      return b;
+    });
+    const vid = `${headingId}-views`;
+    const posButton = (name: string, state: string): HTMLElement => {
+      if (!positions.includes(name)) return h('span', { class: 'ew-sch-pos', 'data-schema-position': name, 'data-state': state }, positionLabel(name));
+      const { count } = groupFor(name);
+      const b = h('button', { type: 'button', class: 'ew-sch-posbtn', 'aria-pressed': String(name === selected), 'data-key': `pos:${name}`, 'data-schema-position': name, 'data-state': state },
+        h('span', null, positionLabel(name)), h('span', { class: 'ew-sch-count' }, t('placement.blocks_count', { count })));
+      b.addEventListener('click', () => { selected = name; draw(`pos:${name}`); });
+      return b;
+    };
+    const chosen = selected && positions.includes(selected) ? selected : '';
+    const g = chosen ? groupFor(chosen) : null;
+    return [
+      h('div', { class: 'ew-placement-view' }, h('span', { id: vid, class: 'ew-sch-devices-label' }, t('placement.view')),
+        h('div', { role: 'group', 'aria-labelledby': vid, class: 'ew-actions' }, ...viewButtons)),
+      deviceSwitch((d) => { device = d; draw(); }),
+      schematic(tplId, device, { main: pageSchema(view, deviceSize(device)), position: posButton }),
+      chosen && g ? h('section', { class: 'ew-placement-pos', 'aria-labelledby': `${headingId}-pos` },
+        h('h3', { id: `${headingId}-pos` }, `${positionLabel(chosen)} (${chosen})`), g.list, addAt(chosen) ?? '')
+        : h('p', { class: 'ew-help' }, t('placement.choose_position')),
+    ];
+  };
+  const draw = (focusKey?: string) => {
+    const groups = opts.schematic ? [] : positions.map((pos) => h('li', null, h('h3', null, `${positionLabel(pos)} (${pos})`), groupFor(pos).list));
     // blocks this category hides (shown above): where the hiding applies,
     // and the way back to what is inherited
     const hiddenHere = level === 'category'
@@ -183,7 +258,7 @@ export async function placementEditor(level: 'site' | 'type' | 'category' | 'cat
     // reset: only the blocks shown here (the own level also holds the rest of the interface)
     const shownOwn = blocks.filter((b) => own.has(b.id));
     const reset = shownOwn.length ? button(t('placement.reset'), () => { for (const b of shownOwn) own.delete(b.id); status.textContent = t('placement.reset_done'); draw(); }, { variant: 'link' }) : null;
-    list.replaceChildren(h('ul', { class: 'ew-plain-list ew-placement-positions' }, ...groups), hiddenList ?? '', add ?? '', reset ?? '');
+    list.replaceChildren(...(opts.schematic ? schematicView() : [h('ul', { class: 'ew-plain-list ew-placement-positions' }, ...groups)]), hiddenList ?? '', add ?? '', reset ?? '');
     if (focusKey) list.querySelector<HTMLElement>(`[data-key="${CSS.escape(focusKey)}"]:not([disabled])`)?.focus();
   };
   // a block taken over from above gets rows of its own (same positions)

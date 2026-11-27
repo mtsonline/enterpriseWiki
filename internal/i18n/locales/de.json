@@ -1239,7 +1239,6 @@
  "placement.type_choose": "Elementtyp wählen",
  "placement.help_type": "Bausteine an den Positionen der Seiten dieses Elementtyps. Was hier nicht festgelegt ist, kommt von der Website; Kategorien und einzelne Seiten können es wieder ändern.",
  "placement.title_type": "Layout des Elementtyps",
- "placement.admin": "Platzierung",
  "placement.title_site": "Platzierung der Bausteine",
  "placement.title_category": "Platzierung in dieser Kategorie",
  "placement.title_user": "Meine Anordnung",
@@ -3311,5 +3310,19 @@
  "sitetpl.use_for_site": "Für die Website verwenden",
  "sitetpl.used_for_site": "{name} ist jetzt das Template der Website.",
  "admin.current_area": "aktueller Bereich",
- "admin.menu": "Menü der Verwaltung"
+ "admin.menu": "Menü der Verwaltung",
+ "placement.hidden_on_device": "Auf diesem Gerät ausgeblendet",
+ "placement.add_at": "Baustein für {position}",
+ "placement.view": "Gezeigte Seite",
+ "placement.view_site": "Website",
+ "placement.view_category": "Kategorieseite",
+ "placement.view_element": "Seite",
+ "placement.view_editor": "Editor",
+ "placement.view_dashboard": "Dashboard",
+ "placement.blocks_count_one": "{count} Baustein",
+ "placement.blocks_count_other": "{count} Bausteine",
+ "placement.choose_position": "Wählen Sie eine Position im Schema, um zu sehen und zu ändern, was dort steht.",
+ "sitetpl.tab_positions": "Positionen und Platzierungen",
+ "sitetpl.positions_help": "Jede Position des Templates ist eine Schaltfläche im Schema. Ein Klick zeigt, was dort für die ganze Website steht. Dort ändern Sie die Reihenfolge und fügen Bausteine hinzu oder entfernen sie. Wählen Sie die gezeigte Seite und das Gerät, um zu sehen, wo die Positionen dort liegen.",
+ "sitetpl.positions_template": "Template"
 }

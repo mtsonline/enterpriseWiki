@@ -111,3 +111,30 @@ class Parser {
     return bound === 'min-' ? have >= px : bound === 'max-' ? have <= px : have === px;
   }
 }
+
+/** The kinds of pages shown in the content of a template (the views of the
+ * schematic of the placements). */
+export type PageView = 'site' | 'category' | 'element' | 'editor' | 'dashboard';
+
+/** The rows of a page inside the content of the template, for a size of
+ * window: the positions of a category page, a page, the editor or the
+ * dashboard. The columns stack where the core CSS stacks them (base.css). */
+export function pageSchema(view: PageView, size: WindowSize): SchemaRow[] {
+  const row = (...positions: string[]): SchemaRow => ({ role: 'none', areas: [{ kind: 'area', positions }] });
+  const beside = (main: SchemaArea, aside: string, stackAt: string): SchemaRow =>
+    ({ role: 'none', columns: mediaMatches(stackAt, size) ? 1 : undefined, areas: [main, { kind: 'area', positions: [aside] }] });
+  switch (view) {
+    case 'category':
+    case 'element':
+      return [row(`${view}-header`), row(`${view}-toolbar`),
+        beside({ kind: 'content', positions: [`${view}-content`], grow: 3 }, `${view}-aside`, '(max-width: 48rem)'), row(`${view}-footer`)];
+    case 'editor':
+      return [row('editor-header'), row('editor-toolbar'), beside({ kind: 'content', positions: [MAIN], grow: 3 }, 'editor-aside', '(max-width: 56rem)'),
+        row('editor-footer'), row('editor-statusbar')];
+    case 'dashboard':
+      return [row('dashboard-wide'), { role: 'none', columns: mediaMatches('(max-width: 60rem)', size) ? 1 : 3,
+        areas: ['dashboard-1', 'dashboard-2', 'dashboard-3'].map((p) => ({ kind: 'area' as const, positions: [p] })) }];
+    default:
+      return [];
+  }
+}

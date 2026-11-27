@@ -63,7 +63,7 @@ export async function categorySettingsView({ params, query, main }: RouteCtx): P
   if (tab === 'space' && isSpace) await spaceSettings(panel, c);
   if (tab === 'insights' && can('manage')) await insightsPanel(panel, c);
   // where the building blocks appear in this category and below
-  if (tab === 'placement' && can('manage')) panel.append(await placementEditor('category', String(c.id)));
+  if (tab === 'placement' && can('manage')) panel.append(await placementEditor('category', String(c.id), { schematic: true }));
   if (tab === 'permissions') await permissions(panel, c);
   if (tab === 'history') await history(panel, c);
   const x = extra.find((e) => e.id === tab);

@@ -11,7 +11,9 @@ import { t } from '../core/i18n';
 import { toast } from '../core/announce';
 import { hasPerm, state } from '../core/state';
 import { listTemplateCardSources, listTemplateTabs, listTemplates, setTriedTemplate, templateLabel, triedTemplate, type TemplateCardInfo, type TemplateTabContext } from '../coreplugin';
-import { button, errorText } from '../components/ui';
+import { button, errorText, field, select } from '../components/ui';
+import { placementEditor, typeLayouts } from '../components/placement';
+import { offeredTilesForm } from './dashboard';
 import { currentDevice, deviceSwitch, schematic } from '../components/templateSchema';
 import type { Device } from '../core/templateSchema';
 
@@ -27,6 +29,7 @@ export function mayOpenTemplates(): boolean {
 export async function templatesAdmin(panel: HTMLElement, query: URLSearchParams): Promise<void> {
   const tabs: Tab[] = [
     { id: 'overview', label: t('sitetpl.tab_overview'), render: overview },
+    ...(hasPerm('core.settings.manage') ? [{ id: 'positions', label: t('sitetpl.tab_positions'), render: positionsTab }] : []),
     ...listTemplateTabs().filter((x) => !x.permission || hasPerm(x.permission)).map((x) => ({ id: x.id, label: x.label(), render: x.render })),
   ];
   const buttons: HTMLButtonElement[] = [];
@@ -115,4 +118,17 @@ async function overview(panel: HTMLElement, ctx: TemplateTabContext): Promise<vo
   draw(currentDevice());
   panel.replaceChildren(h('p', { class: 'ew-help' }, t('sitetpl.overview_help')), h('p', { class: 'ew-help' }, t('template_try.try_help')),
     deviceSwitch(draw), list);
+}
+
+/** The tab "Positions and placements": the schematic of a template with
+ * its positions as buttons; what is placed there for the whole site. Then
+ * the arrangement per type of page and the tiles offered for dashboards. */
+async function positionsTab(panel: HTMLElement, ctx: TemplateTabContext): Promise<void> {
+  const ids = listTemplates().filter((x) => (x.layout || x.extends) && x.id !== 'core.template/preview').map((x) => x.id);
+  const chosen = ids.includes(ctx.params.get('t') ?? '') ? ctx.params.get('t')! : state.site.template;
+  const sel = select(ids.map((id) => ({ value: id, label: templateLabel(id) })), chosen);
+  sel.addEventListener('change', () => ctx.open('positions', { t: sel.value }));
+  panel.replaceChildren(h('p', { class: 'ew-help' }, t('sitetpl.positions_help')),
+    field(t('sitetpl.positions_template'), sel, { help: chosen === state.site.template ? t('sitetpl.active_site') : undefined }),
+    await placementEditor('site', '', { schematic: true, templateId: chosen }), await typeLayouts(), await offeredTilesForm());
 }

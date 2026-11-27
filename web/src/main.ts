@@ -1,5 +1,5 @@
 // Application bootstrap.
-import { dashboardView, offeredTilesForm, registerDashboardTiles } from './views/dashboard';
+import { dashboardView, registerDashboardTiles } from './views/dashboard';
 import { verifyEmailView } from './views/identity';
 import { registerConfirmView, registerView } from './views/register';
 import { resetConfirmView, resetView } from './views/passwordReset';
@@ -13,7 +13,7 @@ import { notificationsView } from './views/notifications';
 import { signatureVerifyView } from './views/signatures';
 import { officeView } from './components/office';
 import { api, ApiError, setWaitNotice, setWaitPrompt } from './core/api';
-import { errorText, pageHeader, waitDialog } from './components/ui';
+import { errorText, waitDialog } from './components/ui';
 import { toast } from './core/announce';
 import { h, mount } from './core/dom';
 import { MAIN } from './core/templateSchema';
@@ -29,13 +29,13 @@ import { pluginModules } from './generated/plugins';
 import { applyScheme } from './core/scheme';
 import { schemeBlock } from './components/scheme';
 import { brandHeader, printBrand } from './components/brand';
-import { positionContainer, refreshPositions, registerAdminPage, registerPageAction, registerProfileSection, registerSlot, registerTemplate, previewTemplate, resolveTemplate, setShownTemplate, siteTemplate, triedTemplate } from './coreplugin';
+import { positionContainer, refreshPositions, registerPageAction, registerProfileSection, registerSlot, registerTemplate, previewTemplate, resolveTemplate, setShownTemplate, siteTemplate, triedTemplate } from './coreplugin';
 import { tryBar } from './components/trytemplate';
 import { closedPage, maintenanceBar } from './components/maintenance';
 import { cookieBanner, cookieSettingsBlock, privacyGate } from './components/consent';
 import { instanceRightsButton } from './components/instanceRights';
 import { instanceLabelsButton } from './components/instanceLabels';
-import { placementEditor, typeLayouts } from './components/placement';
+import { placementEditor } from './components/placement';
 import { blockOptionsControl } from './components/blockoptions';
 import { iconControl } from './components/iconpicker';
 import { categoryControl, groupControl, imageControl, pageControl, templateControl, userControl } from './components/macroparams';
@@ -104,7 +104,6 @@ function registerCore(): void {
   registerMacroParamControl('image', imageControl);
   registerMacroParamControl('user', userControl);
   registerMacroParamControl('group', groupControl);
-  registerAdminPage({ id: 'placement', area: 'appearance', permission: 'core.settings.manage', order: 15, label: () => t('placement.admin'), render: async (panel) => { panel.append(pageHeader(t('placement.admin')), await placementEditor('site', ''), await typeLayouts(), await offeredTilesForm()); } });
   registerProfileSection({ id: 'core.placement', order: 60, render: async () => (state.site.personal_placement && state.user ? placementEditor('user', String(state.user.id)) : null) });
   // building blocks of the core: default positions; the administration,
   // categories and (if allowed) every person can place them elsewhere
