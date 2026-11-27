@@ -45,7 +45,7 @@ function addDesign(tpl: Tpl): void {
 }
 
 export async function register(): Promise<void> {
-  registerAdminPage({ id: 'templates', label: () => t('template.admin_title'), permission: 'core.template.design', order: 35, render: adminPage });
+  registerAdminPage({ id: 'templates', area: 'appearance', label: () => t('template.admin_title'), permission: 'core.template.design', order: 35, render: adminPage });
   const list = await api.get<Tpl[]>(`${BASE}/designs`);
   for (const tpl of list) addDesign(tpl);
   // the frame of the designer's preview shows its draft instead

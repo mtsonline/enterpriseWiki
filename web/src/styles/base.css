@@ -509,6 +509,7 @@ progress { width: 8rem; vertical-align: middle; }
 .ew-admin { display: grid; grid-template-columns: 13rem 1fr; gap: 2rem; }
 .ew-subnav-title { font-size: 1rem; margin-top: 0; }
 .ew-subnav ul { list-style: none; padding: 0; margin: 0; }
+.ew-subnav-area { font-size: .8rem; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--ew-text-muted); margin: 1rem 0 .25rem .6rem; }
 /* long words (German: Experteneinstellungen) wrap instead of reaching under the panel next to it */
 .ew-subnav a { display: block; max-width: 100%; overflow-wrap: anywhere; hyphens: auto; padding: .4rem .6rem; border-radius: 4px; text-decoration: none; color: var(--ew-text); }
 .ew-subnav a[aria-current="page"] { background: var(--ew-info-bg) url(/brand/mark.webp) .45rem center / 1.1rem no-repeat; padding-left: 1.9rem; color: var(--ew-info-text); font-weight: 700; }

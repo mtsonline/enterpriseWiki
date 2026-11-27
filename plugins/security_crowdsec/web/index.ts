@@ -126,5 +126,5 @@ function alertsSection(list: Alert[]): HTMLElement {
 }
 
 export function register(): void {
-  registerAdminPage({ id: 'crowdsec', permission: 'security.crowdsec.view', label: () => t('crowdsec.title'), order: 67, render: (el) => render(el).catch((e) => toast(errorText(e), 'error')) });
+  registerAdminPage({ id: 'crowdsec', area: 'security', permission: 'security.crowdsec.view', label: () => t('crowdsec.title'), order: 67, render: (el) => render(el).catch((e) => toast(errorText(e), 'error')) });
 }

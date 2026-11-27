@@ -239,6 +239,18 @@ test('administration pages are accessible', async () => {
   await idle();
   const sections = await page.locator('.ew-admin nav.ew-subnav a').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
   assert.ok(sections.length >= 20, `administration pages: ${sections}`);
+  // the menu in areas: each a heading with its list of pages
+  const areas = await page.locator('.ew-admin nav.ew-subnav ul').evaluateAll((uls) => uls.map((ul) => ({
+    area: document.getElementById(ul.getAttribute('aria-labelledby') ?? '')?.textContent ?? '',
+    pages: [...ul.querySelectorAll('a')].map((a) => a.getAttribute('href')),
+  })));
+  assert.ok(areas.every((a) => a.area && a.pages.length), JSON.stringify(areas));
+  const areaOf = (href) => areas.find((a) => a.pages.includes(href))?.area ?? '';
+  for (const [href, area] of [['/admin/overview', /^(overview|übersicht)$/i], ['/admin/oidc', /^(sign-in|anmeldung)$/i], ['/admin/users', /^(people and permissions|personen und rechte)$/i],
+    ['/admin/templates', /^(appearance|darstellung)$/i], ['/admin/workflow', /^(content|inhalte)$/i], ['/admin/webhooks', /^(connections|anbindungen)$/i],
+    ['/admin/audit', /^(security and privacy|sicherheit und datenschutz)$/i], ['/admin/settings', /^(operation|betrieb)$/i]]) {
+    assert.match(areaOf(href), area, `${href} in ${areaOf(href) || 'no area'}`);
+  }
   for (const href of sections) {
     await page.goto(BASE + href);
     await idle();

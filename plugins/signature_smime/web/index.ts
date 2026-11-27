@@ -170,6 +170,6 @@ async function profileSection(): Promise<Node | null> {
 }
 
 export function register(): void {
-  registerAdminPage({ id: 'smime', label: () => t('signature.smime.title'), permission: 'signature.smime.manage', render: adminPage });
+  registerAdminPage({ id: 'smime', area: 'security', label: () => t('signature.smime.title'), permission: 'signature.smime.manage', render: adminPage });
   registerProfileSection({ id: 'signature.smime', order: 60, render: profileSection });
 }

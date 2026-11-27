@@ -243,7 +243,7 @@ export function register(): void {
     // every carousel is a block of its own; its position is the default
     instances: async () => (await shown()).map((c) => ({ key: String(c.id), label: `${t('core.carousel.block')}: ${c.name}`, position: c.position, order: 5 + c.order })),
   });
-  registerAdminPage({ id: 'carousels', label: () => t('core.carousel.admin'), permission: 'core.carousel.manage', render: adminPage });
+  registerAdminPage({ id: 'carousels', area: 'appearance', label: () => t('core.carousel.admin'), permission: 'core.carousel.manage', render: adminPage });
   // "as news" when publishing: only carousels placed in the active template
   registerPublishOption({
     id: 'core.carousel',

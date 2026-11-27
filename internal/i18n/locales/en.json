@@ -3276,5 +3276,14 @@
  "choice.found": "{n} found.",
  "choice.more": "Showing {n} of {total}. Type more to narrow the list.",
  "settings.choice_checkboxes": "Checkboxes up to",
- "settings.choice_checkboxes_help": "Lists of groups, roles and similar with up to this many entries appear as checkboxes; longer lists as a list with a filter. 0 = 5, at most 50."
+ "settings.choice_checkboxes_help": "Lists of groups, roles and similar with up to this many entries appear as checkboxes; longer lists as a list with a filter. 0 = 5, at most 50.",
+ "admin.area.overview": "Overview",
+ "admin.area.auth": "Sign-in",
+ "admin.area.people": "People and permissions",
+ "admin.area.appearance": "Appearance",
+ "admin.area.content": "Content",
+ "admin.area.integrations": "Connections",
+ "admin.area.security": "Security and privacy",
+ "admin.area.operations": "Operation",
+ "admin.area.extensions": "Extensions"
 }

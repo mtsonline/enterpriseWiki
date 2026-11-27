@@ -76,7 +76,7 @@ export function register(): void {
   registerSlot({ id: 'theme.cms.hero', position: 'hero', order: 0, label: () => t('theme.cms.block_hero'), render: hero });
   registerAdminPage({
     permission: 'core.settings.manage',
-    id: 'website', label: () => t('cms.admin_title'), order: 30,
+    id: 'website', area: 'appearance', label: () => t('cms.admin_title'), order: 30,
     render: async (el) => {
       const f = await pluginSettingsForm('theme.cms', settingsFields(), t('cms.admin_title'));
       el.replaceChildren(h('h1', null, t('cms.admin_title')), h('p', null, t('cms.admin_help')), f.el);

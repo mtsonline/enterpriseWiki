@@ -4,7 +4,7 @@ import { api, button, confirmDialog, errorText, field, fmtDate, h, MAPPING_FIELD
 export function register(): void {
   registerAdminPage({
     permission: 'core.settings.manage',
-    id: 'ldap', label: () => t('auth.ldap.title'), order: 20,
+    id: 'ldap', area: 'auth', label: () => t('auth.ldap.title'), order: 20,
     render: (el) => renderAuthProviderPage(el, {
       pluginId: 'auth.ldap', base: 'ldap', title: t('auth.ldap.title'), help: t('auth.ldap.help'),
       fields: () => [

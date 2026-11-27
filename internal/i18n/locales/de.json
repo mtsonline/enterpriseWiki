@@ -3276,5 +3276,14 @@
  "choice.found": "{n} gefunden.",
  "choice.more": "{n} von {total} gezeigt. Tippen Sie weiter, um die Liste einzugrenzen.",
  "settings.choice_checkboxes": "Kästchen bis",
- "settings.choice_checkboxes_help": "Listen von Gruppen, Rollen und Ähnlichem mit bis zu so vielen Einträgen erscheinen als Kästchen, längere als Liste mit Filter. 0 = 5, höchstens 50."
+ "settings.choice_checkboxes_help": "Listen von Gruppen, Rollen und Ähnlichem mit bis zu so vielen Einträgen erscheinen als Kästchen, längere als Liste mit Filter. 0 = 5, höchstens 50.",
+ "admin.area.overview": "Übersicht",
+ "admin.area.auth": "Anmeldung",
+ "admin.area.people": "Personen und Rechte",
+ "admin.area.appearance": "Darstellung",
+ "admin.area.content": "Inhalte",
+ "admin.area.integrations": "Anbindungen",
+ "admin.area.security": "Sicherheit und Datenschutz",
+ "admin.area.operations": "Betrieb",
+ "admin.area.extensions": "Erweiterungen"
 }

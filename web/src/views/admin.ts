@@ -28,7 +28,7 @@ import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
 import { langName, setContext } from '../components/widgets';
 import { previewImageInput } from '../components/previewimage';
-import { listAdminPages, listTemplates, listUserAdminFields, templateLabel } from '../coreplugin';
+import { ADMIN_AREAS, listAdminPages, listTemplates, listUserAdminFields, templateLabel, type AdminArea } from '../coreplugin';
 import { errorPage } from './content';
 import { watchesAdmin } from './adminWatches';
 import { languagesAdmin } from './adminLanguages';
@@ -38,7 +38,7 @@ import { askExternal, confirmInstall, isExternalRefusal, originBadge, originDeta
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; alias: string | null; alias_source: string; mfa: boolean }
 
-const CORE_SECTIONS = ['overview', 'users', 'scim', 'mfa', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'limits', 'data', 'consent', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites', 'maintenance', 'demo'];
+const CORE_SECTIONS = ['overview', 'users', 'mfa', 'scim', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'limits', 'data', 'consent', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites', 'maintenance', 'demo'];
 
 /** global permission of each administration page ('' = category managers too) */
 const SECTION_PERMS: Record<string, string> = {
@@ -48,8 +48,21 @@ const SECTION_PERMS: Record<string, string> = {
   audit: 'core.audit.view', watches: 'core.watches.assign', license: 'core.license.manage',
 };
 
-/** adminSections lists the administration pages the user may open. */
-export function adminSections(): { id: string; label: string }[] {
+/** the area of the administration menu of each page of the core */
+const CORE_AREAS: Record<string, AdminArea> = {
+  overview: 'overview',
+  mfa: 'auth', scim: 'auth',
+  users: 'people', groups: 'people', roles: 'people', permissions: 'people', watches: 'people',
+  languages: 'appearance',
+  elements: 'content', data: 'content', demo: 'content',
+  webhooks: 'integrations', mail: 'integrations',
+  audit: 'security', consent: 'security',
+  settings: 'operations', limits: 'operations', cache: 'operations', plugins: 'operations', updates: 'operations',
+  license: 'operations', sites: 'operations', maintenance: 'operations',
+};
+
+/** adminSections lists the administration pages the user may open, each with its area of the menu. */
+export function adminSections(): { id: string; label: string; area: AdminArea }[] {
   const core = CORE_SECTIONS.filter((s) => {
     const k = SECTION_PERMS[s];
     if (s === 'languages') return canTranslateAny();
@@ -59,9 +72,21 @@ export function adminSections(): { id: string; label: string }[] {
     if (s === 'scim') return hasPerm(k) && (state.site.site === 'main' || isInstanceAdmin());
     if (s === 'license' || s === 'updates') return hasPerm(k) && (state.site.site === 'main' || isInstanceAdmin());
     return k === '' ? !!state.user && (isAdmin() || hasPerm('core.categories.admin') || state.managesCategories) : hasPerm(k);
-  }).map((s) => ({ id: s, label: t(`admin.${s}`) }));
-  const plugin = listAdminPages().filter((p) => (p.permission ? hasPerm(p.permission) : isAdmin())).map((p) => ({ id: p.id, label: p.label() }));
-  return [...core, ...plugin];
+  }).map((s) => ({ id: s, label: t(`admin.${s}`), area: CORE_AREAS[s] ?? 'operations' }));
+  const plugin = listAdminPages().filter((p) => (p.permission ? hasPerm(p.permission) : isAdmin())).map((p) => ({ id: p.id, label: p.label(), area: p.area ?? 'extensions' }));
+  // in the order of the areas; within an area core pages first, as listed
+  return ADMIN_AREAS.flatMap((a) => [...core, ...plugin].filter((p) => p.area === a));
+}
+
+/** The menu of the administration: the areas as headed groups of links. */
+function adminMenu(pages: { id: string; label: string; area: AdminArea }[], current: string): HTMLElement[] {
+  return ADMIN_AREAS.flatMap((a) => {
+    const here = pages.filter((p) => p.area === a);
+    if (!here.length) return [];
+    const id = `admin-area-${a}`;
+    return [h('h3', { class: 'ew-subnav-area', id }, t(`admin.area.${a}`)),
+      h('ul', { 'aria-labelledby': id }, ...here.map((p) => h('li', null, h('a', { href: `/admin/${p.id}`, 'aria-current': p.id === current ? 'page' : undefined }, p.label))))];
+  });
 }
 
 const reload = () => navigate(location.pathname + location.search, { replace: true });
@@ -82,7 +107,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
   const notice = h('div');
   mount(main, h('div', { class: 'ew-admin' },
     h('nav', { class: 'ew-subnav', 'aria-label': t('admin.title') }, h('h2', { class: 'ew-subnav-title' }, t('admin.title')), licenseSeal('ew-admin-seal', 96),
-      h('ul', null, ...pages.map((p) => h('li', null, h('a', { href: `/admin/${p.id}`, 'aria-current': p.id === section ? 'page' : undefined }, p.label))))),
+      ...adminMenu(pages, section)),
     h('div', { class: 'ew-admin-panel' }, notice, panel)));
   // problems with the license on every administration page (not on the license page itself)
   // and problems with the PostgreSQL version (end of support)

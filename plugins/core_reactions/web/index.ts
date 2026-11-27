@@ -200,5 +200,5 @@ export function register(): void {
   });
   registerElementExtension({ id: 'core.reactions', order: 10, label: () => t('core.reactions.label'), render: (el) => h('div', { class: 'ewre-section' }, bar('element', el.id, el.title)) });
   registerCategoryExtension({ id: 'core.reactions', order: 10, render: (c) => h('div', { class: 'ewre-section' }, bar('category', c.id, pick(c.titles, state.lang, state.site.default_language))) });
-  registerAdminPage({ id: 'reactions', label: () => t('core.reactions.admin'), permission: 'core.reactions.manage', render: adminPage });
+  registerAdminPage({ id: 'reactions', area: 'content', label: () => t('core.reactions.admin'), permission: 'core.reactions.manage', render: adminPage });
 }
