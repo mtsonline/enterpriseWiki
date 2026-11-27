@@ -6861,8 +6861,18 @@ test('expert settings: a limit, the limit of an API key, secrets stored again; c
     await page.getByRole('button', { name: /^(set the default|vorgabe einsetzen): (period of the text search|zeitraum der textsuche)$/i }).click();
     // the toast of the first save may still be there: remove it, so that the next one belongs to this save
     await page.evaluate(() => document.querySelectorAll('.ew-toast').forEach((e) => e.remove()));
+    // the message comes once the page shows the saved values (before, a change right after it went to the old form)
+    await page.evaluate(() => {
+      const old = document.querySelector('form.ew-form');
+      new MutationObserver((_, obs) => {
+        if (!document.querySelector('.ew-toast')) return;
+        window.__e2eMessageOnOldForm = old.isConnected;
+        obs.disconnect();
+      }).observe(document.body, { childList: true, subtree: true });
+    });
     await page.locator('form.ew-form').getByRole('button', { name: /^(save|speichern)$/i }).last().click();
     await toastOn(/limits saved|grenzwerte gespeichert/i);
+    assert.equal(await page.evaluate(() => window.__e2eMessageOnOldForm), false, 'the message came before the page showed the saved values');
     assert.equal(await value(), before);
 
     // the own limit of an API key, set by the administration (on the page as

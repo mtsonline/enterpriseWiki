@@ -94,8 +94,7 @@ async function identitiesBlock(p: Paths): Promise<HTMLElement> {
           if (!(await confirmDialog(t('identity.unlink_confirm', { provider: providerName(i.provider), name: i.username }), t('identity.unlink'), true))) return;
           try {
             await api.del(`${p.identities}?provider=${encodeURIComponent(i.provider)}&subject=${encodeURIComponent(i.subject)}`);
-            toast(t('identity.unlinked'));
-            await render();
+            try { await render(); } finally { toast(t('identity.unlinked')); }
           } catch (e) { toast(errorText(e), 'error'); }
         }, { variant: 'link', ariaLabel: `${t('identity.unlink')}: ${providerName(i.provider)} ${i.username}` })))), '–'));
   };
@@ -122,7 +121,7 @@ async function sessionsBlock(p: Paths, admin: boolean): Promise<HTMLElement> {
     const end = async (s: Session) => {
       const label = deviceLabel(s.user_agent, s.kind);
       if (!(await confirmDialog(t('session.end_confirm', { device: label }), t('session.end'), true))) return;
-      try { await api.del(p.session(s.id)); toast(t('session.ended')); await render(); } catch (e) { toast(errorText(e), 'error'); }
+      try { await api.del(p.session(s.id)); try { await render(); } finally { toast(t('session.ended')); } } catch (e) { toast(errorText(e), 'error'); }
     };
     const rows = list.map((s) => h('tr', null,
       h('th', { scope: 'row' }, deviceLabel(s.user_agent, s.kind), s.current ? h('span', { class: 'ew-badge ew-badge--info' }, ' ', t('session.current')) : null,
@@ -136,7 +135,7 @@ async function sessionsBlock(p: Paths, admin: boolean): Promise<HTMLElement> {
     const others = list.filter((s) => !s.current).length;
     const all = others ? button(admin ? t('session.end_all') : t('session.end_others'), async () => {
       if (!(await confirmDialog(admin ? t('session.end_all_confirm') : t('session.end_others_confirm'), admin ? t('session.end_all') : t('session.end_others'), true))) return;
-      try { await api.del(p.sessions); toast(t('session.ended_all')); await render(); } catch (e) { toast(errorText(e), 'error'); }
+      try { await api.del(p.sessions); try { await render(); } finally { toast(t('session.ended_all')); } } catch (e) { toast(errorText(e), 'error'); }
     }, { variant: 'secondary' }) : null;
     box.replaceChildren(table(t('session.title'), [t('session.device'), t('session.ip'), t('identity.provider'), t('session.started'), t('session.last_seen'), t('common.actions')],
       rows, t('session.none')), ...(all ? [all] : []));

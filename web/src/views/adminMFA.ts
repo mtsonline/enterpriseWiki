@@ -99,8 +99,8 @@ export async function mfaAdmin(panel: HTMLElement): Promise<void> {
     for (const x of provs) providers[x.p.id] = x.get();
     try {
       await api.put('admin/mfa', { factors, counts_two: countsTwo, providers });
-      toast(t('common.saved'));
-      await mfaAdmin(panel);
+      // the message once the page shows the saved state
+      try { await mfaAdmin(panel); } finally { toast(t('common.saved')); }
     } catch (e) { alert.textContent = errorText(e); alert.scrollIntoView({ block: 'nearest' }); }
   });
   mount(panel, pageHeader(t('admin.mfa')), h('p', null, t('mfa.admin.help')), form);

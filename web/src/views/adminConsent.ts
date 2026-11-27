@@ -57,8 +57,8 @@ export async function consentAdmin(panel: HTMLElement): Promise<void> {
     };
     try {
       await api.put('admin/consent', next);
-      toast(t('common.saved'));
-      await consentAdmin(panel);
+      // the message once the page shows the saved state
+      try { await consentAdmin(panel); } finally { toast(t('common.saved')); }
     } catch (e) { toast(errorText(e), 'error'); }
   });
   const parts: HTMLElement[] = [pageHeader(t('admin.consent')), h('p', null, t('consent.intro')), form];
