@@ -128,6 +128,43 @@ actions:
         as: member
         path_params_json: '{"id": "${given.core.users.create#default.id}"}'
         body_json: '{"alias": "alias${unique}"}'
+  - id: core.users.feed_keys.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/users/{id}/feed-keys
+    success_status: 200
+    summary:
+      text:
+        en: List the feed keys of an account (names and last use, never the keys)
+        de: Feed-Schlüssel eines Kontos auflisten (Namen und letzte Nutzung, nie die Schlüssel)
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [user, feed-keys], args: [id]}
+    ui: {entry: /admin/users}
+    examples:
+      - name: default
+        given: ['core.users.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.users.create#default.id}"}'
+  - id: core.users.feed_keys.delete_all
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/users/{id}/feed-keys
+    response:
+      json: '{"type": "object", "properties": {"deleted": {"type": "integer", "description": "feed keys deleted"}}}'
+    success_status: 200
+    summary:
+      text:
+        en: Delete all feed keys of an account (e.g. after a feed link got out)
+        de: Alle Feed-Schlüssel eines Kontos löschen (z. B. wenn ein Feed-Link nach außen gelangt ist)
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [user, feed-keys-delete], args: [id]}
+    ui: {entry: /admin/users}
+    examples:
+      - name: default
+        given: ['core.users.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.users.create#default.id}"}'
   - id: core.users.emails.list
     category: CATEGORY_ACTION
     method: GET

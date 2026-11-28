@@ -32,6 +32,14 @@ Under *My profile → API keys*:
 
 Usage: `Authorization: Bearer ewk_…`
 
+### Feed keys (personal feed and calendar links)
+Feed readers and calendar apps cannot sign in, so a personal feed or calendar link carries a key (`ft_…`, 384 bits):
+- **Only the SHA-256 hash is stored.** The link is shown once, when it is made in the subscription dialog; nobody can show it again, administrators included.
+- **One key per link:** a person may have several (one per feed reader), each with a name, up to `core.feeds.keys_per_user` (expert settings, default 50). Deleting one key stops only its links.
+- A key is accepted **only by feed and calendar routes**, never by the rest of the API, and reads with the current permissions of its person. Keys of a disabled account stop working at once.
+- Keys are made only with a session (not with an API key or a feed key). Making and deleting them is logged (`feedkey.create`, `feedkey.delete`, `feedkey.delete_all`).
+- Under *My profile → Feed and calendar links* everyone sees their keys with the date of their last use and deletes one or all. Those who manage people (`core.users.manage`) see the names of a person's keys under *Administration → Users → E-mail & sign-ins* and delete all of them, for example when a link got out. CLI: `ewiki me feed-keys list|create|delete|delete-all`, `ewiki user feed-keys ID`, `ewiki user feed-keys-delete ID`.
+
 ### SSH keys (as with GitHub)
 Store your public key under *My profile → SSH keys* (ed25519, ECDSA, RSA). Then:
 

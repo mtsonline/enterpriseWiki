@@ -32,6 +32,15 @@ Unter *Mein Profil → API-Keys*:
 
 Verwendung: `Authorization: Bearer ewk_…`
 
+
+### Feed-Schlüssel (persönliche Feed- und Kalender-Links)
+Feed-Reader und Kalender-Apps können sich nicht anmelden, darum trägt ein persönlicher Feed- oder Kalender-Link einen Schlüssel (`ft_…`, 384 Bit):
+- **Gespeichert wird nur der SHA-256-Hash.** Der Link wird einmal gezeigt, wenn er im Dialog zum Abonnieren erzeugt wird; niemand kann ihn wieder anzeigen, auch Administratoren nicht.
+- **Ein Schlüssel je Link:** Eine Person darf mehrere haben (einen je Feed-Reader), jeder mit Namen, bis zu `core.feeds.keys_per_user` (Experteneinstellungen, Vorgabe 50). Wird ein Schlüssel gelöscht, gelten nur seine Links nicht mehr.
+- Ein Schlüssel gilt **nur für Feed- und Kalender-Routen**, nie für den Rest der API, und liest mit den aktuellen Rechten seiner Person. Die Schlüssel eines deaktivierten Kontos gelten sofort nicht mehr.
+- Schlüssel lassen sich nur mit einer Sitzung erzeugen (nicht mit einem API-Key oder einem Feed-Schlüssel). Erzeugen und Löschen werden protokolliert (`feedkey.create`, `feedkey.delete`, `feedkey.delete_all`).
+- Unter *Mein Profil → Feed- und Kalender-Links* sieht jede Person ihre Schlüssel mit dem Datum der letzten Nutzung und löscht einen oder alle. Wer Personen verwaltet (`core.users.manage`), sieht die Namen der Schlüssel einer Person unter *Administration → Benutzer → E-Mail & Anmeldungen* und löscht alle, zum Beispiel wenn ein Link nach außen gelangt ist. CLI: `ewiki me feed-keys list|create|delete|delete-all`, `ewiki user feed-keys ID`, `ewiki user feed-keys-delete ID`.
+
 ### SSH-Schlüssel (wie bei GitHub)
 Öffentlichen Schlüssel unter *Mein Profil → SSH-Schlüssel* hinterlegen (ed25519, ECDSA, RSA). Danach:
 

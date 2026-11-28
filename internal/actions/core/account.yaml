@@ -580,55 +580,81 @@ actions:
         as: self
         body_json: '{"token": "no-such-request"}'
         status: 400
-  - id: core.me.feed_token.show
+  - id: core.me.feed_keys.list
     category: CATEGORY_ACTION
     method: GET
-    path: /api/v1/me/feed-token
+    path: /api/v1/me/feed-keys
     success_status: 200
     summary:
       text:
-        en: Show whether you have a personal feed link
-        de: "Anzeigen, ob ein persönlicher Feed-Link besteht"
+        en: List your feed keys (names and last use, never the keys)
+        de: Eigene Feed-Schlüssel auflisten (Namen und letzte Nutzung, nie die Schlüssel)
     signed_in: true
-    cli: {command: [me, feed-token, show]}
+    cli: {command: [me, feed-keys, list]}
     ui: {entry: /profile}
     examples:
       - name: default
         as: self
-  - id: core.me.feed_token.renew
+  - id: core.me.feed_keys.create
     category: CATEGORY_ACTION
     method: POST
-    path: /api/v1/me/feed-token
-    success_status: 200
+    path: /api/v1/me/feed-keys
+    success_status: 201
     summary:
       text:
-        en: Create a new personal feed link (the old one stops working)
-        de: Neuen persönlichen Feed-Link erzeugen (der alte gilt nicht mehr)
+        en: Create a feed key for personal feed links (the key is shown once)
+        de: Feed-Schlüssel für persönliche Feed-Links anlegen (der Schlüssel wird einmal gezeigt)
     signed_in: true
     safety: {changes: true}
-    cli: {command: [me, feed-token, renew]}
+    cli: {command: [me, feed-keys, create]}
     ui: {entry: /profile}
     examples:
       - name: default
         as: self
-  - id: core.me.feed_token.delete
+        body_json: '{"name": "Feed reader at home"}'
+        status: 201
+      - name: no_name
+        as: self
+        body_json: '{"name": " "}'
+        status: 400
+  - id: core.me.feed_keys.delete
     category: CATEGORY_ACTION
     method: DELETE
-    path: /api/v1/me/feed-token
+    path: /api/v1/me/feed-keys/{id}
     success_status: 204
     summary:
       text:
-        en: Remove your personal feed link
-        de: Persönlichen Feed-Link entfernen
+        en: Delete one of your feed keys (links with it stop working)
+        de: Eigenen Feed-Schlüssel löschen (Links damit gelten nicht mehr)
     signed_in: true
     safety: {changes: true}
-    cli: {command: [me, feed-token, delete]}
+    cli: {command: [me, feed-keys, delete], args: [id]}
     ui: {entry: /profile}
     examples:
       - name: default
-        given: ['core.me.feed_token.renew#default']
+        given: ['core.me.feed_keys.create#default']
         as: self
+        path_params_json: '{"id": "${given.core.me.feed_keys.create#default.id}"}'
         status: 204
+  - id: core.me.feed_keys.delete_all
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/me/feed-keys
+    response:
+      json: '{"type": "object", "properties": {"deleted": {"type": "integer", "description": "feed keys deleted"}}}'
+    success_status: 200
+    summary:
+      text:
+        en: Delete all your feed keys (no personal feed link works any more)
+        de: Alle eigenen Feed-Schlüssel löschen (kein persönlicher Feed-Link gilt mehr)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, feed-keys, delete-all]}
+    ui: {entry: /profile}
+    examples:
+      - name: default
+        given: ['core.me.feed_keys.create#default']
+        as: self
   - id: core.me.watches.list
     category: CATEGORY_ACTION
     method: GET

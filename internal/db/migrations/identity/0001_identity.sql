@@ -41,7 +41,6 @@ CREATE TABLE users (
     prefs          jsonb NOT NULL DEFAULT '{}',
     -- e-mail preferences per kind, e.g. {"tasks": true, "comments": false}; missing keys mean "on"
     notify         jsonb NOT NULL DEFAULT '{}',
-    feed_token     text UNIQUE,                   -- personal feed links (feed readers cannot sign in)
     -- profile ("business card") maintained by the user or admins; not
     -- overwritten by identity providers (unlike attributes)
     profile        jsonb NOT NULL DEFAULT '{}',
@@ -100,6 +99,21 @@ CREATE TABLE directory_sync_runs (
     error        text NOT NULL DEFAULT ''
 );
 CREATE INDEX directory_sync_runs_provider ON directory_sync_runs(provider, started_at DESC);
+
+-- Personal feed keys: feed readers and calendar apps cannot sign in, so a
+-- feed link carries a key with the rights of its person. Only the SHA-256 of
+-- a key is stored; the link is shown once, when it is made. A person may have
+-- several (one per feed reader), each with a name, and delete each one.
+CREATE TABLE feed_keys (
+    id           bigserial PRIMARY KEY,
+    user_id      bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name         text NOT NULL CHECK (length(name) BETWEEN 1 AND 200),
+    prefix       text NOT NULL,              -- the start of the key, to recognise a link
+    token_hash   bytea NOT NULL UNIQUE,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    last_used_at timestamptz
+);
+CREATE INDEX feed_keys_user ON feed_keys(user_id, created_at DESC);
 
 CREATE TABLE ssh_keys (
     id           bigserial PRIMARY KEY,

@@ -23,6 +23,7 @@ const (
 	LivePersons        = "core.live.persons"
 	LivePerPerson      = "core.live.connections_per_person"
 	AuditSearchDays    = "core.audit.search_days"
+	FeedKeysPerUser    = "core.feeds.keys_per_user"
 	PasskeyAutofill    = "core.auth.passkey_autofill_per_5min" // #nosec G101 -- name of a limit, not a credential
 	RegisterPerHour    = "core.auth.register_per_hour"
 	RegisterPending    = "core.auth.registrations_pending"
@@ -111,6 +112,8 @@ func init() {
 			Label: "Included pages per page", Help: "How many pages one page may show with the block \"Include page\", counted over all levels. Further ones show a note."},
 		Def{Key: ElementRules, Group: "database", Unit: "count", Default: 100, Min: 5, Max: 2000,
 			Label: "Rules per page", Help: "How many own permission rules one page (element) may have."},
+		Def{Key: FeedKeysPerUser, Group: "accounts", Unit: "count", Default: 50, Min: 1, Max: 1000,
+			Label: "Feed keys per person", Help: "Personal feed links a person may have at the same time (one per feed reader or calendar app). Beyond it, an old one must be deleted first."},
 		Def{Key: AuditSearchDays, Group: "audit", Unit: "days", Default: 90, Min: 1, Max: 3650,
 			Label: "Period of the text search", Help: "How far back the text search in before/after values of the audit log looks when no start date is given. With a start date any period is searched."},
 	)

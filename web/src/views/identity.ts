@@ -8,6 +8,7 @@ import { state } from '../core/state';
 import { announce, toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, select, textInput } from '../components/ui';
 import { setContext } from '../components/widgets';
+import { feedKeysBlock } from '../components/feeds';
 
 export interface Email { id: number; email: string; verified: boolean; primary: boolean; created_at: string; verified_at: string | null }
 export interface Identity { provider: string; subject: string; username: string; primary: boolean; created_at: string; last_login_at: string | null }
@@ -160,13 +161,14 @@ export async function profileIdentitySections(): Promise<HTMLElement[]> {
   ];
 }
 
-/** Administration: addresses and sign-ins of a user. */
+/** Administration: addresses, sign-ins, sessions and feed keys of a user. */
 export async function adminIdentityDialog(uid: number, name: string): Promise<void> {
   const p = userPaths(uid);
   openDialog(`${t('identity.admin_title')}: ${name}`, h('div', null,
     h('h3', null, t('email.title')), await emailsBlock(p, true),
     h('h3', null, t('identity.title')), await identitiesBlock(p),
-    h('h3', null, t('session.title')), await sessionsBlock(p, true)), [], { wide: true });
+    h('h3', null, t('session.title')), await sessionsBlock(p, true),
+    h('h3', null, t('feed.profile_title')), await feedKeysBlock({ uid, name })), [], { wide: true });
 }
 
 /** Administration: invite somebody by e-mail address. */

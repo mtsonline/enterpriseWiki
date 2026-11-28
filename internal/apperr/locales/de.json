@@ -1273,5 +1273,8 @@
  "step %q: at most %d assignees": "Schritt %q: höchstens %d Zuständige",
  "tokens.logo: an uploaded file of the wiki (/api/v1/files/…)": "tokens.logo: eine hochgeladene Datei des Wikis (/api/v1/files/…)",
  "tokens.logo: only PNG, WebP or JPEG images, not %q": "tokens.logo: nur Bilder als PNG, WebP oder JPEG, nicht %q",
- "tokens.logo: the file does not exist": "tokens.logo: Die Datei gibt es nicht"
+ "tokens.logo: the file does not exist": "tokens.logo: Die Datei gibt es nicht",
+ "feed key not found": "Feed-Schlüssel nicht gefunden",
+ "name: 1 to 200 characters, no control characters": "Name: 1 bis 200 Zeichen, keine Steuerzeichen",
+ "you have %d feed keys, the most allowed; delete one first": "Sie haben %d Feed-Schlüssel, mehr sind nicht erlaubt; löschen Sie zuerst einen"
 }
