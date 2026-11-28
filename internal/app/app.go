@@ -196,6 +196,7 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 		d, _ := limits.Get(limits.RateUser)
 		return int(limits.Value(in.Config.Get(), limits.RateUser)), int(d.Max)
 	}
+	a.Auth.FeedKeysMax = func() int { return int(limits.Value(in.Config.Get(), limits.FeedKeysPerUser)) }
 	a.Auth.SeparateAccounts = a.SeparateAccounts
 	a.Content = content.New(pool, a.ACL, a.Bus, cfg, log)
 	a.I18n = i18n.New(pool, cfg, a.Bus)

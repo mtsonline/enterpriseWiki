@@ -937,7 +937,21 @@ test('e-mail addresses, sign-ins and invitations', async () => {
   await idDlg.getByLabel(/^(add an address|adresse hinzufügen)/i).fill(`guest.work${run}@example.org`);
   await idDlg.getByRole('button', { name: /^(add|hinzufügen)$/i }).click();
   await idDlg.locator('th', { hasText: `guest.work${run}@example.org` }).waitFor();
+  await idDlg.getByText(/no personal feed|keine persönlichen feed/i).waitFor();
   await a11y('e-mail and sign-ins of a user');
+  await page.keyboard.press('Escape');
+  // the feed keys of an account: names only, delete all (here the own account)
+  const key = await call('POST', '/api/v1/me/feed-keys', { name: `Admin reader ${run}` });
+  await page.reload();
+  await idle();
+  await page.getByRole('button', { name: /^(e-mail & sign-ins|e-mail & anmeldungen): admin@local$/i }).click();
+  const fkDlg = page.locator('dialog[open]');
+  await fkDlg.getByText(`Admin reader ${run}`).waitFor();
+  assert.ok(!(await fkDlg.textContent()).includes(key.token), 'the dialog never shows the key');
+  await fkDlg.getByRole('button', { name: /^(delete all feed keys|alle feed-schlüssel löschen)$/i }).click();
+  await page.getByRole('dialog').last().getByRole('button', { name: /^(delete all feed keys|alle feed-schlüssel löschen)$/i }).click();
+  await fkDlg.getByText(/no personal feed|keine persönlichen feed/i).waitFor();
+  assert.equal((await call('GET', '/api/v1/me/feed-keys')).length, 0);
   await page.keyboard.press('Escape');
   // confirmation and link pages with invalid tokens
   await page.goto(`${BASE}/verify-email?token=invalid`);
@@ -2992,10 +3006,28 @@ test('watch a page and subscribe to a category feed', async () => {
   await idle();
   assert.equal(await page.locator('link[rel=alternate][type="application/atom+xml"]').count(), 1);
   await page.getByRole('button', { name: /^feed:/i }).click();
-  await page.locator('dialog[open] input[readonly]').first().waitFor();
-  assert.match(await page.locator('dialog[open] input[readonly]').first().inputValue(), /token=ft_/);
+  const dlg2 = page.locator('dialog[open]');
+  await dlg2.locator('input[readonly]').first().waitFor();
+  // the public addresses carry no key
+  assert.doesNotMatch(await dlg2.locator('input[readonly]').first().inputValue(), /token=/);
   await a11y('feed dialog');
+  // a personal link: a key of its own, shown once
+  const before = (await call('GET', '/api/v1/me/feed-keys')).length;
+  await dlg2.getByRole('button', { name: /^(create a personal link|persönlichen link erzeugen)$/i }).click();
+  await dlg2.getByText(/shown only this once|nur dieses eine mal gezeigt/i).waitFor();
+  const personal = dlg2.locator('.ew-feed-personal input[readonly]');
+  assert.equal(await personal.count(), 2, 'Atom and RSS');
+  const url = await personal.first().inputValue();
+  assert.match(url, /token=ft_[0-9a-f]{96}/);
+  const keys = await call('GET', '/api/v1/me/feed-keys');
+  assert.equal(keys.length, before + 1);
+  assert.ok(!JSON.stringify(keys).includes(/token=(ft_[0-9a-f]+)/.exec(url)[1]), 'the list never has the key');
+  // the feed reader reads with the key, without a session
+  const res = await page.request.fetch(url, { headers: { cookie: '' } });
+  assert.equal(res.status(), 200);
+  await a11y('feed dialog with a personal link');
   await page.keyboard.press('Escape');
+  await call('DELETE', `/api/v1/me/feed-keys/${keys[0].id}`);
 });
 
 test('blog: posts, search and new post', async () => {
@@ -5742,8 +5774,19 @@ test('event calendar: views, details and registration', async () => {
   // the subscription address of the calendar answers with the calendar
   await closeAll();
   await page.getByRole('button', { name: /^(subscribe|abonnieren)$/i }).click();
-  const feed = await page.locator('dialog[open]').last().getByLabel(/^(calendar address|adresse des kalenders)$/i).inputValue();
-  await page.locator('dialog[open]').last().getByRole('button', { name: /^(close|schließen)$/i }).last().click();
+  const subDlg = page.locator('dialog[open]').last();
+  const feed = await subDlg.getByLabel(/^(calendar address|adresse des kalenders)$/i).first().inputValue();
+  assert.doesNotMatch(feed, /token=/);
+  // a personal link for the calendar app: a key of its own, shown once
+  await subDlg.getByRole('button', { name: /^(create a personal link|persönlichen link erzeugen)$/i }).click();
+  const personal = await subDlg.locator('.ew-feed-personal').getByLabel(/^(calendar address|adresse des kalenders)$/i).inputValue();
+  assert.match(personal, /token=ft_[0-9a-f]{96}/);
+  assert.match(await subDlg.getByRole('link', { name: /personal link in the calendar app|persönlichen link in der kalender-app/i }).getAttribute('href'), /^webcal:.*token=ft_/);
+  const personalIcs = await page.request.fetch(personal, { headers: { cookie: '' } });
+  assert.match(await personalIcs.text(), /BEGIN:VCALENDAR[\s\S]*Workshop/);
+  await a11y('calendar subscription with a personal link');
+  await subDlg.getByRole('button', { name: /^(close|schließen)$/i }).last().click();
+  for (const k of await call('GET', '/api/v1/me/feed-keys')) await call('DELETE', `/api/v1/me/feed-keys/${k.id}`);
   // opened in the browser, the address delivers the calendar as a file
   const sub = page.waitForEvent('download');
   await page.goto(feed).catch(() => undefined);
@@ -7968,7 +8011,7 @@ test('help texts: explanations hidden by default, shown with "?" or in the profi
   assert.equal(await page.getByRole('button', { name: /^(help texts|hilfetexte)$/i }).getAttribute('aria-pressed'), 'false');
 });
 
-test('own profile: data, e-mail addresses, notifications, watches, feed key, API keys, SSH keys, sessions, password', async () => {
+test('own profile: data, e-mail addresses, notifications, watches, feed keys, API keys, SSH keys, sessions, password', async () => {
   const name = `prof${run}`;
   const pw = 'Prof-Passw0rd-1!';
   const pw2 = 'Prof-Passw0rd-2!';
@@ -8070,20 +8113,30 @@ test('own profile: data, e-mail addresses, notifications, watches, feed key, API
     await watches.getByRole('button', { name: /^(stop watching|nicht mehr beobachten):/i }).first().click();
     await toastOn(p2, /watch removed|beobachtung beendet/i);
 
-    // an action that fails says so (regression: the feed buttons swallowed errors)
-    await p2.route('**/api/v1/me/feed-token', (route) => route.fulfill({ status: 422, contentType: 'application/json',
+    // the feed keys: the list, an action that fails says so (regression: the
+    // feed buttons swallowed errors), delete one, delete all
+    for (const name of [`Reader ${run}`, `Phone ${run}`]) {
+      assert.equal(await p2.evaluate(async (name) => (await __e2eFetch('/api/v1/me/feed-keys', { method: 'POST', headers: { 'X-Requested-With': 'ewiki', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }) })).status, name), 201);
+    }
+    await p2.reload();
+    await idle();
+    const feeds = p2.locator('#feeds');
+    await feeds.getByText(`Reader ${run}`).waitFor();
+    await p2.route('**/api/v1/me/feed-keys/*', (route) => route.fulfill({ status: 422, contentType: 'application/json',
       body: JSON.stringify({ error: { code: 'e2e', message: `E2E refused ${run}` } }) }), { times: 1 });
-    await p2.getByRole('button', { name: /^(renew key|schlüssel erneuern)$/i }).first().click();
-    await confirm(p2, /^(renew key|schlüssel erneuern)$/i);
+    await feeds.getByRole('button', { name: new RegExp(`^(delete|löschen): Reader ${run}$`, 'i') }).click();
+    await confirm(p2, /^(delete|löschen)$/i);
     await toastOn(p2, new RegExp(`E2E refused ${run}`));
-
-    // the personal feed key: renew and delete
-    await p2.getByRole('button', { name: /^(renew key|schlüssel erneuern)$/i }).first().click();
-    await confirm(p2, /^(renew key|schlüssel erneuern)$/i);
-    await toastOn(p2, /new key created|neuer schlüssel erzeugt/i);
-    await p2.getByRole('button', { name: /^(delete key|schlüssel löschen)$/i }).first().click();
-    await confirm(p2, /^(delete key|schlüssel löschen)$/i);
-    await toastOn(p2, /key deleted|schlüssel gelöscht/i);
+    await feeds.getByRole('button', { name: new RegExp(`^(delete|löschen): Reader ${run}$`, 'i') }).click();
+    await confirm(p2, /^(delete|löschen)$/i);
+    await toastOn(p2, /feed key deleted|feed-schlüssel gelöscht/i);
+    await feeds.getByText(`Reader ${run}`).waitFor({ state: 'detached' });
+    await feeds.getByText(`Phone ${run}`).waitFor();
+    await feeds.getByRole('button', { name: /^(delete all feed keys|alle feed-schlüssel löschen)$/i }).click();
+    await confirm(p2, /^(delete all feed keys|alle feed-schlüssel löschen)$/i);
+    await toastOn(p2, /all feed keys deleted|alle feed-schlüssel gelöscht/i);
+    await feeds.getByText(/no personal feed|keine persönlichen feed/i).waitFor();
 
     // API key: create, show once, change its limit, revoke
     await p2.getByRole('button', { name: /^(create api key|api-key erstellen)$/i }).click();

@@ -10,36 +10,59 @@ import (
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 )
 
-// routesFeeds registers the feeds of categories and the personal feed key,
+// routesFeeds registers the feeds of categories and the personal feed keys,
 // with which feed readers and calendar apps read without signing in.
 func (s *Server) routesFeeds() {
+	// ---------------------------------------------------------------- feed keys
+	// A person's keys for personal feed links (auth/feedkeys.go): only with a
+	// session, never with an API key or a feed key; the key is in the answer
+	// of POST only.
+	// action: core.me.feed_keys.list
+	s.handle("GET /api/v1/me/feed-keys", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		return s.app.Auth.FeedKeys(r.Context())
+	})
+	// action: core.me.feed_keys.create
+	s.handle("POST /api/v1/me/feed-keys", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		var in struct {
+			Name string `json:"name"`
+		}
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		k, err := s.app.Auth.CreateFeedKey(r.Context(), in.Name)
+		return h.Created{V: k}, err
+	})
+	// action: core.me.feed_keys.delete
+	s.handle("DELETE /api/v1/me/feed-keys/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		return h.NoContent{}, s.app.Auth.DeleteFeedKey(r.Context(), id)
+	})
+	// action: core.me.feed_keys.delete_all
+	s.handle("DELETE /api/v1/me/feed-keys", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		n, err := s.app.Auth.DeleteFeedKeys(r.Context())
+		return map[string]int64{"deleted": n}, err
+	})
+	// action: core.users.feed_keys.list
+	s.handle("GET /api/v1/admin/users/{id}/feed-keys", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		return s.app.Auth.UserFeedKeys(r.Context(), id)
+	})
+	// action: core.users.feed_keys.delete_all
+	s.handle("DELETE /api/v1/admin/users/{id}/feed-keys", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		n, err := s.app.Auth.DeleteUserFeedKeys(r.Context(), id)
+		return map[string]int64{"deleted": n}, err
+	})
 	// ---------------------------------------------------------------- feeds
-	// action: core.me.feed_token.show
-	s.handle("GET /api/v1/me/feed-token", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		p, err := requireUser(r)
-		if err != nil {
-			return nil, err
-		}
-		tok, err := s.app.Auth.FeedToken(r.Context(), p.ID())
-		return map[string]string{"token": tok}, err
-	})
-	// action: core.me.feed_token.renew
-	s.handle("POST /api/v1/me/feed-token", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		p, err := requireUser(r)
-		if err != nil {
-			return nil, err
-		}
-		tok, err := s.app.Auth.RotateFeedToken(r.Context(), p.ID())
-		return map[string]string{"token": tok}, err
-	})
-	// action: core.me.feed_token.delete
-	s.handle("DELETE /api/v1/me/feed-token", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		p, err := requireUser(r)
-		if err != nil {
-			return nil, err
-		}
-		return h.NoContent{}, s.app.Auth.RevokeFeedToken(r.Context(), p.ID())
-	})
 	// action: core.feeds.category
 	s.handle("GET /api/v1/feeds/categories/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")

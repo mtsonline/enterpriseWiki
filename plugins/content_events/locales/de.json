@@ -192,5 +192,6 @@
  "content.events.from_page": "Aus der Seite",
  "content.events.kind": "Art",
  "content.events.page_task": "Aufgabe in einer Seite",
- "plugin.name.content.events": "Terminkalender"
+ "plugin.name.content.events": "Terminkalender",
+ "content.events.subscribe_open_personal": "Persönlichen Link in der Kalender-App öffnen"
 }

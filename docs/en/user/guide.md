@@ -441,7 +441,7 @@ In addition an e-mail comes each time, as long as you do not switch it off under
 
 ## Feeds (Atom/RSS)
 
-In the *Category settings* an **Atom/RSS feed** can be switched on (only this category or with sub-categories). Blogs and FAQs have their own feeds. The button **Feed** shows the addresses for feed readers. Signed-in people get a **personal link** with a key, so the feed reader can also read protected content. Under *My profile → Feed and calendar links* you renew or delete the key if a link was passed on.
+In the *Category settings* an **Atom/RSS feed** can be switched on (only this category or with sub-categories). Blogs and FAQs have their own feeds. The button **Feed** shows the addresses for feed readers. The addresses there show what guests may read. For content only you may read, choose **Create a personal link**. The link gets a key of its own, so the feed reader reads with your permissions. Copy it at once: it is shown only this once, and the wiki keeps only a fingerprint of the key. Create one link per feed reader or calendar app. Under *My profile → Feed and calendar links* you see all your keys with the date of their last use. Delete a key if its link was passed on: only links with that key stop working.
 
 ## E-mail notifications
 Under *My profile → E-mail notifications* you set what you are informed about by e-mail: new tasks and reminders, completion of your cases, comments on your pages and answers in discussions as well as changes to watched content. This requires an e-mail address in the profile. If sending e-mail is switched off by operations, the profile points this out.

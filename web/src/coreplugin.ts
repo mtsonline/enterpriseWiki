@@ -58,7 +58,7 @@ export { tagInput } from './components/tags';
 export { pickMedium, uploadDialog, uploadMedium, mediaURL, mediaViewer, mediaThumb, mediaDetails, openMedium, isImage } from './components/media';
 export { registerOfficeRenderer, officeButtons, officeURL, openOptions, officeAdminRender, officeReady } from './components/office';
 export type { OfficeRenderer } from './components/office';
-export { feedButton, feedURL, feedToken, advertiseFeed } from './components/feeds';
+export { addressRow, feedButton, feedURL, personalLinks, advertiseFeed } from './components/feeds';
 export type { WidgetFactory } from './core/widgets';
 export type { MarkdownEditor, MarkdownEditorOptions, EditorMode } from './editor/editor';
 export type { Peer } from './editor/collab';

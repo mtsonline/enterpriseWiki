@@ -95,10 +95,13 @@ type Service struct {
 	// KeyRateMax returns the limits for API keys (expert settings of the
 	// app; see keyRateMax).
 	KeyRateMax func() (owner, admin int)
-	pool       *pgxpool.Pool
-	cfg        *config.Store
-	bus        *events.Bus
-	log        *slog.Logger
+	// FeedKeysMax returns how many feed keys a person may have (expert
+	// settings of the app; see feedKeysMax).
+	FeedKeysMax func() int
+	pool        *pgxpool.Pool
+	cfg         *config.Store
+	bus         *events.Bus
+	log         *slog.Logger
 	// background: mails of "Forgot your password?" still being sent
 	background sync.WaitGroup
 	mu         sync.RWMutex

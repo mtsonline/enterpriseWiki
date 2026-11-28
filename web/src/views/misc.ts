@@ -16,7 +16,7 @@ import { activeTemplate, typeLabel } from '../coreplugin';
 import { chooseScheme, schemeChoice, SCHEMES, templateScheme, type Scheme } from '../core/scheme';
 import { categoryView, elementView, errorPage, notFoundPage } from './content';
 import { watchDialog, type Watch } from '../components/watch';
-import { feedTokenSection } from '../components/feeds';
+import { feedKeysSection } from '../components/feeds';
 import { profileCardForm } from '../components/profilecard';
 import { personName } from '../components/person';
 import { goLink, linkNotice, profileIdentitySections } from './identity';
@@ -509,7 +509,7 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
     await watchesSection(),
     ...(await renderProfileSections()),
     await assignedWatchesSection(),
-    feedTokenSection(),
+    await feedKeysSection(),
     await consentSection(),
     pwSection,
     ...(await mfaSections()),

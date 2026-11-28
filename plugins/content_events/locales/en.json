@@ -192,5 +192,6 @@
  "content.events.from_page": "From the page",
  "content.events.kind": "Kind",
  "content.events.page_task": "Task in a page",
- "plugin.name.content.events": "Event calendar"
+ "plugin.name.content.events": "Event calendar",
+ "content.events.subscribe_open_personal": "Open the personal link in the calendar app"
 }

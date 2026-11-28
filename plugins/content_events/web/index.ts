@@ -3,7 +3,7 @@
 // .ics), the event form (series, registration, reminders) and iCal
 // subscription.
 import {
-  announce, api, button, checkbox, confirmDialog, errorText, feedURL, field, formDialog, h, mount, newest, openDialog, personName, qs, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, uid, type EditorInstance, sourcesEditor, registerSourceKind, registerMacroParamControl, elementSelect, registerSlot, tile,
+  addressRow, announce, api, button, checkbox, confirmDialog, errorText, feedURL, field, formDialog, h, mount, newest, openDialog, personalLinks, personName, qs, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, uid, type EditorInstance, sourcesEditor, registerSourceKind, registerMacroParamControl, elementSelect, registerSlot, tile,
 } from '@ewiki/coreplugin';
 import './style.css';
 
@@ -420,22 +420,16 @@ async function eventForm(calendar: number, cfg: Config, e: Ev | null, day: Date 
 
 // ---------------------------------------------------------------- subscription
 
-async function subscribe(id: number, title: string): Promise<void> {
-  const https = await feedURL(`${BASE}/calendars/${id}/ical`, 'atom');
-  const clean = https.replace(/([?&])format=atom&?/, '$1').replace(/[?&]$/, '');
-  const webcal = clean.replace(/^https?:/, 'webcal:');
-  const row = (label: string, value: string) => {
-    const input = h('input', { class: 'ew-input', readonly: true, value, id: uid('ical') }) as HTMLInputElement;
-    input.addEventListener('focus', () => input.select());
-    return h('div', { class: 'ew-field' }, h('label', { for: input.id }, label), h('div', { class: 'ew-picker' }, input,
-      button(t('feed.copy'), () => void navigator.clipboard?.writeText(value).then(() => toast(t('feed.copied'))), { variant: 'secondary', ariaLabel: `${t('feed.copy')}: ${label}` })));
+function subscribe(id: number, title: string): void {
+  // the iCal address (https) and the same as webcal: for calendar apps;
+  // signed-in people can make a personal link (a feed key, shown once)
+  const rows = (key: string) => {
+    const url = feedURL(`${BASE}/calendars/${id}/ical`, {}, key);
+    return [addressRow(t('content.events.subscribe_url'), url),
+      h('p', null, h('a', { href: url.replace(/^https?:/, 'webcal:'), class: key ? 'ew-btn ew-btn--secondary' : 'ew-btn ew-btn--primary' },
+        t(key ? 'content.events.subscribe_open_personal' : 'content.events.subscribe_open')))];
   };
-  openDialog(t('content.events.subscribe_title', { title }), [
-    h('p', null, t('content.events.subscribe_help')),
-    row(t('content.events.subscribe_url'), clean),
-    h('p', null, h('a', { href: webcal, class: 'ew-btn ew-btn--primary' }, t('content.events.subscribe_open'))),
-    state.user ? h('p', { class: 'ew-help', role: 'note' }, t('feed.personal_help')) : null,
-  ]);
+  openDialog(t('content.events.subscribe_title', { title }), [h('p', null, t('content.events.subscribe_help')), ...rows(''), personalLinks(title, rows)]);
 }
 
 // ---------------------------------------------------------------- views
@@ -627,7 +621,7 @@ async function eventsWidget(root: HTMLElement): Promise<void> {
   filters.append(search);
   mount(actions,
     d0.calendar.can_create ? button(t('content.events.new_event'), () => void eventForm(id, cfg, null, null, load), { variant: 'primary' }) : null,
-    cfg.ical ? button(t('content.events.subscribe'), () => void subscribe(id, d0.calendar.title), { variant: 'secondary' }) : null,
+    cfg.ical ? button(t('content.events.subscribe'), () => subscribe(id, d0.calendar.title), { variant: 'secondary' }) : null,
     state.user ? button(t('content.events.my_registrations'), () => void myRegistrations(), { variant: 'subtle' }) : null);
   const toolbar = h('div', { class: 'ewe-toolbar' },
     h('div', { class: 'ewe-nav', role: 'group', 'aria-label': t('content.events.navigation') }, prev, today, next),
