@@ -86,6 +86,10 @@ body:has(.ewd-boxed) { background: var(--ew-bg-subtle); }
 .ewd-brand { display: inline-flex; align-items: center; gap: .6rem; font-weight: 700; font-size: 1.15rem; text-decoration: none; min-height: 2.75rem; }
 /* a fixed box (the proportions of an uploaded logo are not known before it
    loads): nothing moves while it loads; the logo fits in, left aligned */
+.ewd-logo-picture { display: contents; }
+.ewd-logo-picture.ew-on-dark { display: none; }
+body.ewc-dark .ewd-logo-picture.ew-on-dark { display: contents; }
+body.ewc-dark .ewd-logo-picture.ew-on-light { display: none; }
 .ewd-logo { display: block; height: 2.5rem; width: 10rem; max-width: 100%; object-fit: contain; object-position: left center; }
 
 /* drawers: only in the views where the template puts a block in one */

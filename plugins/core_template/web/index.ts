@@ -9,7 +9,7 @@ import {
   state, subjectsEditor, t, templateLabel, toast, type TemplateCardSource, type TemplateTabContext,
 } from '@ewiki/coreplugin';
 import './style.css';
-import { buildLayout, classOf, designCSS, type Design } from './engine';
+import { buildLayout, classOf, designCSS, withSettings, type Design } from './engine';
 import { designer } from './designer';
 import { setupPreview } from './preview';
 import { guessFace } from './fonts';
@@ -42,7 +42,15 @@ function addDesign(tpl: Tpl): void {
   style.textContent = designCSS(d, cls);
   if (!style.isConnected) document.head.append(style);
   const positions = d.rows.flatMap((r) => r.blocks.flatMap((b) => [...b.positions, ...(b.after ?? [])]));
-  registerTemplate({ id: tpl.id, className: cls, positions, schema: designSchema(d), layout: (ctx) => buildLayout(d, ctx) });
+  // the page is built with the values of the settings of the template
+  // (Templates → Settings; their defaults are the values of the design)
+  registerTemplate({
+    id: tpl.id, className: cls, positions, schema: designSchema(d), layout: (ctx) => {
+      const eff = withSettings(d, ctx.settings);
+      style.textContent = designCSS(eff, cls);
+      return buildLayout(eff, ctx);
+    },
+  });
 }
 
 export async function register(): Promise<void> {

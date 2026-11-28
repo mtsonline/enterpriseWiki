@@ -2729,6 +2729,57 @@ test('templates: settings with defaults, contrast warning, live preview, reset; 
   }
 });
 
+test('templates of data: their design values are their settings, checked like the design; the website uses them', async () => {
+  const before = (await call('GET', '/api/v1/admin/settings')).config.ui;
+  const c = await call('POST', '/api/v1/x/core.template/templates', { names: { en: `Data settings ${run}`, de: `Daten-Einstellungen ${run}` }, copy_of: 'core.template/example-wiki' });
+  const url = `/api/v1/admin/templates/${encodeURIComponent(c.id)}/settings`;
+  try {
+    await page.goto(`${BASE}/admin/templates?tab=settings&t=${encodeURIComponent(c.id)}`);
+    await idle();
+    const form = page.locator('.ew-tplset-form');
+    const primary = form.locator('[data-setting="primary"]');
+    await primary.getByText(/^(default|vorgabe): #0b5cad/i).waitFor();
+    await form.getByRole('group', { name: /^(logos)$/i }).waitFor();
+    // the preview is the website with the design and the draft
+    await primary.locator('input[type=color]').fill('#1a3a6b');
+    await page.waitForFunction(() => {
+      const doc = document.querySelector('iframe.ew-tplset-frame')?.contentDocument;
+      return !!doc?.body && doc.defaultView.getComputedStyle(doc.body).getPropertyValue('--ew-primary').trim() === '#1a3a6b';
+    });
+    // text in the colour of the background: the form warns, the server refuses the draft
+    const text = form.locator('[data-setting="text"]');
+    await text.locator('input[type=color]').fill('#ffffff');
+    await text.locator('.ew-warning').waitFor();
+    await form.locator('.ew-tplset-problem').getByText(/contrast|kontrast/i).waitFor();
+    await form.getByRole('button', { name: /^(back to the default|auf die vorgabe zurücksetzen): text$/i }).click();
+    await form.locator('.ew-tplset-problem').waitFor({ state: 'hidden' });
+    // a logo and a mark for narrow screens (PNG; the size comes from the file)
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGCAIAAABxZ0isAAAAXUlEQVR4nAXBMQEAMAgEsVfCjIiKYK6SV3IzIiqCGUVNJBHiiCssEE+skJJITnITJyQv2UQqojjFLVxQvGILyYQ55hobzDNrpCaa09zGDc1rtpGGGM5wBw8Mb9jhA/3OQpEMoO8GAAAAAElFTkSuQmCC', 'base64');
+    await form.locator('[data-setting="logo"] input[type=file]').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: png });
+    await form.locator('[data-setting="logo"] img[width="8"][height="6"]').waitFor();
+    await form.locator('[data-setting="mark"] input[type=file]').setInputFiles({ name: 'mark.png', mimeType: 'image/png', buffer: png });
+    await form.locator('[data-setting="mark"] img[width="8"][height="6"]').waitFor();
+    await a11y('the settings of a template of data');
+    await form.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toast', { hasText: /settings saved|einstellungen gespeichert/i }).first().waitFor();
+    const cur = await call('GET', url);
+    assert.deepEqual([...cur.changed].sort(), ['logo', 'mark', 'primary']);
+    // the website with this template: its colour, its logo and on narrow screens its mark
+    await call('PUT', '/api/v1/admin/settings', { ui: { ...before, template: c.id } });
+    await page.goto(`${BASE}/`);
+    await idle();
+    assert.equal(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--ew-primary').trim()), '#1a3a6b');
+    const src = `/api/v1/files/${cur.values.logo.hash}`;
+    await page.locator(`.ewd-brand img.ewd-logo[src="${src}"]`).waitFor();
+    assert.equal(await page.locator(`.ewd-brand source[srcset="${src}"]`).count(), 1, 'the mark on narrow screens');
+  } finally {
+    await call('PUT', '/api/v1/admin/settings', { ui: before });
+    await call('DELETE', url);
+    await call('DELETE', `/api/v1/x/core.template/templates/${c.key}`);
+    await call('DELETE', `/api/v1/x/core.template/templates/${c.key}?purge=1`);
+  }
+});
+
 test('templates: positions and placements in the schematic', async () => {
   const before = await call('GET', '/api/v1/placements/site');
   try {

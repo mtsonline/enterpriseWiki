@@ -63,6 +63,9 @@ async function settingsForm(id: string, cur: SettingsState, reload: () => void):
   const edits = new Map<string, unknown>();
   const stored = new Set(cur.changed);
   const status = h('p', { class: 'sr-only', 'aria-live': 'polite' });
+  // what the server refuses in the draft (a template of data also checks
+  // its design with the values: contrast, room): shown until it is fixed
+  const problem = h('p', { class: 'ew-help ew-warning ew-tplset-problem', role: 'status', hidden: true });
   const fonts = await ownFonts();
   const preview = previewFrame(id, { values: { ...draft } });
   // the preview shows what saving would give: the server checks the draft
@@ -75,7 +78,12 @@ async function settingsForm(id: string, cur: SettingsState, reload: () => void):
         const st = await api.post<TemplateSettingsState>(`admin/templates/${encodeURIComponent(id)}/settings/preview`, { values: Object.fromEntries(edits) });
         for (const s of cur.settings) if (s.kind === 'image') { draft[s.key] = st.values[s.key]; controls.get(s.key)?.(); }
         preview.update(st);
-      } catch (e) { status.textContent = errorText(e); }
+        problem.textContent = st.problem ?? '';
+        problem.hidden = !st.problem;
+      } catch (e) {
+        problem.textContent = errorText(e);
+        problem.hidden = false;
+      }
     })(), 250);
   };
   const changed = (key: string) => {
@@ -232,7 +240,7 @@ async function settingsForm(id: string, cur: SettingsState, reload: () => void):
   }, { variant: 'secondary' });
   const pid = uid('tplp');
   return h('div', { class: 'ew-tplset' },
-    h('form', { class: 'ew-tplset-form', onsubmit: (e: Event) => e.preventDefault() }, status, ...groups, h('div', { class: 'ew-actions' }, save, stored.size ? resetAll : null)),
+    h('form', { class: 'ew-tplset-form', onsubmit: (e: Event) => e.preventDefault() }, status, ...groups, problem, h('div', { class: 'ew-actions' }, save, stored.size ? resetAll : null)),
     h('section', { class: 'ew-tplset-preview', 'aria-labelledby': pid }, h('h2', { id: pid }, t('sitetpl.preview')), h('p', { class: 'ew-help' }, t('sitetpl.preview_help')),
       deviceSwitch((d) => preview.resize(d)), preview.el));
 }

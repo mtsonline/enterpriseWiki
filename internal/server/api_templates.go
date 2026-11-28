@@ -2,13 +2,10 @@ package server
 
 import (
 	"context"
-	"image"
-	"io"
+	"errors"
 	"maps"
 	"net/http"
 	"slices"
-
-	_ "golang.org/x/image/webp" // the size of WebP images in the settings of templates
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
@@ -47,12 +44,12 @@ func (s *Server) routesTemplates() {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
-		desc, err := s.templateSettings(r.PathValue("id"))
+		t, err := s.template(r.Context(), r.PathValue("id"))
 		if err != nil {
 			return nil, err
 		}
 		stored := s.app.Config.Get().TemplateSettings[r.PathValue("id")]
-		return map[string]any{"settings": desc, "values": tplsettings.Effective(desc, stored), "changed": changedKeys(desc, stored)}, nil
+		return map[string]any{"settings": t.settings, "values": tplsettings.Effective(t.settings, stored), "changed": changedKeys(t.settings, stored)}, nil
 	})
 
 	// PUT /admin/templates/{id}/settings {values: {key: value or null}} →
@@ -65,7 +62,7 @@ func (s *Server) routesTemplates() {
 			return nil, err
 		}
 		id := r.PathValue("id")
-		desc, err := s.templateSettings(id)
+		t, err := s.template(r.Context(), id)
 		if err != nil {
 			return nil, err
 		}
@@ -75,11 +72,11 @@ func (s *Server) routesTemplates() {
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
 		}
-		checked, err := tplsettings.Check(desc, in.Values, s.uploadedImage(r))
+		checked, err := tplsettings.Check(t.settings, in.Values, s.uploadedImage(r))
 		if err != nil {
 			return nil, apperr.BadRequest("%v", err)
 		}
-		return s.storeTemplateSettings(r, id, desc, func(m map[string]any) { applyChanges(m, in.Values, checked) })
+		return s.storeTemplateSettings(r, id, t, func(m map[string]any) { applyChanges(m, in.Values, checked) })
 	})
 
 	// DELETE /admin/templates/{id}/settings → all settings of the template
@@ -90,11 +87,11 @@ func (s *Server) routesTemplates() {
 			return nil, err
 		}
 		id := r.PathValue("id")
-		desc, err := s.templateSettings(id)
+		t, err := s.template(r.Context(), id)
 		if err != nil {
 			return nil, err
 		}
-		_, err = s.storeTemplateSettings(r, id, desc, func(m map[string]any) { clear(m) })
+		_, err = s.storeTemplateSettings(r, id, t, func(m map[string]any) { clear(m) })
 		return nil, err
 	})
 
@@ -104,7 +101,7 @@ func (s *Server) routesTemplates() {
 	// action: core.templates.settings.effective
 	s.handle("GET /api/v1/templates/{id}/settings", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id := r.PathValue("id")
-		t, err := s.template(id)
+		t, err := s.template(r.Context(), id)
 		if err != nil {
 			return nil, err
 		}
@@ -114,14 +111,16 @@ func (s *Server) routesTemplates() {
 	// POST /admin/templates/{id}/settings/preview {values} → the effective
 	// values and the look of a draft (the stored values with the changes
 	// given), checked like a save but not stored: the live preview of the
-	// form shows exactly what saving would give.
+	// form shows exactly what saving would give. A value of the wrong kind
+	// is refused (400); a draft the template refuses as a whole comes back
+	// with "problem", the text saving would answer.
 	// action: core.templates.settings.preview
 	s.handle("POST /api/v1/admin/templates/{id}/settings/preview", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
 		id := r.PathValue("id")
-		t, err := s.template(id)
+		t, err := s.template(r.Context(), id)
 		if err != nil {
 			return nil, err
 		}
@@ -140,17 +139,19 @@ func (s *Server) routesTemplates() {
 			draft = map[string]any{}
 		}
 		applyChanges(draft, in.Values, checked)
-		return publicTemplateSettings(t, draft), nil
+		out := publicTemplateSettings(t, draft)
+		// a draft whose values are each fine but together are not (a template
+		// of data: too little contrast, no room) is the normal case while
+		// someone tries colours: the preview says why saving would fail
+		// (saving answers 400 with the same text)
+		if err := t.checkValues(r.Context(), draft); err != nil {
+			if status, _, _ := apperr.Status(err); status != http.StatusBadRequest {
+				return nil, err
+			}
+			out["problem"] = apperr.Localized(err, apperr.RequestLanguage(r))
+		}
+		return out, nil
 	})
-}
-
-// templateSettings returns the description of the settings of a template
-// that can be used now (a switched on template plugin). A variant that
-// declares none uses the description of the template it extends; its
-// values stay its own (each template has its own settings).
-func (s *Server) templateSettings(id string) ([]tplsettings.Setting, error) {
-	t, err := s.template(id)
-	return t.settings, err
 }
 
 // tplInfo is what the server needs to know of a template for its settings.
@@ -158,13 +159,34 @@ type tplInfo struct {
 	settings []tplsettings.Setting
 	// root of the CSS variables (Manifest.TemplateLookRoot)
 	root string
+	// check tests the effective values before they are stored (templates
+	// of data: the design with these values must still pass all its checks,
+	// such as the contrast of every pair of colours); nil: none
+	check func(ctx context.Context, values map[string]any) error
 }
 
-// template finds a template that can be used now (a switched on template
-// plugin). A variant that declares no settings uses the description of the
+// checkValues tests the effective values of stored (the defaults and the
+// values changed) with the check of the template, if it has one.
+func (t tplInfo) checkValues(ctx context.Context, stored map[string]any) error {
+	if t.check == nil {
+		return nil
+	}
+	if err := t.check(ctx, tplsettings.Effective(t.settings, stored)); err != nil {
+		var ae *apperr.Error
+		if errors.As(err, &ae) {
+			return err
+		}
+		return apperr.BadRequest("%v", err)
+	}
+	return nil
+}
+
+// template finds a template that can be used now: a switched on template
+// plugin or a template a switched on plugin offers (templates of data,
+// whose settings come from their design). A variant that declares no settings uses the description of the
 // template it extends; its values stay its own (each template has its own
 // settings). Only the manifests needed are read: this runs for every /site.
-func (s *Server) template(id string) (tplInfo, error) {
+func (s *Server) template(ctx context.Context, id string) (tplInfo, error) {
 	find := func(id string) (coreplugin.Manifest, bool) {
 		p, ok := s.app.Kernel.Get(id)
 		if !ok || !s.app.Kernel.Enabled(id) {
@@ -175,6 +197,12 @@ func (s *Server) template(id string) (tplInfo, error) {
 	}
 	m, ok := find(id)
 	if !ok {
+		if desc, check, ok := s.app.Content.TemplateSettings(ctx, id); ok {
+			return tplInfo{settings: desc, check: check}, nil
+		}
+		if s.app.Content.TemplateOK(ctx, id) {
+			return tplInfo{}, nil
+		}
 		return tplInfo{}, apperr.NotFound("template")
 	}
 	t := tplInfo{settings: m.TemplateSettings, root: m.TemplateLookRoot}
@@ -194,8 +222,8 @@ func (s *Server) template(id string) (tplInfo, error) {
 
 // siteTemplateSettings are the effective settings of the template of the
 // site (sent with /site); empty for a template without settings.
-func (s *Server) siteTemplateSettings(c *config.Config) map[string]any {
-	t, err := s.template(c.UI.Template)
+func (s *Server) siteTemplateSettings(ctx context.Context, c *config.Config) map[string]any {
+	t, err := s.template(ctx, c.UI.Template)
 	if err != nil {
 		return map[string]any{"values": map[string]any{}}
 	}
@@ -204,7 +232,7 @@ func (s *Server) siteTemplateSettings(c *config.Config) map[string]any {
 
 // storeTemplateSettings changes the stored values of a template with
 // change, records the change in the audit log and returns the new state.
-func (s *Server) storeTemplateSettings(r *http.Request, id string, desc []tplsettings.Setting, change func(map[string]any)) (any, error) {
+func (s *Server) storeTemplateSettings(r *http.Request, id string, t tplInfo, change func(map[string]any)) (any, error) {
 	var before, after map[string]any
 	err := s.app.Config.Update(func(c *config.Config) error {
 		m := maps.Clone(c.TemplateSettings[id])
@@ -213,6 +241,9 @@ func (s *Server) storeTemplateSettings(r *http.Request, id string, desc []tplset
 		}
 		before = maps.Clone(m)
 		change(m)
+		if err := t.checkValues(r.Context(), m); err != nil {
+			return err
+		}
 		after = maps.Clone(m)
 		if c.TemplateSettings == nil {
 			c.TemplateSettings = map[string]map[string]any{}
@@ -231,32 +262,13 @@ func (s *Server) storeTemplateSettings(r *http.Request, id string, desc []tplset
 		return nil, err
 	}
 	_ = audit.Log(r.Context(), s.app.DB, "settings.template", "template:"+id, 0, before, after)
-	return map[string]any{"settings": desc, "values": tplsettings.Effective(desc, after), "changed": changedKeys(desc, after)}, nil
+	return map[string]any{"settings": t.settings, "values": tplsettings.Effective(t.settings, after), "changed": changedKeys(t.settings, after)}, nil
 }
 
 // uploadedImage reads the format and size of uploaded files for the checks
 // of the settings of a request.
 func (s *Server) uploadedImage(r *http.Request) tplsettings.ImageInfo {
-	return func(hash string) (string, int, int, error) { return s.imageInfo(r.Context(), hash) }
-}
-
-// imageInfo reads the format and size of an uploaded file: only the header
-// of the image is read. A file that is no image the server can read (SVG,
-// a document …) has no format.
-func (s *Server) imageInfo(ctx context.Context, hash string) (string, int, int, error) {
-	if _, err := s.app.Files.Get(ctx, hash); err != nil {
-		return "", 0, 0, err
-	}
-	f, err := s.app.Files.Open(hash)
-	if err != nil {
-		return "", 0, 0, err
-	}
-	defer func() { _ = f.Close() }()
-	cfg, format, err := image.DecodeConfig(io.LimitReader(f, 1<<20))
-	if err != nil {
-		return "", 0, 0, nil
-	}
-	return format, cfg.Width, cfg.Height, nil
+	return func(hash string) (string, int, int, error) { return s.app.Files.ImageInfo(r.Context(), hash) }
 }
 
 // applyChanges puts the checked values into the stored ones; a value sent

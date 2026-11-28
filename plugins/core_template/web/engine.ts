@@ -2,7 +2,7 @@
 // from a design. The designer and the wiki use exactly this code, so what is
 // designed is what is shown (1:1). The limits come from the same file the
 // server checks with (../limits.json).
-import { h, state, t } from '@ewiki/coreplugin';
+import { h, imageSetting, state, t } from '@ewiki/coreplugin';
 import type { LayoutContext, Layout } from '@ewiki/coreplugin';
 import limitsFile from '../limits.json';
 
@@ -18,7 +18,7 @@ export interface Palette {
   bg: string; bg_subtle: string; text: string; text_muted: string; border: string; primary: string; on_primary: string;
   link: string; focus: string; header_bg: string; header_text: string; footer_bg: string; footer_text: string;
 }
-export const PALETTE_KEYS = ['bg', 'bg_subtle', 'text', 'text_muted', 'border', 'primary', 'on_primary', 'link', 'focus', 'header_bg', 'header_text', 'footer_bg', 'footer_text'] as const;
+export { PALETTE_KEYS, withSettings } from './settings';
 export interface Tokens extends Palette {
   /** the colors of the dark scheme; without it the template has light colors only */
   dark?: Palette;
@@ -59,6 +59,30 @@ const FONTS: Record<string, string> = {
   serif: 'Georgia, "Times New Roman", serif',
   mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
 };
+
+/** The content of the area "Logo and name": the logo of the settings (else
+ * that of the design), on narrow screens the mark, in the dark colour
+ * scheme the logos for dark colours; always the name of the wiki. The
+ * size of the logo comes from the CSS (.ewd-logo), so it keeps its room
+ * before it loads. */
+function brandOf(d: Design, values: Record<string, unknown> | undefined): Node[] {
+  const v = values ?? {};
+  const own = imageSetting(v.logo);
+  const logo = own?.src ?? d.tokens.logo;
+  const mark = imageSetting(v.mark)?.src;
+  const pic = (src: string, m: string | undefined, cls: string) => {
+    const img = h('img', { src, alt: '', class: 'ewd-logo', decoding: 'async' });
+    const el = m ? h('picture', { class: 'ewd-logo-picture' }, h('source', { media: '(max-width: 600px)', srcset: m }), img) : img;
+    return cls ? h('span', { class: ['ewd-logo-picture', cls] }, el) : el;
+  };
+  const out: Node[] = [];
+  const darkLogo = imageSetting(v.logo_on_dark)?.src;
+  const darkMark = imageSetting(v.mark_on_dark)?.src;
+  if (logo && (darkLogo || darkMark) && d.tokens.dark) out.push(pic(logo, mark, 'ew-on-light'), pic(darkLogo ?? logo, darkMark ?? mark, 'ew-on-dark'));
+  else if (logo) out.push(pic(logo, mark, ''));
+  out.push(h('span', { class: 'ewd-site-name' }, state.site.name));
+  return out;
+}
 
 /** The CSS class of a template on <body>. */
 export function classOf(id: string): string {
@@ -350,9 +374,7 @@ export function buildLayout(d: Design, ctx: LayoutContext): Layout {
     for (const b of r.blocks) {
       const kids: Node[] = [];
       if (b.kind === 'brand') {
-        kids.push(h('a', { href: '/', class: 'ewd-brand' },
-          d.tokens.logo ? h('img', { src: d.tokens.logo, alt: '', class: 'ewd-logo' }) : null,
-          h('span', { class: 'ewd-site-name' }, state.site.name)));
+        kids.push(h('a', { href: '/', class: 'ewd-brand' }, ...brandOf(d, ctx.settings)));
       }
       for (const p of b.positions) kids.push(ctx.position(p));
       if (b.kind === 'content') {
