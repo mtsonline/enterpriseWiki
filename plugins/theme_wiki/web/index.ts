@@ -103,7 +103,7 @@ export function register(): void {
         if (open) tools.querySelector<HTMLElement>('input, select, button, a[href]')?.focus();
       });
       close.addEventListener('click', () => { setMenu(false); toggle.focus(); });
-      window.matchMedia?.(COMPACT).addEventListener?.('change', apply);
+      window.matchMedia?.(COMPACT).addEventListener?.('change', apply, { signal: ctx.signal });
       // Escape closes what is open; the focus goes back to its button
       const escape = (e: KeyboardEvent) => {
         if (e.key !== 'Escape' || e.defaultPrevented || !compact()) return;
@@ -116,7 +116,9 @@ export function register(): void {
         const target = e.target as Element | null;
         if (target?.closest?.('a[href]') && sidebar.contains(target)) { setMenu(false); return; }
         if (!sidebar.contains(target) && !toggle.contains(target)) setMenu(false);
-      });
+      }, { signal: ctx.signal });
+      // replaced while the menu was open: the page can scroll again
+      ctx.signal.addEventListener('abort', () => document.documentElement.classList.remove('ewc-menu-open'));
       const shell = h('div', { class: 'ewc-shell' }, sidebar,
         h('div', { class: 'ewc-content' }, ctx.position('content-top'), main, ctx.position('content-bottom')));
       const header = h('header', { class: 'ewc-header' },

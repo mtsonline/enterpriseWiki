@@ -112,6 +112,11 @@ export interface LayoutContext {
    * by the server. Images are
    * { src, width, height }. */
   settings: TemplateSettingValues;
+  /** Aborted when this layout is replaced (another template, a category
+   * with its own template, new settings). Listeners on window, document or
+   * a media query pass it (`{ signal }`), so a layout that is gone stops
+   * reacting; abort listeners undo what it set outside its own elements. */
+  signal: AbortSignal;
 }
 
 /** The effective values of the settings of a template, by key. */

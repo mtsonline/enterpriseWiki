@@ -2639,6 +2639,40 @@ test('templates on phones and tablets: content first, menu and tools closed, not
   }
 });
 
+test('templates: a layout that is replaced stops acting (menu open on the phone, back to a category with another template)', async () => {
+  const before = { ui: (await call('GET', '/api/v1/admin/settings')).config.ui, viewport: page.viewportSize() };
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Other template ${run}` } })).id;
+  try {
+    await call('PUT', `/api/v1/categories/${cat}`, { template: 'theme.cms' });
+    await call('PUT', '/api/v1/admin/settings', { ui: { ...before.ui, template: 'theme.wiki' } });
+    await page.setViewportSize({ width: 390, height: 700 });
+    await page.goto(`${BASE}/c/${cat}`);
+    await idle();
+    await page.locator('.ewcms-app').first().waitFor();
+    // to the start page inside the same page of the browser (the wiki template)
+    await page.locator('.ewcms-app a[href="/"]').first().click();
+    await page.locator('.ewc-app').first().waitFor();
+    await idle();
+    // the menu of the wiki template is open: the page behind it does not scroll
+    await page.locator('.ewc-sidebar-toggle').click();
+    await page.waitForFunction(() => document.documentElement.classList.contains('ewc-menu-open'));
+    // back, without closing the menu: the category has the CMS template
+    await page.goBack();
+    await page.locator('.ewcms-app').first().waitFor();
+    await idle();
+    assert.equal(await page.evaluate(() => document.documentElement.classList.contains('ewc-menu-open')), false, 'the page can scroll again');
+    // the phone is turned and back: the layout that is gone does not react any more
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.setViewportSize({ width: 390, height: 700 });
+    await idle();
+    assert.equal(await page.evaluate(() => document.documentElement.classList.contains('ewc-menu-open')), false, 'still scrolls after the turn');
+  } finally {
+    await page.setViewportSize(before.viewport);
+    await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
+    await call('DELETE', `/api/v1/categories/${cat}`).catch(() => {});
+  }
+});
+
 test('templates: settings with defaults, contrast warning, live preview, reset; the website uses them', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config.ui;
   const url = '/api/v1/admin/templates/theme.cms/settings';

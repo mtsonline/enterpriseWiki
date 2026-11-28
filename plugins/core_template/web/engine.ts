@@ -172,7 +172,7 @@ export function designCSS(d: Design, cls: string): string {
  * window; when it is higher (a phone held sideways, an open drawer, large
  * text), it scrolls with the page so it never hides the content and the
  * focus (WCAG 1.4.10, 2.4.11). */
-function keepStickyLow(el: HTMLElement): void {
+function keepStickyLow(el: HTMLElement, signal: AbortSignal): void {
   const sync = () => {
     // an open drawer does not count: it scrolls in itself below the closed
     // header (else opening the menu far down the page would make the header
@@ -185,7 +185,7 @@ function keepStickyLow(el: HTMLElement): void {
     el.classList.toggle('ewd-sticky--off', tall);
   };
   new ResizeObserver(sync).observe(el);
-  window.addEventListener('resize', sync, { passive: true });
+  window.addEventListener('resize', sync, { passive: true, signal });
 }
 
 // ---------------------------------------------------------------- layout
@@ -273,7 +273,7 @@ function heroBelow(header: HTMLElement): HTMLElement | null {
  * side column beside it); else the header stays as it is. It gets its
  * background back while a drawer or a menu of it is open and – sticky –
  * once the banner is scrolled away. */
-function headerOverlay(el: HTMLElement, sticky: boolean): void {
+function headerOverlay(el: HTMLElement, sticky: boolean, signal: AbortSignal): void {
   let frame: HTMLElement | null = null;
   let painted: HTMLElement | null = null;
   let height = 0;
@@ -350,7 +350,7 @@ function headerOverlay(el: HTMLElement, sticky: boolean): void {
     watching = true;
     new MutationObserver(queue).observe(el.parentElement, { childList: true, subtree: true });
   };
-  window.addEventListener('resize', queue, { passive: true });
+  window.addEventListener('resize', queue, { passive: true, signal });
   new ResizeObserver(queue).observe(el);
   if (sticky) onScroll(solid);
   queue();
@@ -438,10 +438,10 @@ export function buildLayout(d: Design, ctx: LayoutContext): Layout {
       while (i < d.rows.length && d.rows[i].role === r.role) group.push(rowEl(d.rows[i++]));
       const landmark = h(r.role === 'banner' ? 'header' : 'footer', { class: ['ewd-landmark', r.role === 'banner' && d.options.sticky_header && 'ewd-sticky'] }, ...group);
       if (r.role === 'banner' && d.options.sticky_header) {
-        keepStickyLow(landmark);
+        keepStickyLow(landmark, ctx.signal);
         headerBehaviour(landmark, d.options);
       }
-      if (r.role === 'banner' && d.options.header_overlay) headerOverlay(landmark, !!d.options.sticky_header);
+      if (r.role === 'banner' && d.options.header_overlay) headerOverlay(landmark, !!d.options.sticky_header, ctx.signal);
       parts.push(landmark);
     } else {
       parts.push(rowEl(r));

@@ -204,7 +204,9 @@ export function register(): void {
           top.hidden = !(y > 600 && top.dataset.enabled !== '0');
         });
       };
-      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('scroll', onScroll, { passive: true, signal: ctx.signal });
+      // replaced while the menu was open: the page can scroll again
+      ctx.signal.addEventListener('abort', () => document.documentElement.classList.remove('ewcms-nav-open'));
       onScroll();
       return { root, main };
     },
