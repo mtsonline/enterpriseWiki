@@ -166,11 +166,11 @@ Jede Vorlage bietet Positionen, an denen Menüs (`core.menu`), Bausteine (`core.
 | `footer-1` … `footer-4` | – | Spalten im Fußbereich |
 | `footer` | Fußbereich | unterste Zeile des Fußbereichs |
 
-Bei der Wiki-Vorlage (`theme.wiki`, `theme.wiki.dark`) lässt sich die Seitenleiste auf allen Bildschirmgrößen über den Knopf im Kopfbereich ausblenden; der Zustand wird im Browser gemerkt.
+Bei der Wiki-Vorlage (`theme.wiki`) lässt sich die Seitenleiste auf allen Bildschirmgrößen über den Knopf im Kopfbereich ausblenden; der Zustand wird im Browser gemerkt.
 
 ### Einstellungen der Templates
 
-Jedes Template bietet seine Einstellungen unter *Administration → Templates → Einstellungen* an, jedes Template mit eigenen Werten: die Wiki-Templates (`theme.wiki`, `theme.wiki.dark`) ihre Farben im hellen und im dunklen Schema, die Schriften von Text und Überschriften, das Logo, das Logo auf dunklem Hintergrund, die Bildmarke und die Bildmarke auf dunklem Hintergrund (schmale Bildschirme), die Höhe des Logos und die Breite der Seitenleiste. Jedes Feld zeigt die Vorgabe, die das Template mitbringt; *Zurücksetzen* führt dorthin zurück. Logos und Bilder sind hochgeladene PNG-, WebP- oder JPEG-Dateien (kein SVG).
+Jedes Template bietet seine Einstellungen unter *Administration → Templates → Einstellungen* an, jedes Template mit eigenen Werten: das Wiki-Template (`theme.wiki`) seine Farben im hellen und im dunklen Schema, die Schriften von Text und Überschriften, das Logo, das Logo auf dunklem Hintergrund, die Bildmarke und die Bildmarke auf dunklem Hintergrund (schmale Bildschirme), die Höhe des Logos und die Breite der Seitenleiste. Jedes Feld zeigt die Vorgabe, die das Template mitbringt; *Zurücksetzen* führt dorthin zurück. Logos und Bilder sind hochgeladene PNG-, WebP- oder JPEG-Dateien (kein SVG). Templates mit dunklen Farben bieten außerdem das **Farbschema als Vorgabe** an (wie am Gerät eingestellt, hell oder dunkel); die Wahl einer Person hat immer Vorrang.
 
 Templates aus Daten (siehe unten) bieten die Werte ihres Designs an: jede Farbe des hellen und, falls vorhanden, des dunklen Schemas, die Schriften, die Größe der Schrift, die Ecken, die Inhaltsbreite und das Logo, mit den Werten des Designs als Vorgaben. Dazu kommen die Bildmarke für schmale Bildschirme und, mit dunklen Farben, Logo und Bildmarke auf dunklen Farben. Der Server prüft das Design mit diesen Werten wie ein gespeichertes Design: Jedes Farbpaar braucht seinen Kontrast und jede Zeile ihren Platz. Ein Wert, der das verletzt, wird abgelehnt, und das Formular nennt den Grund sofort. Eine Kopie eines Templates aus Daten übernimmt die Werte ihres Originals als Werte ihres Designs und behält Bildmarke und Logos auf dunklen Farben als eigene Einstellungen. Ein endgültig gelöschtes Template verliert seine Einstellungen.
 
@@ -304,7 +304,6 @@ Core-Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Instal
 | `theme.wiki` | Template | Dokumentations-Layout mit Seitenbaum; Text in Inter, Überschriften in Poppins Bold (der Schrift des Logos) |
 | `theme.cms` | Template | Website, klassisch (Hochschule, Organisation): Hauptnavigation, transparenter Kopfbereich über dem Startbild, Titel-Banner, Footer-Spalten |
 | `theme.cms.modern` | Template | Website, modern und neutral: erbt Aufbau, Positionen und Einstellungen von `theme.cms`, eigene Gestaltung (Schrift Inter, Glas-Kopfbereich, linksbündiges Startbild, abgerundete Karten) |
-| `theme.wiki.dark` | Template (Beispiel) | erbt von `theme.wiki`, ändert nur die Farben |
 | `example.notice` | Elementtyp (Beispiel) | Hinweisbox, erbt von `core.html` |
 
 Eigene Plugins entwickeln: [Plugins entwickeln](../developer/plugins.md)

@@ -50,6 +50,5 @@ var officialPlugins = []string{
 	"theme.cms",
 	"theme.cms.modern",
 	"theme.wiki",
-	"theme.wiki.dark",
 	"workflow.process",
 }

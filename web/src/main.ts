@@ -26,7 +26,7 @@ import { watchHelp } from './core/helptexts';
 import { watchDateInputs } from './components/datepicker';
 import { readProgress } from './components/readprogress';
 import { pluginModules } from './generated/plugins';
-import { applyScheme } from './core/scheme';
+import { applyScheme, setTemplateScheme } from './core/scheme';
 import { schemeBlock } from './components/scheme';
 import { brandHeader, printBrand } from './components/brand';
 import { applyTemplateLook, hasTemplateSettings, loadTemplateSettings, positionContainer, refreshPositions, setPreviewTemplate, setTemplateSettingsDraft, templateSettingsOf, type TemplateSettingsState, registerPageAction, registerProfileSection, registerSlot, registerTemplate, previewTemplate, resolveTemplate, setShownTemplate, siteTemplate, triedTemplate } from './coreplugin';
@@ -214,6 +214,8 @@ async function boot(): Promise<void> {
   let ended = new AbortController();
   const build = () => {
     applyTemplateLook(tpl.id);
+    // again on every build: a preview of the settings may change the scheme
+    applyScheme(tpl.id);
     ended.abort();
     ended = new AbortController();
     const layout = tpl.layout({ position: (name, tag) => positionContainer(name, tag), settings: templateSettingsOf(tpl.id), signal: ended.signal });
@@ -347,8 +349,16 @@ function setupSettingsPreview(): void {
   const draft = parent.__ewTplSettingsDraft;
   if (!draft || typeof draft.id !== 'string' || !resolveTemplate(draft.id, draft.id)) return;
   setPreviewTemplate(draft.id);
+  // the colour scheme of the draft (a setting the core adds to every
+  // template with dark colours) is the default scheme of the preview
+  const scheme = (st: TemplateSettingsState) => {
+    const v = st.values?.color_scheme;
+    if (v === 'system' || v === 'light' || v === 'dark') setTemplateScheme(draft.id, v);
+  };
+  scheme(draft.state);
   setTemplateSettingsDraft(draft.id, draft.state);
   (window as unknown as SettingsPreviewWindow).__ewTplSettingsUpdate = (next) => {
+    scheme(next);
     setTemplateSettingsDraft(draft.id, next);
     window.dispatchEvent(new Event('ewiki:relayout'));
   };

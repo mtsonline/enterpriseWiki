@@ -210,7 +210,6 @@ Alles außerhalb des Kerns ist ein Plugin. Die Beschreibung jedes Plugins steht 
 | [`theme_cms`](../../../plugins/theme_cms/) | `theme.cms` | CMS / website template |
 | [`theme_cms_modern`](../../../plugins/theme_cms_modern/) | `theme.cms.modern` | Website template – modern |
 | [`theme_wiki`](../../../plugins/theme_wiki/) | `theme.wiki` | Wiki template |
-| [`theme_wiki_dark`](../../../plugins/theme_wiki_dark/) | `theme.wiki.dark` | Wiki template (dark) – example |
 | [`workflow_process`](../../../plugins/workflow_process/) | `workflow.process` | Workflow |
 
 ### Teile eines Plugins

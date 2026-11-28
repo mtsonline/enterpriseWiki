@@ -24,17 +24,24 @@ type Kernel struct {
 	cfg     *config.Store
 	log     *slog.Logger
 	plugins map[string]coreplugin.Plugin
-	active  atomic.Pointer[map[string]bool]
-	site    string
+	// manifests are those of the plugins, read once: a manifest never
+	// changes, and reading it (JSON) for every request made /site slow
+	manifests map[string]coreplugin.Manifest
+	active    atomic.Pointer[map[string]bool]
+	site      string
 }
 
 // sorted returns the plugins of this kernel ordered by id.
 func (k *Kernel) sorted() []coreplugin.Plugin {
-	out := make([]coreplugin.Plugin, 0, len(k.plugins))
-	for _, p := range k.plugins {
-		out = append(out, p)
+	ids := make([]string, 0, len(k.plugins))
+	for id := range k.plugins {
+		ids = append(ids, id)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Manifest().ID < out[j].Manifest().ID })
+	sort.Strings(ids)
+	out := make([]coreplugin.Plugin, len(ids))
+	for i, id := range ids {
+		out[i] = k.plugins[id]
+	}
 	return out
 }
 
@@ -50,10 +57,12 @@ func New(cfg *config.Store, log *slog.Logger) *Kernel {
 // sites, and not two apps of the same site in one process (tests, a
 // command line inside a server process).
 func NewSite(cfg *config.Store, log *slog.Logger, site string) *Kernel {
-	k := &Kernel{cfg: cfg, log: log, plugins: map[string]coreplugin.Plugin{}, site: site}
+	k := &Kernel{cfg: cfg, log: log, plugins: map[string]coreplugin.Plugin{}, manifests: map[string]coreplugin.Manifest{}, site: site}
 	for _, p := range coreplugin.Registered() {
 		p = coreplugin.NewInstance(p)
-		k.plugins[p.Manifest().ID] = p
+		m := p.Manifest()
+		k.plugins[m.ID] = p
+		k.manifests[m.ID] = m
 	}
 	k.recompute(cfg.Get())
 	cfg.OnChange(k.recompute)
@@ -67,12 +76,12 @@ func (k *Kernel) recompute(c *config.Config) {
 		if v, ok := active[id]; ok {
 			return v
 		}
-		p, ok := k.plugins[id]
+		_, ok := k.plugins[id]
 		if !ok || seen[id] {
 			return false
 		}
 		seen[id] = true
-		m := p.Manifest()
+		m := k.manifests[id]
 		ok = switchedOn(c, m)
 		for _, dep := range m.Extends {
 			if !visit(dep, seen) {
@@ -96,14 +105,20 @@ func (k *Kernel) Enabled(id string) bool {
 
 // IsTemplate reports whether id is an active website template plugin.
 func (k *Kernel) IsTemplate(id string) bool {
-	p, ok := k.plugins[id]
-	return ok && k.Enabled(id) && slices.Contains(p.Manifest().Kinds, coreplugin.KindTemplate)
+	_, ok := k.plugins[id]
+	return ok && k.Enabled(id) && slices.Contains(k.manifests[id].Kinds, coreplugin.KindTemplate)
 }
 
 // Get returns a compiled plugin.
 func (k *Kernel) Get(id string) (coreplugin.Plugin, bool) {
 	p, ok := k.plugins[id]
 	return p, ok
+}
+
+// Manifest is the manifest of plugin id (read once when the kernel was made).
+func (k *Kernel) Manifest(id string) (coreplugin.Manifest, bool) {
+	m, ok := k.manifests[id]
+	return m, ok
 }
 
 // Info is the admin view of a plugin.
@@ -132,8 +147,8 @@ func switchedOn(c *config.Config, m coreplugin.Manifest) bool {
 func (k *Kernel) List() []Info {
 	c := k.cfg.Get()
 	out := []Info{}
-	for id, p := range k.plugins {
-		m := p.Manifest()
+	for id := range k.plugins {
+		m := k.manifests[id]
 		inf := Info{Manifest: m, Enabled: switchedOn(c, m), Active: k.Enabled(id), Missing: []string{}, Dependents: []string{}}
 		if inf.Kinds == nil {
 			inf.Kinds = []string{}
@@ -146,8 +161,8 @@ func (k *Kernel) List() []Info {
 				inf.Missing = append(inf.Missing, d)
 			}
 		}
-		for oid, o := range k.plugins {
-			if slices.Contains(o.Manifest().Extends, id) {
+		for oid, o := range k.manifests {
+			if slices.Contains(o.Extends, id) {
 				inf.Dependents = append(inf.Dependents, oid)
 			}
 		}
@@ -160,17 +175,17 @@ func (k *Kernel) List() []Info {
 
 // SetEnabled switches a plugin on or off by writing config.yaml.
 func (k *Kernel) SetEnabled(_ context.Context, id string, on bool) error {
-	p, ok := k.plugins[id]
+	_, ok := k.plugins[id]
 	if !ok {
 		return apperr.NotFound("plugin " + id)
 	}
-	if !on && p.Manifest().Required {
+	if !on && k.manifests[id].Required {
 		return apperr.BadRequest("plugin %s is required and cannot be disabled", id)
 	}
 	if !on {
 		var deps []string
-		for oid, o := range k.plugins {
-			if k.Enabled(oid) && slices.Contains(o.Manifest().Extends, id) {
+		for oid, o := range k.manifests {
+			if k.Enabled(oid) && slices.Contains(o.Extends, id) {
 				deps = append(deps, oid)
 			}
 		}
@@ -179,7 +194,7 @@ func (k *Kernel) SetEnabled(_ context.Context, id string, on bool) error {
 			return apperr.Conflict("disable the plugins that extend %s first: %v", id, deps)
 		}
 	}
-	defaultOff := p.Manifest().DefaultOff
+	defaultOff := k.manifests[id].DefaultOff
 	return k.cfg.Update(func(c *config.Config) error {
 		c.Plugins.Disabled = slices.DeleteFunc(c.Plugins.Disabled, func(s string) bool { return s == id })
 		c.Plugins.Enabled = slices.DeleteFunc(c.Plugins.Enabled, func(s string) bool { return s == id })

@@ -11,6 +11,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/tplsettings"
 )
 
 // Light and dark: every person chooses "system" (as the device is set),
@@ -37,20 +38,23 @@ func schemeChoice(r *http.Request, p *identity.Principal) string {
 }
 
 // templateScheme is the scheme a template shows by default ("" = light
-// colours only).
+// colours only): the one it declares, or the one chosen in its settings.
 func (s *Server) templateScheme(ctx context.Context, id string) string {
 	if id == "core.basic" || id == "" {
 		return "system"
 	}
+	return tplsettings.Scheme(s.declaredScheme(ctx, id), s.app.Config.Get().TemplateSettings[id])
+}
+
+// declaredScheme is the scheme a template declares (its manifest, or a
+// template a plugin offers: its design; "" = light colours only). Its
+// settings may choose another (tplsettings.Scheme).
+func (s *Server) declaredScheme(ctx context.Context, id string) string {
 	if !s.app.Kernel.IsTemplate(id) {
-		// a template a plugin offers (templates of the designer: with dark colors or light only)
 		return s.app.Content.TemplateColorScheme(ctx, id)
 	}
-	p, ok := s.app.Kernel.Get(id)
-	if !ok {
-		return ""
-	}
-	return p.Manifest().ColorScheme
+	m, _ := s.app.Kernel.Manifest(id)
+	return m.ColorScheme
 }
 
 // injectScheme marks the page with the scheme of the site template and the

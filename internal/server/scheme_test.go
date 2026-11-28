@@ -3,6 +3,8 @@ package server_test
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -89,10 +91,36 @@ func TestColorScheme(t *testing.T) {
 		s.Config.UI["template"] = id
 		admin.must("PUT", "/api/v1/admin/settings", map[string]any{"ui": s.Config.UI}, nil, 200)
 	}
-	setTemplate("theme.wiki.dark")
-	if tag, _ = page(e.client()); !strings.Contains(tag, `data-scheme="dark"`) {
-		t.Fatalf("theme.wiki.dark: %s", tag)
+	// the settings of a template choose its default scheme (a setting the
+	// core adds to every template with dark colours)
+	setTemplate("theme.wiki")
+	type setting struct {
+		Key     string   `json:"key"`
+		Default any      `json:"default"`
+		Options []string `json:"options"`
 	}
+	var desc struct {
+		Settings []setting `json:"settings"`
+	}
+	admin.must("GET", "/api/v1/admin/templates/theme.wiki/settings", nil, &desc, 200)
+	if i := slices.IndexFunc(desc.Settings, func(x setting) bool { return x.Key == "color_scheme" }); i < 0 || desc.Settings[i].Default != "system" || len(desc.Settings[i].Options) != 3 {
+		t.Fatalf("scheme setting of theme.wiki: %+v", desc.Settings)
+	}
+	admin.must("PUT", "/api/v1/admin/templates/theme.wiki/settings", map[string]any{"values": map[string]any{"color_scheme": "dark"}}, nil, 200)
+	if tag, _ = page(e.client()); !strings.Contains(tag, `data-scheme="dark"`) {
+		t.Fatalf("theme.wiki set to dark: %s", tag)
+	}
+	admin.must("PUT", "/api/v1/admin/templates/theme.wiki/settings", map[string]any{"values": map[string]any{"color_scheme": "purple"}}, nil, 400)
+	admin.must("DELETE", "/api/v1/admin/templates/theme.wiki/settings", nil, nil, 204)
+	if tag, _ = page(e.client()); !strings.Contains(tag, `data-scheme="system"`) {
+		t.Fatalf("theme.wiki back to its default: %s", tag)
+	}
+	// a template with light colours only has no such setting
+	admin.must("GET", "/api/v1/admin/templates/core.template%2Fexample-wiki/settings", nil, &desc, 200)
+	if slices.ContainsFunc(desc.Settings, func(x setting) bool { return x.Key == "color_scheme" }) {
+		t.Fatal("a template with light colours only offers a scheme")
+	}
+	admin.must("PUT", "/api/v1/admin/templates/core.template%2Fexample-wiki/settings", map[string]any{"values": map[string]any{"color_scheme": "dark"}}, nil, 400)
 	setTemplate("theme.cms")
 	if tag, _ = page(e.client()); !strings.Contains(tag, `data-scheme="system"`) {
 		t.Fatalf("theme.cms follows the device: %s", tag)
@@ -132,6 +160,13 @@ func TestColorScheme(t *testing.T) {
 	if tag, _ = page(e.client()); !strings.Contains(tag, `data-scheme="dark"`) {
 		t.Fatalf("designed template, dark by default: %s", tag)
 	}
+	// its settings choose another; /site names the effective one
+	sp := "/api/v1/admin/templates/" + url.PathEscape(tpl.ID) + "/settings"
+	admin.must("PUT", sp, map[string]any{"values": map[string]any{"color_scheme": "light"}}, nil, 200)
+	if tag, _ = page(e.client()); !strings.Contains(tag, `data-scheme="light"`) {
+		t.Fatalf("designed template set to light in its settings: %s", tag)
+	}
+	admin.must("PUT", "/api/v1/admin/templates/theme.wiki/settings", map[string]any{"values": map[string]any{"color_scheme": "dark"}}, nil, 200)
 	var site struct {
 		Templates []struct {
 			ID          string `json:"id"`
@@ -143,8 +178,8 @@ func TestColorScheme(t *testing.T) {
 	for _, x := range site.Templates {
 		got[x.ID] = x.ColorScheme
 	}
-	if got["theme.wiki"] != "system" || got["theme.wiki.dark"] != "dark" || got["theme.cms"] != "system" || got["theme.cms.modern"] != "system" ||
-		got["core.template/example-wiki"] != "" || got[tpl.ID] != "dark" {
+	if got["theme.wiki"] != "dark" || got["theme.cms"] != "system" || got["theme.cms.modern"] != "system" ||
+		got["core.template/example-wiki"] != "" || got[tpl.ID] != "light" {
 		t.Errorf("color schemes of the templates: %v", got)
 	}
 }

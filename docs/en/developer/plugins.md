@@ -19,7 +19,7 @@ Complete examples in the repository:
 | Example | shows |
 |---|---|
 | `plugins/example_notice` | element type that inherits from `core.html`, own API route, translations, frontend editor that reuses the base editor |
-| `plugins/theme_wiki_dark` | template that inherits from another template |
+| `plugins/theme_cms_modern` | template that inherits from another template (`theme.cms`) with defaults of its own |
 | `plugins/core_menu` | migrations, CRUD API with admin check, widgets at template positions, own admin page |
 | `plugins/auth_local` | sign-in method |
 
@@ -45,7 +45,7 @@ Complete examples in the repository:
 - `required`: cannot be disabled (only for core plugins).
 - `default_off`: shipped but off until an administrator switches it on (`plugins.enabled` in `config.yaml`), e.g. the web application firewall `core.waf`.
 - `frontend`: `true` if `web/index.ts` exists.
-- `color_scheme` (templates only): `system`, `light` or `dark`, the colour scheme when the person has not chosen one. With it the template says that its colours come from the colour variables of the core (light and dark); the core then sets the class `ewc-dark`. Without the field the template has light colours only, and the choice of the person does not apply to it.
+- `color_scheme` (templates only): `system`, `light` or `dark`, the colour scheme when the person has not chosen one. With it the template says that its colours come from the colour variables of the core (light and dark); the core then sets the class `ewc-dark`. Without the field the template has light colours only, and the choice of the person does not apply to it. With it, the core adds the setting *Colour scheme by default* (`color_scheme`, see template settings) to the template, with this value as its default; a template does not declare that setting itself.
 
 ## Permissions (required)
 

@@ -14,6 +14,7 @@ import (
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"github.com/mtsonline/enterprisewiki/internal/readability"
+	"github.com/mtsonline/enterprisewiki/internal/tplsettings"
 	"github.com/mtsonline/enterprisewiki/internal/version"
 )
 
@@ -58,12 +59,13 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 			frontend = append(frontend, p.ID)
 		}
 		if p.Active && slices.Contains(p.Kinds, coreplugin.KindTemplate) {
-			templates = append(templates, map[string]any{"id": p.ID, "name": p.Name, "color_scheme": p.ColorScheme})
+			templates = append(templates, map[string]any{"id": p.ID, "name": p.Name, "color_scheme": tplsettings.Scheme(p.ColorScheme, c.TemplateSettings[p.ID])})
 		}
 	}
-	// templates offered by plugins (templates of data, core.template/12)
+	// templates offered by plugins (templates of data, core.template/12); the
+	// scheme is the one chosen in the settings of a template, else its own
 	for _, t := range s.app.Content.ExtraTemplates(r.Context()) {
-		templates = append(templates, map[string]any{"id": t.ID, "name": t.Name, "names": t.Names, "color_scheme": t.ColorScheme})
+		templates = append(templates, map[string]any{"id": t.ID, "name": t.Name, "names": t.Names, "color_scheme": tplsettings.Scheme(t.ColorScheme, c.TemplateSettings[t.ID])})
 	}
 	slices.SortFunc(templates, func(a, b map[string]any) int { return strings.Compare(a["name"].(string), b["name"].(string)) })
 	home := c.UI.HomeCategory
