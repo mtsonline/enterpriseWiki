@@ -322,10 +322,13 @@ func (s *Server) managersOf(ctx context.Context, cat int64) ([]int64, error) {
 		return nil, err
 	}
 	out := []int64{}
-	for _, uid := range ids {
-		p, err := s.app.Auth.LoadPrincipal(ctx, uid)
-		if err == nil && s.app.ACL.Can(ctx, p, cat, acl.Manage) {
-			out = append(out, uid)
+	ps, err := s.app.Auth.LoadPrincipalsQ(ctx, s.app.DB, ids)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range ps {
+		if s.app.ACL.Can(ctx, p, cat, acl.Manage) {
+			out = append(out, p.UserID)
 		}
 		if len(out) == 50 {
 			break

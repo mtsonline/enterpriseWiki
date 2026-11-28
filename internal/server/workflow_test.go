@@ -775,7 +775,7 @@ func TestWorkflowBranchesAndHandovers(t *testing.T) {
 	}
 	gus, _ := user("gus", team.ID)
 	hal, _ := user("hal", team.ID)
-	fred, _ := user("fred")
+	fred, fredID := user("fred")
 	ivy, _ := user("ivy")
 	var w cat
 	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Flows"}}, &w, 201)
@@ -912,6 +912,12 @@ func TestWorkflowBranchesAndHandovers(t *testing.T) {
 		t.Fatal("given back: hal has no task")
 	}
 	act(gus, hc, map[string]any{"action": "_delegate", "to": "nobody"}, 400)
+	// only people who may see the workflow page can take over: the page is
+	// for the team and fred only now, so ivy cannot
+	admin.must("PUT", fmt.Sprintf("/api/v1/elements/%d/acl", wf2), map[string]any{"own_rights_only": true}, nil, 200)
+	admin.must("POST", fmt.Sprintf("/api/v1/elements/%d/acl", wf2), map[string]any{"subject_type": "group", "subject_id": team.ID, "permissions": 1}, nil, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/elements/%d/acl", wf2), map[string]any{"subject_type": "user", "subject_id": fredID, "permissions": 1}, nil, 201)
+	act(gus, hc, map[string]any{"action": "_delegate", "to": "ivy"}, 400)
 	act(gus, hc, map[string]any{"action": "_delegate", "to": "fred", "note": "you know this"}, 200)
 	if f := get(fred, hc); !has(f, "ok") {
 		t.Fatalf("fred did not get the task: %+v", f)

@@ -463,13 +463,19 @@ func (pl *Plugin) membersOf(ctx context.Context, q pgx.Tx, x *Instance, list []A
 	return out, nil
 }
 
-// canView keeps the users that may see the workflow page.
+// canView keeps the users that may see the workflow page (loaded with one
+// query inside the transaction, S-01; the rights come from the snapshot of
+// the ACL). If they cannot be loaded, nobody is kept: a notice never goes
+// to someone not checked.
 func (pl *Plugin) canView(ctx context.Context, tx pgx.Tx, x *Instance, ids []int64) []int64 {
 	out := []int64{}
-	for _, id := range ids {
-		p, err := pl.host.Auth.LoadPrincipalQ(ctx, tx, id) // inside the transaction (S-01)
-		if err == nil && pl.host.ACL.CanElement(ctx, p, x.ElementID, x.CategoryID, acl.View) {
-			out = append(out, id)
+	ps, err := pl.host.Auth.LoadPrincipalsQ(ctx, tx, ids)
+	if err != nil {
+		return out
+	}
+	for _, p := range ps {
+		if pl.host.ACL.CanElement(ctx, p, x.ElementID, x.CategoryID, acl.View) {
+			out = append(out, p.UserID)
 		}
 	}
 	return out

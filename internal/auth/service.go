@@ -709,6 +709,41 @@ func (s *Service) LoadPrincipalQ(ctx context.Context, q db.Querier, uid int64) (
 	return p, err
 }
 
+// LoadPrincipalsQ loads several users with one query (q as in
+// LoadPrincipalQ), in the order of ids. Users that do not exist or are
+// disabled are left out, as LoadPrincipalQ refuses them. For lists of
+// people (recipients, viewers): no query per person.
+func (s *Service) LoadPrincipalsQ(ctx context.Context, q db.Querier, ids []int64) ([]*identity.Principal, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	rows, err := q.Query(ctx, `SELECT `+s.principalCols()+` FROM users u WHERE u.id = ANY($1) AND NOT u.disabled`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	byID := map[int64]*identity.Principal{}
+	for rows.Next() {
+		p, err := s.scanPrincipal(rows)
+		if err != nil {
+			return nil, err
+		}
+		byID[p.UserID] = p
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	out := make([]*identity.Principal, 0, len(byID))
+	seen := map[int64]bool{}
+	for _, id := range ids {
+		if p := byID[id]; p != nil && !seen[id] {
+			seen[id] = true
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
+
 // roleSet are the roles of the account u (own ones and those of its groups).
 const roleSet = `(SELECT role_id FROM user_roles WHERE user_id=u.id
 	UNION SELECT gr.role_id FROM group_roles gr JOIN user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=u.id)`

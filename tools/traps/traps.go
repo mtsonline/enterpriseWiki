@@ -2190,4 +2190,32 @@ var traps = []trap{
 		New:  "",
 		Pkg:  "./internal/server/", Tests: "^TestTemplateSettingsOfDesigns$",
 	},
+	{
+		ID: "auth.principals-disabled", About: "loading several people at once includes disabled ones",
+		File: "internal/auth/service.go",
+		Old:  "FROM users u WHERE u.id = ANY($1) AND NOT u.disabled`, ids)",
+		New:  "FROM users u WHERE u.id = ANY($1)`, ids)",
+		Pkg:  "./internal/server/", Tests: "^TestLoadPrincipals$",
+	},
+	{
+		ID: "auth.principals-order", About: "loading several people at once loses the order asked or loads one twice",
+		File: "internal/auth/service.go",
+		Old:  "		if p := byID[id]; p != nil && !seen[id] {",
+		New:  "		if p := byID[id]; p != nil {",
+		Pkg:  "./internal/server/", Tests: "^TestLoadPrincipals$",
+	},
+	{
+		ID: "workflow.notice-without-view-right", About: "people who may not see the workflow page get its notices and can take over its tasks",
+		File: "plugins/workflow_process/engine.go",
+		Old:  "		if pl.host.ACL.CanElement(ctx, p, x.ElementID, x.CategoryID, acl.View) {",
+		New:  "		if pl.host.ACL.CanElement(ctx, p, x.ElementID, x.CategoryID, acl.View) || true {",
+		Pkg:  "./internal/server/", Tests: "^TestWorkflowBranchesAndHandovers$",
+	},
+	{
+		ID: "comments.notice-without-view-right", About: "a notice of a comment goes to people who may not see the page",
+		File: "plugins/core_comments/plugin.go",
+		Old:  "		if p.host.ACL.CanElement(ctx, pr, c.ElementID, cat, acl.View) {",
+		New:  "		if true {",
+		Pkg:  "./internal/server/", Tests: "Comment",
+	},
 }
