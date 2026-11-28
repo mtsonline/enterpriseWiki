@@ -210,9 +210,13 @@ async function boot(): Promise<void> {
   setShownTemplate(tpl.id);
   document.body.classList.add('ew', ...tpl.classNames);
   applyScheme(tpl.id);
+  // each layout gets a signal that ends it when the next one replaces it
+  let ended = new AbortController();
   const build = () => {
     applyTemplateLook(tpl.id);
-    const layout = tpl.layout({ position: (name, tag) => positionContainer(name, tag), settings: templateSettingsOf(tpl.id) });
+    ended.abort();
+    ended = new AbortController();
+    const layout = tpl.layout({ position: (name, tag) => positionContainer(name, tag), settings: templateSettingsOf(tpl.id), signal: ended.signal });
     mount(app, layout.root, printBrand());
     trackStickyHeader(layout.root);
     return layout;
