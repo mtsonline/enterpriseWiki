@@ -63,7 +63,7 @@ export interface Site {
   /** lists up to this length are checkboxes, longer ones a list with a filter (ui.choice_checkboxes) */
   choice_checkboxes?: number;
   /** the effective settings of the template of the site (colours, logos …) */
-  template_settings?: Record<string, unknown>;
+  template_settings?: { values: Record<string, unknown>; look?: { all?: Record<string, string>; light?: Record<string, string>; dark?: Record<string, string>; fonts?: string[] }; root?: string };
   readability?: { mode: 'off' | 'offered' | 'on'; sentence_words: number; word_letters: number; max_kb: number };
   /** Tiles offered for the own dashboard (empty = all). */
   dashboard_tiles?: string[];

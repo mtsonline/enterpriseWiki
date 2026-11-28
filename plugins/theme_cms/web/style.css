@@ -28,7 +28,8 @@
   --ewcms-page-bg: #f6f6f6; --ewcms-surface: #ffffff; --ewcms-text: #333333; --ewcms-heading: #222222; --ewcms-lead: #444444; --ewcms-muted: #666666;
   --ewcms-line: #e6e6e6; --ewcms-nav-line: #eeeeee; --ewcms-aside-bg: #ececec; --ewcms-strong: #222222; --ewcms-on-strong: #ffffff;
   --ewcms-dark: #222; --ewcms-darker: #151515; --ewcms-header-h: 5.75rem; --ewcms-header-h-small: 4.25rem;
-  font-family: 'Source Sans 3 Variable', 'Source Sans 3', 'Segoe UI', Helvetica, Arial, sans-serif;
+  /* --ewcms-font, --ewcms-heading-font: set by the core while changed in the settings of the template */
+  font-family: var(--ewcms-font, 'Source Sans 3 Variable', 'Source Sans 3', 'Segoe UI', Helvetica, Arial, sans-serif);
   font-size: 1.125rem; line-height: 1.65; color: var(--ewcms-text); background: var(--ewcms-page-bg); min-height: 100vh; display: flex; flex-direction: column;
 }
 body.ewc-dark .ewcms-app {
@@ -37,7 +38,7 @@ body.ewc-dark .ewcms-app {
   --ewcms-line: #3a434c; --ewcms-nav-line: #333b43; --ewcms-aside-bg: #22272b; --ewcms-strong: #dee4ea; --ewcms-on-strong: #16191d;
   --ewcms-dark: #101317; --ewcms-darker: #0b0d10;
 }
-.ewcms-app :is(h1, h2, h3, h4) { color: var(--ewcms-heading); font-weight: 700; line-height: 1.2; letter-spacing: -.005em; }
+.ewcms-app :is(h1, h2, h3, h4) { font-family: var(--ewcms-heading-font, inherit); color: var(--ewcms-heading); font-weight: 700; line-height: 1.2; letter-spacing: -.005em; }
 .ewcms-app h1 { font-size: clamp(2rem, 3.6vw, 2.75rem); margin: 0 0 1rem; }
 .ewcms-app h2 { font-size: clamp(1.5rem, 2.6vw, 2.05rem); margin: 2rem 0 .75rem; }
 .ewcms-app h3 { font-size: 1.35rem; }

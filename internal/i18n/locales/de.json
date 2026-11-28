@@ -3330,7 +3330,6 @@
  "sitetpl.settings_none": "Dieses Template bietet keine Einstellungen.",
  "sitetpl.contrast_low": "Der Kontrast zu {color} ist nur {ratio}:1; Text braucht mindestens 4,5:1.",
  "sitetpl.font_system": "Schrift des Systems",
- "sitetpl.font_sans": "Serifenlos",
  "sitetpl.font_serif": "Mit Serifen",
  "sitetpl.font_mono": "Feste Breite",
  "sitetpl.image_default": "Das Bild des Templates",
@@ -3352,5 +3351,8 @@
  "sitetpl.reset_all_confirm": "Alle Einstellungen von {name} auf die Vorgaben zurücksetzen?",
  "sitetpl.preview": "Vorschau",
  "sitetpl.preview_help": "Nur Sie sehen die Vorschau. Wählen Sie ein Gerät, um die Website auf einem Tablet oder Handy zu sehen.",
- "sitetpl.preview_frame": "Vorschau der Website mit {name}"
+ "sitetpl.preview_frame": "Vorschau der Website mit {name}",
+ "sitetpl.font_inter": "Inter",
+ "sitetpl.font_poppins": "Poppins",
+ "sitetpl.font_source-sans": "Source Sans 3"
 }

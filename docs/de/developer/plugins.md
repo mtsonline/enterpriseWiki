@@ -459,6 +459,7 @@ Ein Template meldet seine Einstellungen im Manifest seines Plugins an, unter `"t
 ```json
 "template_settings": [
   { "key": "primary_color", "kind": "color", "group": "colors", "default": "#0a3760", "contrast_on": ["#ffffff"],
+    "css_vars": ["--ew-primary", "--ew-link"], "scheme": "light",
     "label": { "en": "Accent colour", "de": "Akzentfarbe" } },
   { "key": "logo", "kind": "image", "group": "logos", "role": "logo",
     "label": { "en": "Logo", "de": "Logo" }, "help": { "en": "PNG, WebP or JPEG.", "de": "PNG, WebP oder JPEG." } },
@@ -470,12 +471,14 @@ Ein Template meldet seine Einstellungen im Manifest seines Plugins an, unter `"t
 ]
 ```
 
-- **Arten:** `color` (`#rrggbb`), `font` (`system`, `sans`, `serif`, `mono` oder der Name einer eigenen Schrift), `image`, `number` (mit `min` und `max`), `select` (mit `options`), `bool`, `text` (bis `max_len` Zeichen, Vorgabe 200), `link` (ein Pfad im Wiki `/…` oder eine `https://`-Adresse).
+- **Arten:** `color` (`#rrggbb`), `font` (eine der `options`: `system`, `inter`, `poppins`, `source-sans`, `serif`, `mono`; die Verwaltung kann auch eine eigene Schrift des Template-Designers wählen), `image`, `number` (mit `min` und `max`), `select` (mit `options`), `bool`, `text` (bis `max_len` Zeichen, Vorgabe 200), `link` (ein Pfad im Wiki `/…` oder eine `https://`-Adresse).
 - **Gruppen** in der Reihenfolge des Formulars: `colors`, `fonts`, `logos`, `header`, `content`, `footer`, `layout`.
 - **Rollen von Logos:** `logo` (das breite Logo), `logo_on_dark`, `mark` (die Bildmarke allein, für schmale Bildschirme und kleine Stellen), `mark_on_dark`. Melden Sie jedes Logo an, das Ihr Template zeigt. Andere Bilder (ein Startbild, ein Banner) haben keine Rolle.
 - **Vorgaben:** Jede Einstellung außer einem Bild braucht `default`. Ein Bild hat keine: Ohne hochgeladenes Bild zeigt das Template sein eigenes.
 - **Bilder:** nur hochgeladene PNG-, WebP- und JPEG-Dateien (kein SVG: Es kann Skripte enthalten). Der Server liest ihre Größe beim Speichern.
 - **Kontrast:** `contrast_on` nennt die Farben, auf denen eine Farbe steht (andere Farb-Einstellungen über ihren Schlüssel oder `#rrggbb`). Das Formular warnt, solange der Kontrast unter 4,5:1 liegt.
+- **CSS-Variablen:** `css_vars` nennt die CSS-Variablen, in die eine Farbe, Schrift oder Zahl geschrieben wird (eine Zahl mit ihrer Einheit `unit`: `px`, `rem`, `em` oder `%`); `scheme` beschränkt sie auf das helle (`light`) oder dunkle (`dark`) Farbschema. Der Kern setzt sie, solange der Wert von der Vorgabe abweicht. So behält das Template ohne Änderung sein eigenes Aussehen und braucht keinen Code dafür. Ohne `template_look_root` gelten sie für `<body>` (die Variablen `--ew-*` des Kerns), mit ihm (eine Klasse, etwa `".ewcms-app"`) für das Element, an dem das Template seine eigenen Variablen festlegt. Ändert sich `--ew-primary`, leitet der Kern `--ew-primary-hover` ab.
+- **Vorgabe-Bilder:** `default_src` nennt das Bild, das das Template mitbringt (im Formular als Vorgabe gezeigt).
 - **Geprüft im Server:** Jeder Wert wird vor dem Speichern gegen die Beschreibung geprüft (`internal/tplsettings`). Eine fehlerhafte Liste verhindert den Start des Plugins. Gespeicherte Werte, die das Template nicht mehr anmeldet oder die nicht mehr passen, bleiben weg.
 
 Das Layout bekommt die wirksamen Werte im Feld settings seines Kontexts (Bilder als `{ src, width, height }`; `imageSetting(v)` liefert so ein Bild oder `null`). Bausteine eines Templates, die später gezeichnet werden (etwa ein Startbild an einer Position), lesen sie mit `shownTemplateSettings()`. Geben Sie jedem Bild `width` und `height`, damit es seinen Platz vor dem Laden reserviert:
@@ -488,7 +491,7 @@ layout: (ctx) => {
 }
 ```
 
-Die Werte kommen von `GET /api/v1/templates/{id}/settings` (die des Website-Templates gleich mit `/api/v1/site`). Die Verwaltung ändert sie mit `PUT` und `DELETE /api/v1/admin/templates/{id}/settings` oder `ewiki templates settings set|reset`.
+Die Live-Vorschau fragt `POST /api/v1/admin/templates/{id}/settings/preview` nach den Werten und CSS-Variablen eines Entwurfs (geprüft, nicht gespeichert). Die Werte kommen von `GET /api/v1/templates/{id}/settings` (die des Website-Templates gleich mit `/api/v1/site`). Die Verwaltung ändert sie mit `PUT` und `DELETE /api/v1/admin/templates/{id}/settings` oder `ewiki templates settings set|reset`.
 
 ## UI-Texte
 

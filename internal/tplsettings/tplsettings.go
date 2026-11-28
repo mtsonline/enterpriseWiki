@@ -15,6 +15,7 @@ import (
 	"math"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -23,7 +24,7 @@ import (
 // The kinds of settings.
 const (
 	KindColor  = "color"  // "#rrggbb"
-	KindFont   = "font"   // the key of a font ("system", "serif" or an own font)
+	KindFont   = "font"   // one of Options (keys of FontStacks) or an own font ("own-12")
 	KindImage  = "image"  // an uploaded PNG, WebP or JPEG image (with its size)
 	KindNumber = "number" // a number within Min and Max
 	KindSelect = "select" // one of Options
@@ -51,6 +52,21 @@ const (
 // Roles lists the roles of logos.
 var Roles = []string{RoleLogo, RoleLogoOnDark, RoleMark, RoleMarkOnDark}
 
+// FontStacks are the fonts a template may offer (the keys of the options of
+// a font setting) with their CSS font-family. The files of Inter and
+// Poppins come with the core; Source Sans with the templates that use it.
+var FontStacks = map[string]string{
+	"system":      `system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`,
+	"inter":       `"Inter Variable", Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`,
+	"poppins":     `Poppins, "Inter Variable", system-ui, sans-serif`,
+	"source-sans": `"Source Sans 3 Variable", system-ui, sans-serif`,
+	"serif":       `Georgia, "Times New Roman", serif`,
+	"mono":        `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`,
+}
+
+// The units of numbers written into CSS variables.
+var Units = []string{"px", "rem", "em", "%"}
+
 // Limits of the description and of values.
 const (
 	MaxSettings    = 100  // settings of one template
@@ -58,7 +74,6 @@ const (
 	DefaultTextLen = 200  // MaxLen of a text without one
 	MaxTextLen     = 2000 // the largest MaxLen
 	MaxLinkLen     = 500
-	MaxFontLen     = 64
 	// MaxImagePixels bounds an image (width × height) so a logo cannot
 	// make every page load a huge file.
 	MaxImagePixels = 4096 * 4096
@@ -83,6 +98,17 @@ type Setting struct {
 	Help    Texts    `json:"help,omitempty"`
 	// OptionLabels are the texts of the options, per option.
 	OptionLabels map[string]Texts `json:"option_labels,omitempty"`
+	// CSSVars are the CSS variables the value is written to (colours, fonts
+	// and numbers): the core sets them for the template, only while the value
+	// differs from the default, so the template keeps its own look by
+	// default. Scheme limits them to the light or the dark colour scheme.
+	CSSVars []string `json:"css_vars,omitempty"`
+	Scheme  string   `json:"scheme,omitempty"`
+	// Unit of a number written to CSS variables (see Units).
+	Unit string `json:"unit,omitempty"`
+	// DefaultSrc is the image the template shows without one of its own (a
+	// file the template ships, shown in the form as the default).
+	DefaultSrc string `json:"default_src,omitempty"`
 	// ContrastOn are the colours a colour is shown on (other colour
 	// settings by key, or "#rrggbb"): the form warns while the contrast to
 	// one of them is below 4.5:1 (WCAG AA for text).
@@ -108,9 +134,11 @@ type ImageInfo func(hash string) (format string, width, height int, err error)
 var (
 	keyRe   = regexp.MustCompile(`^[a-z][a-z0-9_]{0,47}$`)
 	colorRe = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
-	fontRe  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9 _.-]*$`)
 	hashRe  = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	optRe   = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,47}$`)
+	cssVar  = regexp.MustCompile(`^--[a-z][a-z0-9-]{0,62}$`)
+	ownFont = regexp.MustCompile(`^own-[1-9][0-9]{0,17}$`)
+	srcRe   = regexp.MustCompile(`^/[A-Za-z0-9_./-]{1,200}\.(png|webp|jpe?g)$`)
 )
 
 // CheckDescription checks the description of the settings of a template
@@ -160,6 +188,33 @@ func CheckDescription(list []Setting) error {
 			for _, o := range s.Options {
 				if !optRe.MatchString(o) {
 					return fmt.Errorf("setting %q: option %q must be lower case letters, digits, _ and -", s.Key, o)
+				}
+			}
+		}
+		if len(s.CSSVars) > 0 && s.Kind != KindColor && s.Kind != KindFont && s.Kind != KindNumber {
+			return fmt.Errorf("setting %q: css_vars are only for colours, fonts and numbers", s.Key)
+		}
+		for _, v := range s.CSSVars {
+			if !cssVar.MatchString(v) {
+				return fmt.Errorf("setting %q: css variable %q must look like --name", s.Key, v)
+			}
+		}
+		if s.Scheme != "" && s.Scheme != "light" && s.Scheme != "dark" {
+			return fmt.Errorf("setting %q: scheme is light, dark or empty", s.Key)
+		}
+		if s.Unit != "" && (s.Kind != KindNumber || !slices.Contains(Units, s.Unit)) {
+			return fmt.Errorf("setting %q: unit is for numbers, one of %v", s.Key, Units)
+		}
+		if s.DefaultSrc != "" && (s.Kind != KindImage || !srcRe.MatchString(s.DefaultSrc) || strings.Contains(s.DefaultSrc, "..") || strings.HasPrefix(s.DefaultSrc, "//")) {
+			return fmt.Errorf("setting %q: default_src is a path of a PNG, WebP or JPEG file the template ships", s.Key)
+		}
+		if s.Kind == KindFont {
+			if len(s.Options) == 0 {
+				return fmt.Errorf("setting %q: a font needs options (keys of the fonts offered)", s.Key)
+			}
+			for _, o := range s.Options {
+				if _, ok := FontStacks[o]; !ok {
+					return fmt.Errorf("setting %q: unknown font %q", s.Key, o)
 				}
 			}
 		}
@@ -222,8 +277,8 @@ func checkValue(s Setting, v any, info ImageInfo) (any, error) {
 		return strings.ToLower(x), nil
 	case KindFont:
 		x, ok := v.(string)
-		if !ok || len(x) > MaxFontLen || !fontRe.MatchString(x) {
-			return nil, errors.New("a font is its key: letters, digits, space, _ . -")
+		if !ok || !(slices.Contains(s.Options, x) || ownFont.MatchString(x)) {
+			return nil, fmt.Errorf("a font of %v or an own font", s.Options)
 		}
 		return x, nil
 	case KindNumber:
@@ -357,4 +412,84 @@ func toInt(v any) int {
 		return int(x)
 	}
 	return 0
+}
+
+// Look is what the core writes into CSS for a template: the CSS variables
+// of the settings changed from their defaults, for both colour schemes, the
+// light and the dark one, and the own fonts they use.
+type Look struct {
+	All   map[string]string `json:"all"`
+	Light map[string]string `json:"light"`
+	Dark  map[string]string `json:"dark"`
+	// Fonts are the ids of own fonts used (their @font-face rules are loaded).
+	Fonts []string `json:"fonts"`
+}
+
+// LookOf returns the CSS variables of the stored values that differ from
+// their defaults. Every value is of a checked form (#rrggbb, a number with
+// its unit, a font-family from FontStacks or of an own font), so nothing
+// else can get into the CSS.
+func LookOf(list []Setting, stored map[string]any) Look {
+	l := Look{All: map[string]string{}, Light: map[string]string{}, Dark: map[string]string{}, Fonts: []string{}}
+	for _, s := range list {
+		v, ok := stored[s.Key]
+		if !ok || len(s.CSSVars) == 0 {
+			continue
+		}
+		c, err := checkValue(s, v, nil)
+		if err != nil || c == s.Default || (s.Kind == KindNumber && s.Default != nil && toFloat(s.Default) == c) {
+			continue
+		}
+		css := ""
+		switch x := c.(type) {
+		case string:
+			css = x
+			if s.Kind == KindFont {
+				if stack, ok := FontStacks[x]; ok {
+					css = stack
+				} else {
+					css = `"ewd-` + x + `", ` + FontStacks["system"]
+					if !slices.Contains(l.Fonts, strings.TrimPrefix(x, "own-")) {
+						l.Fonts = append(l.Fonts, strings.TrimPrefix(x, "own-"))
+					}
+				}
+			}
+		case float64:
+			css = strconv.FormatFloat(x, 'f', -1, 64) + s.Unit
+		default:
+			continue
+		}
+		into := l.All
+		switch s.Scheme {
+		case "light":
+			into = l.Light
+		case "dark":
+			into = l.Dark
+		}
+		for _, name := range s.CSSVars {
+			into[name] = css
+		}
+	}
+	// the core derives the colour of a hovered button from the primary colour
+	for _, x := range []struct {
+		m   map[string]string
+		mix string
+	}{{l.Light, "black"}, {l.Dark, "white"}} {
+		if p, ok := x.m["--ew-primary"]; ok {
+			if _, has := x.m["--ew-primary-hover"]; !has {
+				x.m["--ew-primary-hover"] = "color-mix(in srgb, " + p + " 82%, " + x.mix + ")"
+			}
+		}
+	}
+	return l
+}
+
+func toFloat(v any) float64 {
+	switch x := v.(type) {
+	case float64:
+		return x
+	case int:
+		return float64(x)
+	}
+	return math.NaN()
 }

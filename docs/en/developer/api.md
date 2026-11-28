@@ -527,6 +527,7 @@ Called by directories such as Entra ID or Okta with the token of a SCIM client (
 | `GET` | `/api/v1/admin/templates/{id}/settings` |
 | `PUT` | `/api/v1/admin/templates/{id}/settings` |
 | `DELETE` | `/api/v1/admin/templates/{id}/settings` |
+| `POST` | `/api/v1/admin/templates/{id}/settings/preview` |
 | `GET` | `/api/v1/templates/{id}/settings` |
 | `GET` | `/api/v1/admin/mfa` |
 | `PUT` | `/api/v1/admin/mfa` |

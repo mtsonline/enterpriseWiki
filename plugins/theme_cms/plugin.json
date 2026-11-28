@@ -16,30 +16,373 @@
       "kind": "color",
       "group": "colors",
       "default": "#0a3760",
+      "css_vars": [
+        "--ewcms-primary-l"
+      ],
+      "scheme": "light",
+      "contrast_on": [
+        "page_bg",
+        "surface"
+      ],
       "label": {
-        "en": "Accent colour",
-        "de": "Akzentfarbe"
+        "en": "Primary colour (light)",
+        "de": "Hauptfarbe (hell)"
       },
       "help": {
-        "en": "For links, active menu items and buttons. Please choose a dark colour (contrast to white at least 4.5 : 1). In the dark scheme the wiki lightens it as far as needed for the same contrast.",
-        "de": "Für Links, aktive Menüpunkte und Schaltflächen. Bitte eine dunkle Farbe wählen (Kontrast zu Weiß mindestens 4,5 : 1). Im dunklen Schema hellt das Wiki sie so weit auf wie für denselben Kontrast nötig."
-      },
+        "en": "Links, buttons, active menu items and the plain start image.",
+        "de": "Links, Schaltflächen, aktive Menüpunkte und das Startbild ohne Foto."
+      }
+    },
+    {
+      "key": "primary_color_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#85b8ff",
+      "css_vars": [
+        "--ewcms-primary-d"
+      ],
+      "scheme": "dark",
       "contrast_on": [
-        "#ffffff"
-      ]
+        "page_bg_dark",
+        "surface_dark"
+      ],
+      "label": {
+        "en": "Primary colour (dark)",
+        "de": "Hauptfarbe (dunkel)"
+      },
+      "help": {
+        "en": "Links, buttons, active menu items and the plain start image.",
+        "de": "Links, Schaltflächen, aktive Menüpunkte und das Startbild ohne Foto."
+      }
+    },
+    {
+      "key": "page_bg",
+      "kind": "color",
+      "group": "colors",
+      "default": "#f6f6f6",
+      "css_vars": [
+        "--ewcms-page-bg"
+      ],
+      "scheme": "light",
+      "label": {
+        "en": "Page background (light)",
+        "de": "Seitenhintergrund (hell)"
+      }
+    },
+    {
+      "key": "page_bg_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#16191d",
+      "css_vars": [
+        "--ewcms-page-bg"
+      ],
+      "scheme": "dark",
+      "label": {
+        "en": "Page background (dark)",
+        "de": "Seitenhintergrund (dunkel)"
+      }
+    },
+    {
+      "key": "surface",
+      "kind": "color",
+      "group": "colors",
+      "default": "#ffffff",
+      "css_vars": [
+        "--ewcms-surface"
+      ],
+      "scheme": "light",
+      "label": {
+        "en": "Background of the content (light)",
+        "de": "Hintergrund des Inhalts (hell)"
+      }
+    },
+    {
+      "key": "surface_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#1d2125",
+      "css_vars": [
+        "--ewcms-surface"
+      ],
+      "scheme": "dark",
+      "label": {
+        "en": "Background of the content (dark)",
+        "de": "Hintergrund des Inhalts (dunkel)"
+      }
+    },
+    {
+      "key": "text",
+      "kind": "color",
+      "group": "colors",
+      "default": "#333333",
+      "css_vars": [
+        "--ewcms-text"
+      ],
+      "scheme": "light",
+      "contrast_on": [
+        "page_bg",
+        "surface"
+      ],
+      "label": {
+        "en": "Text (light)",
+        "de": "Text (hell)"
+      }
+    },
+    {
+      "key": "text_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#dee4ea",
+      "css_vars": [
+        "--ewcms-text"
+      ],
+      "scheme": "dark",
+      "contrast_on": [
+        "page_bg_dark",
+        "surface_dark"
+      ],
+      "label": {
+        "en": "Text (dark)",
+        "de": "Text (dunkel)"
+      }
+    },
+    {
+      "key": "heading",
+      "kind": "color",
+      "group": "colors",
+      "default": "#222222",
+      "css_vars": [
+        "--ewcms-heading"
+      ],
+      "scheme": "light",
+      "contrast_on": [
+        "page_bg",
+        "surface"
+      ],
+      "label": {
+        "en": "Headings (light)",
+        "de": "Überschriften (hell)"
+      }
+    },
+    {
+      "key": "heading_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#f1f4f7",
+      "css_vars": [
+        "--ewcms-heading"
+      ],
+      "scheme": "dark",
+      "contrast_on": [
+        "page_bg_dark",
+        "surface_dark"
+      ],
+      "label": {
+        "en": "Headings (dark)",
+        "de": "Überschriften (dunkel)"
+      }
+    },
+    {
+      "key": "muted",
+      "kind": "color",
+      "group": "colors",
+      "default": "#666666",
+      "css_vars": [
+        "--ewcms-muted"
+      ],
+      "scheme": "light",
+      "contrast_on": [
+        "page_bg",
+        "surface"
+      ],
+      "label": {
+        "en": "Quiet text (light)",
+        "de": "Dezenter Text (hell)"
+      }
+    },
+    {
+      "key": "muted_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#b6c2cf",
+      "css_vars": [
+        "--ewcms-muted"
+      ],
+      "scheme": "dark",
+      "contrast_on": [
+        "page_bg_dark",
+        "surface_dark"
+      ],
+      "label": {
+        "en": "Quiet text (dark)",
+        "de": "Dezenter Text (dunkel)"
+      }
+    },
+    {
+      "key": "line",
+      "kind": "color",
+      "group": "colors",
+      "default": "#e6e6e6",
+      "css_vars": [
+        "--ewcms-line"
+      ],
+      "scheme": "light",
+      "label": {
+        "en": "Lines (light)",
+        "de": "Linien (hell)"
+      }
+    },
+    {
+      "key": "line_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#3a434c",
+      "css_vars": [
+        "--ewcms-line"
+      ],
+      "scheme": "dark",
+      "label": {
+        "en": "Lines (dark)",
+        "de": "Linien (dunkel)"
+      }
+    },
+    {
+      "key": "aside_bg",
+      "kind": "color",
+      "group": "colors",
+      "default": "#ececec",
+      "css_vars": [
+        "--ewcms-aside-bg"
+      ],
+      "scheme": "light",
+      "label": {
+        "en": "Background below the content (light)",
+        "de": "Hintergrund unter dem Inhalt (hell)"
+      }
+    },
+    {
+      "key": "aside_bg_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#22272b",
+      "css_vars": [
+        "--ewcms-aside-bg"
+      ],
+      "scheme": "dark",
+      "label": {
+        "en": "Background below the content (dark)",
+        "de": "Hintergrund unter dem Inhalt (dunkel)"
+      }
+    },
+    {
+      "key": "footer_bg",
+      "kind": "color",
+      "group": "colors",
+      "default": "#222222",
+      "css_vars": [
+        "--ewcms-dark"
+      ],
+      "scheme": "light",
+      "label": {
+        "en": "Background of the footer (light)",
+        "de": "Hintergrund des Fußbereichs (hell)"
+      }
+    },
+    {
+      "key": "footer_bg_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#101317",
+      "css_vars": [
+        "--ewcms-dark"
+      ],
+      "scheme": "dark",
+      "label": {
+        "en": "Background of the footer (dark)",
+        "de": "Hintergrund des Fußbereichs (dunkel)"
+      }
+    },
+    {
+      "key": "socket_bg",
+      "kind": "color",
+      "group": "colors",
+      "default": "#151515",
+      "css_vars": [
+        "--ewcms-darker"
+      ],
+      "scheme": "light",
+      "label": {
+        "en": "Background of the bottom line (light)",
+        "de": "Hintergrund der untersten Zeile (hell)"
+      }
+    },
+    {
+      "key": "socket_bg_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#0b0d10",
+      "css_vars": [
+        "--ewcms-darker"
+      ],
+      "scheme": "dark",
+      "label": {
+        "en": "Background of the bottom line (dark)",
+        "de": "Hintergrund der untersten Zeile (dunkel)"
+      }
+    },
+    {
+      "key": "font",
+      "kind": "font",
+      "group": "fonts",
+      "default": "source-sans",
+      "options": [
+        "source-sans",
+        "inter",
+        "system",
+        "serif"
+      ],
+      "css_vars": [
+        "--ewcms-font"
+      ],
+      "label": {
+        "en": "Text",
+        "de": "Text"
+      }
+    },
+    {
+      "key": "heading_font",
+      "kind": "font",
+      "group": "fonts",
+      "default": "source-sans",
+      "options": [
+        "source-sans",
+        "inter",
+        "poppins",
+        "system",
+        "serif"
+      ],
+      "css_vars": [
+        "--ewcms-heading-font"
+      ],
+      "label": {
+        "en": "Headings",
+        "de": "Überschriften"
+      }
     },
     {
       "key": "logo",
       "kind": "image",
       "group": "logos",
       "role": "logo",
+      "default_src": "/brand/logo.webp",
       "label": {
         "en": "Logo",
         "de": "Logo"
       },
       "help": {
-        "en": "Raster image (PNG, JPEG, WebP), ideally with a transparent background.",
-        "de": "Rasterbild (PNG, JPEG, WebP), am besten mit transparentem Hintergrund."
+        "en": "PNG, WebP or JPEG, ideally with a transparent background.",
+        "de": "PNG, WebP oder JPEG, am besten mit transparentem Hintergrund."
       }
     },
     {
@@ -48,12 +391,41 @@
       "group": "logos",
       "role": "logo_on_dark",
       "label": {
-        "en": "Light logo (over the start image)",
-        "de": "Logo hell (über dem Startbild)"
+        "en": "Logo on a dark background",
+        "de": "Logo auf dunklem Hintergrund"
       },
       "help": {
-        "en": "Optional: light variant shown over the start page image and in the dark colour scheme.",
-        "de": "Optional: helle Variante, die über dem Bild der Startseite und im dunklen Farbschema angezeigt wird."
+        "en": "Shown in the dark colour scheme. Without it the logo is shown.",
+        "de": "Im dunklen Farbschema gezeigt. Ohne dieses Bild erscheint das Logo."
+      }
+    },
+    {
+      "key": "mark",
+      "kind": "image",
+      "group": "logos",
+      "role": "mark",
+      "default_src": "/brand/mark.webp",
+      "label": {
+        "en": "Mark (narrow screens)",
+        "de": "Bildmarke (schmale Bildschirme)"
+      },
+      "help": {
+        "en": "The small sign without text, shown on phones next to the name of the site.",
+        "de": "Das kleine Zeichen ohne Schrift, auf Handys neben dem Namen der Website."
+      }
+    },
+    {
+      "key": "mark_on_dark",
+      "kind": "image",
+      "group": "logos",
+      "role": "mark_on_dark",
+      "label": {
+        "en": "Mark on a dark background",
+        "de": "Bildmarke auf dunklem Hintergrund"
+      },
+      "help": {
+        "en": "Shown on narrow screens in the dark colour scheme.",
+        "de": "Auf schmalen Bildschirmen im dunklen Farbschema gezeigt."
       }
     },
     {
@@ -71,7 +443,11 @@
       "help": {
         "en": "Default 56; the logo gets smaller when scrolling.",
         "de": "Standard 56, beim Scrollen wird das Logo kleiner."
-      }
+      },
+      "css_vars": [
+        "--ewcms-logo-h"
+      ],
+      "unit": "px"
     },
     {
       "key": "header",
@@ -229,5 +605,6 @@
         "de": "Nach oben"
       }
     }
-  ]
+  ],
+  "template_look_root": ".ewcms-app"
 }

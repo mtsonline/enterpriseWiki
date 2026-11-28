@@ -140,6 +140,17 @@ func TestTemplateFonts(t *testing.T) {
 	if code, b, hd := fetch(admin); code != 200 || string(b) != string(raw) || hd.Get("Content-Type") != "font/woff2" || hd.Get("X-Content-Type-Options") != "nosniff" {
 		t.Fatalf("file for a designer: %d %d bytes %v", code, len(b), hd)
 	}
+	// chosen in the settings of a template: public for every visitor; back to
+	// the default: no longer
+	own := fmt.Sprintf("own-%d", font.ID)
+	admin.must("PUT", "/api/v1/admin/templates/theme.wiki/settings", map[string]any{"values": map[string]any{"font": own}}, nil, 200)
+	if code := guest.do("GET", fmt.Sprintf("%s/fonts/%d/css", base, font.ID), nil, nil); code != 200 {
+		t.Fatalf("css of a font chosen in the settings of a template for guests: %d", code)
+	}
+	admin.must("DELETE", "/api/v1/admin/templates/theme.wiki/settings", nil, nil, 204)
+	if code := guest.do("GET", fmt.Sprintf("%s/fonts/%d/css", base, font.ID), nil, nil); code != 404 {
+		t.Fatalf("css of a font no longer chosen for guests: %d", code)
+	}
 
 	// a design may only use fonts that exist
 	var tpl tplResp

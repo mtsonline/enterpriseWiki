@@ -29,7 +29,7 @@ import { pluginModules } from './generated/plugins';
 import { applyScheme } from './core/scheme';
 import { schemeBlock } from './components/scheme';
 import { brandHeader, printBrand } from './components/brand';
-import { hasTemplateSettings, loadTemplateSettings, positionContainer, refreshPositions, setPreviewTemplate, setTemplateSettingsDraft, templateSettingsOf, registerPageAction, registerProfileSection, registerSlot, registerTemplate, previewTemplate, resolveTemplate, setShownTemplate, siteTemplate, triedTemplate } from './coreplugin';
+import { applyTemplateLook, hasTemplateSettings, loadTemplateSettings, positionContainer, refreshPositions, setPreviewTemplate, setTemplateSettingsDraft, templateSettingsOf, type TemplateSettingsState, registerPageAction, registerProfileSection, registerSlot, registerTemplate, previewTemplate, resolveTemplate, setShownTemplate, siteTemplate, triedTemplate } from './coreplugin';
 import { tryBar } from './components/trytemplate';
 import { closedPage, maintenanceBar } from './components/maintenance';
 import { cookieBanner, cookieSettingsBlock, privacyGate } from './components/consent';
@@ -211,6 +211,7 @@ async function boot(): Promise<void> {
   document.body.classList.add('ew', ...tpl.classNames);
   applyScheme(tpl.id);
   const build = () => {
+    applyTemplateLook(tpl.id);
     const layout = tpl.layout({ position: (name, tag) => positionContainer(name, tag), settings: templateSettingsOf(tpl.id) });
     mount(app, layout.root, printBrand());
     trackStickyHeader(layout.root);
@@ -342,12 +343,12 @@ function setupSettingsPreview(): void {
   const draft = parent.__ewTplSettingsDraft;
   if (!draft || typeof draft.id !== 'string' || !resolveTemplate(draft.id, draft.id)) return;
   setPreviewTemplate(draft.id);
-  setTemplateSettingsDraft(draft.id, draft.values);
-  (window as unknown as SettingsPreviewWindow).__ewTplSettingsUpdate = (values) => {
-    setTemplateSettingsDraft(draft.id, values);
+  setTemplateSettingsDraft(draft.id, draft.state);
+  (window as unknown as SettingsPreviewWindow).__ewTplSettingsUpdate = (next) => {
+    setTemplateSettingsDraft(draft.id, next);
     window.dispatchEvent(new Event('ewiki:relayout'));
   };
 }
 
-interface SettingsPreviewParent { location: Location; __ewTplSettingsDraft?: { id: string; values: Record<string, unknown> } }
-interface SettingsPreviewWindow { __ewTplSettingsUpdate?: (values: Record<string, unknown>) => void }
+interface SettingsPreviewParent { location: Location; __ewTplSettingsDraft?: { id: string; state: TemplateSettingsState } }
+interface SettingsPreviewWindow { __ewTplSettingsUpdate?: (next: TemplateSettingsState) => void }

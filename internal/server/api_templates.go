@@ -79,15 +79,7 @@ func (s *Server) routesTemplates() {
 		if err != nil {
 			return nil, apperr.BadRequest("%v", err)
 		}
-		return s.storeTemplateSettings(r, id, desc, func(m map[string]any) {
-			for k, v := range in.Values {
-				if c, ok := checked[k]; ok && v != nil {
-					m[k] = c
-				} else {
-					delete(m, k)
-				}
-			}
-		})
+		return s.storeTemplateSettings(r, id, desc, func(m map[string]any) { applyChanges(m, in.Values, checked) })
 	})
 
 	// DELETE /admin/templates/{id}/settings → all settings of the template
@@ -112,11 +104,43 @@ func (s *Server) routesTemplates() {
 	// action: core.templates.settings.effective
 	s.handle("GET /api/v1/templates/{id}/settings", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id := r.PathValue("id")
-		desc, err := s.templateSettings(id)
+		t, err := s.template(id)
 		if err != nil {
 			return nil, err
 		}
-		return publicTemplateSettings(desc, s.app.Config.Get().TemplateSettings[id]), nil
+		return publicTemplateSettings(t, s.app.Config.Get().TemplateSettings[id]), nil
+	})
+
+	// POST /admin/templates/{id}/settings/preview {values} → the effective
+	// values and the look of a draft (the stored values with the changes
+	// given), checked like a save but not stored: the live preview of the
+	// form shows exactly what saving would give.
+	// action: core.templates.settings.preview
+	s.handle("POST /api/v1/admin/templates/{id}/settings/preview", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireAdmin(r); err != nil {
+			return nil, err
+		}
+		id := r.PathValue("id")
+		t, err := s.template(id)
+		if err != nil {
+			return nil, err
+		}
+		var in struct {
+			Values map[string]any `json:"values"`
+		}
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		checked, err := tplsettings.Check(t.settings, in.Values, s.uploadedImage(r))
+		if err != nil {
+			return nil, apperr.BadRequest("%v", err)
+		}
+		draft := maps.Clone(s.app.Config.Get().TemplateSettings[id])
+		if draft == nil {
+			draft = map[string]any{}
+		}
+		applyChanges(draft, in.Values, checked)
+		return publicTemplateSettings(t, draft), nil
 	})
 }
 
@@ -125,7 +149,22 @@ func (s *Server) routesTemplates() {
 // declares none uses the description of the template it extends; its
 // values stay its own (each template has its own settings).
 func (s *Server) templateSettings(id string) ([]tplsettings.Setting, error) {
-	// only the manifests needed are read (this runs for every /site)
+	t, err := s.template(id)
+	return t.settings, err
+}
+
+// tplInfo is what the server needs to know of a template for its settings.
+type tplInfo struct {
+	settings []tplsettings.Setting
+	// root of the CSS variables (Manifest.TemplateLookRoot)
+	root string
+}
+
+// template finds a template that can be used now (a switched on template
+// plugin). A variant that declares no settings uses the description of the
+// template it extends; its values stay its own (each template has its own
+// settings). Only the manifests needed are read: this runs for every /site.
+func (s *Server) template(id string) (tplInfo, error) {
 	find := func(id string) (coreplugin.Manifest, bool) {
 		p, ok := s.app.Kernel.Get(id)
 		if !ok || !s.app.Kernel.Enabled(id) {
@@ -136,26 +175,31 @@ func (s *Server) templateSettings(id string) ([]tplsettings.Setting, error) {
 	}
 	m, ok := find(id)
 	if !ok {
-		return nil, apperr.NotFound("template")
+		return tplInfo{}, apperr.NotFound("template")
 	}
-	if len(m.TemplateSettings) == 0 {
+	t := tplInfo{settings: m.TemplateSettings, root: m.TemplateLookRoot}
+	if len(t.settings) == 0 {
 		for _, base := range m.Extends {
 			if b, ok := find(base); ok && len(b.TemplateSettings) > 0 {
-				return b.TemplateSettings, nil
+				t.settings = b.TemplateSettings
+				if t.root == "" {
+					t.root = b.TemplateLookRoot
+				}
+				break
 			}
 		}
 	}
-	return m.TemplateSettings, nil
+	return t, nil
 }
 
 // siteTemplateSettings are the effective settings of the template of the
 // site (sent with /site); empty for a template without settings.
 func (s *Server) siteTemplateSettings(c *config.Config) map[string]any {
-	desc, err := s.templateSettings(c.UI.Template)
+	t, err := s.template(c.UI.Template)
 	if err != nil {
-		return map[string]any{}
+		return map[string]any{"values": map[string]any{}}
 	}
-	return publicTemplateSettings(desc, c.TemplateSettings[c.UI.Template])
+	return publicTemplateSettings(t, c.TemplateSettings[c.UI.Template])
 }
 
 // storeTemplateSettings changes the stored values of a template with
@@ -215,6 +259,18 @@ func (s *Server) imageInfo(ctx context.Context, hash string) (string, int, int, 
 	return format, cfg.Width, cfg.Height, nil
 }
 
+// applyChanges puts the checked values into the stored ones; a value sent
+// as null removes the stored one (back to the default).
+func applyChanges(stored, sent, checked map[string]any) {
+	for k, v := range sent {
+		if c, ok := checked[k]; ok && v != nil {
+			stored[k] = c
+		} else {
+			delete(stored, k)
+		}
+	}
+}
+
 // changedKeys lists the settings that have a stored value (shown as changed,
 // with "reset" next to them).
 func changedKeys(desc []tplsettings.Setting, stored map[string]any) []string {
@@ -227,14 +283,15 @@ func changedKeys(desc []tplsettings.Setting, stored map[string]any) []string {
 	return out
 }
 
-// publicTemplateSettings are the effective values as a page needs them:
-// images as their address and size.
-func publicTemplateSettings(desc []tplsettings.Setting, stored map[string]any) map[string]any {
-	out := tplsettings.Effective(desc, stored)
-	for k, v := range out {
+// publicTemplateSettings are the effective values as a page needs them
+// (images as their address and size) and the look: the CSS variables of
+// the values changed from their defaults, with the element they belong to.
+func publicTemplateSettings(t tplInfo, stored map[string]any) map[string]any {
+	values := tplsettings.Effective(t.settings, stored)
+	for k, v := range values {
 		if img, ok := v.(tplsettings.Image); ok {
-			out[k] = map[string]any{"src": "/api/v1/files/" + img.Hash, "width": img.Width, "height": img.Height}
+			values[k] = map[string]any{"src": "/api/v1/files/" + img.Hash, "width": img.Width, "height": img.Height}
 		}
 	}
-	return out
+	return map[string]any{"values": values, "look": tplsettings.LookOf(t.settings, stored), "root": t.root}
 }

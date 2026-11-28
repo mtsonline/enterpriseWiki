@@ -372,8 +372,8 @@ var traps = []trap{
 	{
 		ID: "template.font-public", About: "the file of a font no template outside the trash uses is public",
 		File: "plugins/core_template/fonts.go",
-		Old:  "\t\treturn true, nil\n\t}\n\ttoken := \"own-\" + strconv.FormatInt(id, 10)\n\tvar public bool",
-		New:  "\t\treturn true, nil\n\t}\n\tif id > 0 {\n\t\treturn true, nil\n\t}\n\ttoken := \"own-\" + strconv.FormatInt(id, 10)\n\tvar public bool",
+		Old:  "\t\treturn true, nil\n\t}\n\ttoken := \"own-\" + strconv.FormatInt(id, 10)\n",
+		New:  "\t\treturn true, nil\n\t}\n\tif id > 0 {\n\t\treturn true, nil\n\t}\n\ttoken := \"own-\" + strconv.FormatInt(id, 10)\n",
 		Pkg:  "./internal/server/", Tests: "^TestTemplateFonts$",
 	},
 	{
@@ -2133,5 +2133,12 @@ var traps = []trap{
 		Old:  "[]map[string]map[string]any{c.Settings, c.TemplateSettings}",
 		New:  "[]map[string]map[string]any{c.Settings}",
 		Pkg:  "./internal/server/", Tests: "^TestTemplateSettings$",
+	},
+	{
+		ID: "tplsettings.look-writes-defaults", About: "the look of a template writes values that equal the defaults (the template loses its own look)",
+		File: "internal/tplsettings/tplsettings.go",
+		Old:  "		if err != nil || c == s.Default || (s.Kind == KindNumber && s.Default != nil && toFloat(s.Default) == c) {",
+		New:  "		if err != nil {",
+		Pkg:  "./internal/tplsettings/", Tests: "^TestLook$",
 	},
 }

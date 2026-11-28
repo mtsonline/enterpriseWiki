@@ -168,6 +168,10 @@ Jede Vorlage bietet Positionen, an denen Menüs (`core.menu`), Bausteine (`core.
 
 Bei der Wiki-Vorlage (`theme.wiki`, `theme.wiki.dark`) lässt sich die Seitenleiste auf allen Bildschirmgrößen über den Knopf im Kopfbereich ausblenden; der Zustand wird im Browser gemerkt.
 
+### Einstellungen der Templates
+
+Jedes Template bietet seine Einstellungen unter *Administration → Templates → Einstellungen* an, jedes Template mit eigenen Werten: die Wiki-Templates (`theme.wiki`, `theme.wiki.dark`) ihre Farben im hellen und im dunklen Schema, die Schriften von Text und Überschriften, das Logo, das Logo auf dunklem Hintergrund, die Bildmarke und die Bildmarke auf dunklem Hintergrund (schmale Bildschirme), die Höhe des Logos und die Breite der Seitenleiste. Jedes Feld zeigt die Vorgabe, die das Template mitbringt; *Zurücksetzen* führt dorthin zurück. Logos und Bilder sind hochgeladene PNG-, WebP- oder JPEG-Dateien (kein SVG).
+
 ### Website-Templates einrichten
 
 *Administration → Templates → Einstellungen*, für jedes der beiden Website-Templates einzeln (`theme.cms` und `theme.cms.modern`; gespeichert in `template_settings` der `config.yaml`, API `PUT /api/v1/admin/templates/{id}/settings`, CLI `ewiki templates settings set`). Der Server prüft jeden Wert gegen die Liste, die das Template anmeldet. Ohne Änderung hat jede Einstellung die Vorgabe, die das Template mitbringt; *Zurücksetzen* führt dorthin zurück.
@@ -175,7 +179,10 @@ Bei der Wiki-Vorlage (`theme.wiki`, `theme.wiki.dark`) lässt sich die Seitenlei
 | Einstellung | Bedeutung |
 |---|---|
 | `logo`, `logo_light`, `logo_height` | Logo (hochgeladenes Bild) und helle Variante für den transparenten Kopfbereich über dem Startbild; Höhe in Pixel; im dunklen Schema zeigt der Kopf immer die helle Variante (ohne sie das normale Logo) |
-| `primary_color` | Hauptfarbe (Links, Schaltflächen, aktive Navigation), `#rrggbb`; im dunklen Schema hellt das Wiki sie so weit auf wie für 4,5 : 1 nötig |
+| `primary_color`, `primary_color_dark` | Hauptfarbe (Links, Schaltflächen, aktive Navigation) im hellen und im dunklen Schema, `#rrggbb` |
+| `page_bg`, `surface`, `text`, `heading`, `muted`, `line`, … (jeweils auch `_dark`) | die Farben der Seite in beiden Schemata; das Formular warnt, wenn Text weniger als 4,5 : 1 hat |
+| `font`, `heading_font` | Schrift des Textes und der Überschriften |
+| `mark`, `mark_on_dark` | die Bildmarke, auf schmalen Bildschirmen statt des Logos |
 | `header` | `overlay`: Kopfbereich liegt transparent über dem Startbild und wird beim Scrollen weiß; `solid`: immer weiß |
 | `hero_image`, `hero_title`, `hero_subtitle`, `hero_button_label`, `hero_button_link`, `hero_size` | Startbild nur auf der Startseite; Größe `large` oder `medium` |
 | `banner`, `banner_image` | Seitentitel auf Unterseiten in einem Bild-Banner (ohne eigenes Bild wird ein Farbverlauf verwendet) |
