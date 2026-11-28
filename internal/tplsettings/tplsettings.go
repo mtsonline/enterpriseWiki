@@ -107,7 +107,8 @@ type Setting struct {
 	// Unit of a number written to CSS variables (see Units).
 	Unit string `json:"unit,omitempty"`
 	// DefaultSrc is the image the template shows without one of its own (a
-	// file the template ships, shown in the form as the default).
+	// file the template ships, or for a template of data an uploaded file
+	// /api/v1/files/HASH; shown in the form as the default).
 	DefaultSrc string `json:"default_src,omitempty"`
 	// ContrastOn are the colours a colour is shown on (other colour
 	// settings by key, or "#rrggbb"): the form warns while the contrast to
@@ -138,7 +139,7 @@ var (
 	optRe   = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,47}$`)
 	cssVar  = regexp.MustCompile(`^--[a-z][a-z0-9-]{0,62}$`)
 	ownFont = regexp.MustCompile(`^own-[1-9][0-9]{0,17}$`)
-	srcRe   = regexp.MustCompile(`^/[A-Za-z0-9_./-]{1,200}\.(png|webp|jpe?g)$`)
+	srcRe   = regexp.MustCompile(`^/[A-Za-z0-9_./-]{1,200}\.(png|webp|jpe?g)$|^/api/v1/files/[0-9a-f]{64}$`)
 )
 
 // CheckDescription checks the description of the settings of a template
@@ -206,7 +207,7 @@ func CheckDescription(list []Setting) error {
 			return fmt.Errorf("setting %q: unit is for numbers, one of %v", s.Key, Units)
 		}
 		if s.DefaultSrc != "" && (s.Kind != KindImage || !srcRe.MatchString(s.DefaultSrc) || strings.Contains(s.DefaultSrc, "..") || strings.HasPrefix(s.DefaultSrc, "//")) {
-			return fmt.Errorf("setting %q: default_src is a path of a PNG, WebP or JPEG file the template ships", s.Key)
+			return fmt.Errorf("setting %q: default_src is a path of a PNG, WebP or JPEG file the template ships or /api/v1/files/HASH", s.Key)
 		}
 		if s.Kind == KindFont {
 			if len(s.Options) == 0 {

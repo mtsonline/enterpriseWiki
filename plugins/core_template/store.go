@@ -388,6 +388,9 @@ func (p *Plugin) checked(ctx context.Context, raw json.RawMessage) (json.RawMess
 	if err := requireCSSAllowed(d, p.cssAllowed()); err != nil {
 		return nil, err
 	}
+	if err := p.checkLogo(ctx, d); err != nil {
+		return nil, err
+	}
 	if ps, err := p.fontProblems(ctx, d); err != nil {
 		return nil, err
 	} else if len(ps) > 0 {
@@ -402,12 +405,18 @@ func (p *Plugin) create(ctx context.Context, in input) (*Template, error) {
 		return nil, err
 	}
 	design, based := in.Design, ""
+	// a copy takes the effective values of the settings of its original as
+	// its defaults, and keeps the logos that are no token as its settings
+	var keep map[string]any
 	if in.CopyOf != "" {
 		src, err := p.get(ctx, in.CopyOf, false)
 		if err != nil {
 			return nil, err
 		}
 		design, based = src.Design, src.ID
+		if design, keep, err = p.copySettings(src.ID, design); err != nil {
+			return nil, err
+		}
 	}
 	if len(design) == 0 {
 		return nil, apperr.BadRequest("a template needs a design or a template to copy (copy_of)")
@@ -437,6 +446,11 @@ func (p *Plugin) create(ctx context.Context, in input) (*Template, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+	if len(keep) > 0 {
+		if err := p.setStoredSettings(fmt.Sprintf("%s/%d", ID, id), keep); err != nil {
+			return nil, err
+		}
 	}
 	return p.get(ctx, strconv.FormatInt(id, 10), false)
 }
@@ -578,6 +592,12 @@ func (p *Plugin) setRights(ctx context.Context, key string, in Rights) (*Templat
 func (p *Plugin) Setup(host *coreplugin.Host) error {
 	p.host = host
 	host.Content.AddTemplateSource(ID, p)
+	// the logo of a design is an uploaded file: the storage clean-up keeps
+	// it while a template or one of its versions refers to it
+	if host.Files != nil {
+		host.Files.AddReference("plugin_templates", "design")
+		host.Files.AddReference("plugin_template_versions", "design")
+	}
 	p.setupFonts(host)
 	design := func(r *http.Request) error { return perm.Require(r.Context(), permDesign) }
 
@@ -717,6 +737,10 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 				return audit.Log(ctx, tx, "core.template.purge", "template", n, map[string]any{"names": t.Names}, nil)
 			})
 			if err != nil {
+				return nil, err
+			}
+			// its settings go too (they would only keep their files)
+			if err := p.setStoredSettings(t.ID, nil); err != nil {
 				return nil, err
 			}
 			w.WriteHeader(http.StatusNoContent)

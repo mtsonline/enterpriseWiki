@@ -119,7 +119,7 @@
  "template.d_leave": "The template has changes that are not saved. Leave without saving?",
  "template.d_leave_ok": "Leave without saving",
  "template.d_logo": "Logo",
- "template.d_logo_help": "Address of a picture of the wiki (/api/v1/files/…); empty: the name of the wiki.",
+ "template.d_logo_help": "Address of a PNG, WebP or JPEG picture of the wiki (/api/v1/files/…); empty: the name of the wiki. The settings of the template can replace it.",
  "template.d_mode": "View of the designer",
  "template.d_mode_text": "As text (JSON)",
  "template.d_mode_visual": "Visual",
@@ -283,5 +283,14 @@
  "template.designer_help": "Choose a template of data to change it. To start a new one, copy a template in the overview.",
  "template.designer_none": "There is no template here that you may change. Copy a template in the overview first.",
  "template.trash_help": "Deleted templates of data. Restore them or delete them for good.",
- "template.trash_empty": "The trash is empty."
+ "template.trash_empty": "The trash is empty.",
+ "template.s_dark_color": "{name} (dark colours)",
+ "template.s_logo": "Logo",
+ "template.s_logo_help": "Shown in the area \"Logo and name\" next to the name of the wiki. PNG, WebP or JPEG. Without one: the logo of the design, if it has one.",
+ "template.s_mark": "Mark for narrow screens",
+ "template.s_mark_help": "A small logo instead of the logo on narrow screens (up to 600 px). Without one: the logo.",
+ "template.s_logo_on_dark": "Logo on dark colours",
+ "template.s_mark_on_dark": "Mark on dark colours",
+ "template.s_on_dark_help": "Shown in the dark colour scheme instead. Without one: the same as in the light scheme.",
+ "template.s_content_width_help": "Every row must still have room for its areas. Otherwise saving fails and says which row."
 }

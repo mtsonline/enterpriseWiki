@@ -119,7 +119,7 @@
  "template.d_leave": "Das Template hat Änderungen, die nicht gespeichert sind. Ohne Speichern verlassen?",
  "template.d_leave_ok": "Ohne Speichern verlassen",
  "template.d_logo": "Logo",
- "template.d_logo_help": "Adresse eines Bildes des Wikis (/api/v1/files/…); leer: der Name des Wikis.",
+ "template.d_logo_help": "Adresse eines PNG-, WebP- oder JPEG-Bildes des Wikis (/api/v1/files/…); leer: der Name des Wikis. Die Einstellungen des Templates können es ersetzen.",
  "template.d_mode": "Ansicht des Designers",
  "template.d_mode_text": "Als Text (JSON)",
  "template.d_mode_visual": "Visuell",
@@ -283,5 +283,14 @@
  "template.designer_help": "Wählen Sie ein Template aus Daten, um es zu ändern. Für ein neues kopieren Sie ein Template in der Übersicht.",
  "template.designer_none": "Hier gibt es kein Template, das Sie ändern dürfen. Kopieren Sie zuerst ein Template in der Übersicht.",
  "template.trash_help": "Gelöschte Templates aus Daten. Sie können sie wiederherstellen oder endgültig löschen.",
- "template.trash_empty": "Der Papierkorb ist leer."
+ "template.trash_empty": "Der Papierkorb ist leer.",
+ "template.s_dark_color": "{name} (dunkle Farben)",
+ "template.s_logo": "Logo",
+ "template.s_logo_help": "Steht im Bereich „Logo und Name“ neben dem Namen des Wikis. PNG, WebP oder JPEG. Ohne eigenes: das Logo des Designs, falls es eins hat.",
+ "template.s_mark": "Zeichen für schmale Bildschirme",
+ "template.s_mark_help": "Ein kleines Logo statt des Logos auf schmalen Bildschirmen (bis 600 px). Ohne eigenes: das Logo.",
+ "template.s_logo_on_dark": "Logo auf dunklen Farben",
+ "template.s_mark_on_dark": "Zeichen auf dunklen Farben",
+ "template.s_on_dark_help": "Wird stattdessen im dunklen Farbschema gezeigt. Ohne eigenes: dasselbe wie im hellen Schema.",
+ "template.s_content_width_help": "Jede Zeile muss weiter Platz für ihre Bereiche haben. Sonst scheitert das Speichern und nennt die Zeile."
 }

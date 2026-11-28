@@ -1270,5 +1270,8 @@
  "translation into %q: title at most 200, text at most 600 characters": "Übersetzung in %q: Titel höchstens 200, Text höchstens 600 Zeichen",
  "ui.choice_checkboxes must be 0 (default %d) to %d": "ui.choice_checkboxes muss 0 (Vorgabe %d) bis %d sein",
  "step %q: an assignee has at most 200 characters": "Schritt %q: Ein Eintrag bei den Zuständigen hat höchstens 200 Zeichen",
- "step %q: at most %d assignees": "Schritt %q: höchstens %d Zuständige"
+ "step %q: at most %d assignees": "Schritt %q: höchstens %d Zuständige",
+ "tokens.logo: an uploaded file of the wiki (/api/v1/files/…)": "tokens.logo: eine hochgeladene Datei des Wikis (/api/v1/files/…)",
+ "tokens.logo: only PNG, WebP or JPEG images, not %q": "tokens.logo: nur Bilder als PNG, WebP oder JPEG, nicht %q",
+ "tokens.logo: the file does not exist": "tokens.logo: Die Datei gibt es nicht"
 }

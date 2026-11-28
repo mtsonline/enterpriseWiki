@@ -108,7 +108,8 @@ export interface LayoutContext {
   /** Returns a live container for a position (re-rendered on changes). */
   position(name: string, tag?: keyof HTMLElementTagNameMap): HTMLElement;
   /** The effective values of the settings the template declared (its
-   * manifest, "template_settings"); checked by the server. Images are
+   * manifest, "template_settings"; a template of data: its design); checked
+   * by the server. Images are
    * { src, width, height }. */
   settings: TemplateSettingValues;
 }
@@ -199,7 +200,11 @@ let tplSettingsDraft: (TemplateSettingsState & { id: string }) | null = null;
 
 /** What the server gives for the settings of a template: the effective
  * values, the CSS variables of the changed ones and their element. */
-export interface TemplateSettingsState { values: TemplateSettingValues; look?: TemplateLook; root?: string }
+export interface TemplateSettingsState {
+  values: TemplateSettingValues; look?: TemplateLook; root?: string;
+  /** the preview of a draft only: why saving it would fail (a template of data checks its design with the values) */
+  problem?: string;
+}
 
 /** Loads the settings of a template (the template of the site comes with
  * the site already). Failing, the template is built with its defaults. */

@@ -478,7 +478,7 @@ A template declares the settings it offers in the manifest of its plugin, under 
 - **Images:** only uploaded PNG, WebP and JPEG files (no SVG: it can contain scripts). The server reads their size when they are saved.
 - **Contrast:** `contrast_on` lists the colours a colour is shown on (other colour settings by key, or `#rrggbb`). The form warns while the contrast is below 4.5:1.
 - **CSS variables:** `css_vars` lists the CSS variables a colour, font or number is written to (a number with its `unit`: `px`, `rem`, `em` or `%`); `scheme` limits them to the `light` or `dark` colour scheme. The core sets them while the value differs from the default, so the template keeps its own look by default and needs no code for them. Without `template_look_root` they go on `<body>` (the variables `--ew-*` of the core); with it (one class, such as `".ewcms-app"`) on the element where the template defines its own variables. When `--ew-primary` changes, the core derives `--ew-primary-hover`.
-- **Default images:** `default_src` names the image the template ships (shown in the form as the default).
+- **Default images:** `default_src` names the image the template ships (shown in the form as the default); a template of data names its uploaded logo (`/api/v1/files/HASH`).
 - **Checked on the server:** every value is checked against the description before it is stored (`internal/tplsettings`). A list with an error stops the plugin from starting. Stored values the template no longer declares, or that no longer fit, are left out.
 
 The layout gets the effective values in the field settings of its context (images as `{ src, width, height }`; `imageSetting(v)` returns such an image or `null`). Blocks of a template that are drawn later (such as a start image at a position) read them with `shownTemplateSettings()`. Give every image its `width` and `height`, so it reserves its room before it loads:
@@ -490,6 +490,8 @@ layout: (ctx) => {
   // …
 }
 ```
+
+**Templates of a plugin that are not plugins** (like the templates of data of `core.template`, ids `plugin-id/…`) declare their settings in code: the `content.TemplateSource` of the plugin also implements `content.TemplateSettingsSource`. `TemplateSettings(ctx, id)` returns the description and a check of the effective values that runs before each change is stored (400 with its text) and in the preview (the answer then names it in `problem`). The templates of data describe their design values with the design as the defaults and check the design with the values like a saved design (`plugins/core_template/settings.go`); in the browser the engine turns the values into the tokens (`plugins/core_template/web/settings.ts`). In the address, the `/` of such an id is written as `%2F`.
 
 The live preview asks `POST /api/v1/admin/templates/{id}/settings/preview` for the values and CSS variables of a draft (checked, not stored). The values come from `GET /api/v1/templates/{id}/settings` (those of the template of the site come with `/api/v1/site`). Administrators change them with `PUT` and `DELETE /api/v1/admin/templates/{id}/settings` or `ewiki templates settings set|reset`.
 

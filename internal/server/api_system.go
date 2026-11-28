@@ -71,7 +71,7 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 		"name": c.UI.SiteName, "template": c.UI.Template, "templates": templates, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"), "collaboration": c.UI.Collaboration, "personal_placement": c.UI.PersonalPlacement, "custom_css": c.UI.CustomCSS, "editor_tools": siteEditorTools(c.UI.EditorTools), "dashboard_tiles": nonNil(c.UI.DashboardTiles), "dashboard_home": c.UI.DashboardHome, "maintenance": siteMaintenance(c.Maintenance), "consent": siteConsent(c.Consent), "not_found_element": c.UI.NotFoundElement, "forbidden_element": c.UI.ForbiddenElement,
 		"wait_notice_s": limits.Value(c, limits.WaitNoticeSeconds),
 		// the settings of the template of the site come along (no request more)
-		"template_settings": s.siteTemplateSettings(c),
+		"template_settings": s.siteTemplateSettings(r.Context(), c),
 		"readability":       siteReadability(c),
 		// lists up to this length as checkboxes, longer ones as a list with a filter
 		"choice_checkboxes": cmp.Or(c.UI.ChoiceCheckboxes, config.ChoiceCheckboxesDefault),

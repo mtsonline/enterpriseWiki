@@ -4,6 +4,8 @@ import (
 	"context"
 	"slices"
 	"strings"
+
+	"github.com/mtsonline/enterprisewiki/internal/tplsettings"
 )
 
 // TemplateName is a website template a plugin offers besides the template
@@ -27,6 +29,17 @@ type TemplateSource interface {
 	// ColorScheme is the default scheme of the template id ("" = light colors
 	// only, or not a template of the source).
 	ColorScheme(ctx context.Context, id string) string
+}
+
+// TemplateSettingsSource is a TemplateSource whose templates have settings
+// (Administration → Templates → Settings), like the templates of code
+// declare them in their manifest.
+type TemplateSettingsSource interface {
+	// TemplateSettings describes the settings of the template id. check,
+	// when not nil, tests the effective values (defaults and stored values)
+	// before a change is stored; its error says what is wrong. ok is false
+	// when id is no template of the source.
+	TemplateSettings(ctx context.Context, id string) (desc []tplsettings.Setting, check func(ctx context.Context, values map[string]any) error, ok bool)
 }
 
 type templateSource struct {
@@ -74,6 +87,20 @@ func (s *Service) TemplateColorScheme(ctx context.Context, id string) string {
 		}
 	}
 	return ""
+}
+
+// TemplateSettings describes the settings of a template a switched on
+// plugin offers (see TemplateSettingsSource); ok is false for an unknown
+// template or a source without settings.
+func (s *Service) TemplateSettings(ctx context.Context, id string) ([]tplsettings.Setting, func(context.Context, map[string]any) error, bool) {
+	for _, t := range s.templateSources() {
+		if strings.HasPrefix(id, t.plugin+"/") && s.enabled(t.plugin) {
+			if ss, ok := t.src.(TemplateSettingsSource); ok {
+				return ss.TemplateSettings(ctx, id)
+			}
+		}
+	}
+	return nil, nil, false
 }
 
 // ExtraTemplates lists the templates offered by switched on plugins.

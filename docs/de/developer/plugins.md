@@ -478,7 +478,7 @@ Ein Template meldet seine Einstellungen im Manifest seines Plugins an, unter `"t
 - **Bilder:** nur hochgeladene PNG-, WebP- und JPEG-Dateien (kein SVG: Es kann Skripte enthalten). Der Server liest ihre Größe beim Speichern.
 - **Kontrast:** `contrast_on` nennt die Farben, auf denen eine Farbe steht (andere Farb-Einstellungen über ihren Schlüssel oder `#rrggbb`). Das Formular warnt, solange der Kontrast unter 4,5:1 liegt.
 - **CSS-Variablen:** `css_vars` nennt die CSS-Variablen, in die eine Farbe, Schrift oder Zahl geschrieben wird (eine Zahl mit ihrer Einheit `unit`: `px`, `rem`, `em` oder `%`); `scheme` beschränkt sie auf das helle (`light`) oder dunkle (`dark`) Farbschema. Der Kern setzt sie, solange der Wert von der Vorgabe abweicht. So behält das Template ohne Änderung sein eigenes Aussehen und braucht keinen Code dafür. Ohne `template_look_root` gelten sie für `<body>` (die Variablen `--ew-*` des Kerns), mit ihm (eine Klasse, etwa `".ewcms-app"`) für das Element, an dem das Template seine eigenen Variablen festlegt. Ändert sich `--ew-primary`, leitet der Kern `--ew-primary-hover` ab.
-- **Vorgabe-Bilder:** `default_src` nennt das Bild, das das Template mitbringt (im Formular als Vorgabe gezeigt).
+- **Vorgabe-Bilder:** `default_src` nennt das Bild, das das Template mitbringt (im Formular als Vorgabe gezeigt); ein Template aus Daten nennt sein hochgeladenes Logo (`/api/v1/files/HASH`).
 - **Geprüft im Server:** Jeder Wert wird vor dem Speichern gegen die Beschreibung geprüft (`internal/tplsettings`). Eine fehlerhafte Liste verhindert den Start des Plugins. Gespeicherte Werte, die das Template nicht mehr anmeldet oder die nicht mehr passen, bleiben weg.
 
 Das Layout bekommt die wirksamen Werte im Feld settings seines Kontexts (Bilder als `{ src, width, height }`; `imageSetting(v)` liefert so ein Bild oder `null`). Bausteine eines Templates, die später gezeichnet werden (etwa ein Startbild an einer Position), lesen sie mit `shownTemplateSettings()`. Geben Sie jedem Bild `width` und `height`, damit es seinen Platz vor dem Laden reserviert:
@@ -490,6 +490,8 @@ layout: (ctx) => {
   // …
 }
 ```
+
+**Templates eines Plugins, die selbst keine Plugins sind** (wie die Templates aus Daten von `core.template`, IDs `plugin-id/…`), melden ihre Einstellungen im Code an: Die `content.TemplateSource` des Plugins setzt auch `content.TemplateSettingsSource` um. `TemplateSettings(ctx, id)` gibt die Beschreibung zurück und eine Prüfung der wirksamen Werte, die vor jedem Speichern läuft (400 mit ihrem Text) und in der Vorschau (die Antwort nennt ihn dann in `problem`). Die Templates aus Daten beschreiben ihre Werte des Designs mit dem Design als Vorgabe und prüfen das Design mit den Werten wie ein gespeichertes (`plugins/core_template/settings.go`); im Browser macht die Engine aus den Werten die Tokens (`plugins/core_template/web/settings.ts`). In der Adresse steht der `/` einer solchen ID als `%2F`.
 
 Die Live-Vorschau fragt `POST /api/v1/admin/templates/{id}/settings/preview` nach den Werten und CSS-Variablen eines Entwurfs (geprüft, nicht gespeichert). Die Werte kommen von `GET /api/v1/templates/{id}/settings` (die des Website-Templates gleich mit `/api/v1/site`). Die Verwaltung ändert sie mit `PUT` und `DELETE /api/v1/admin/templates/{id}/settings` oder `ewiki templates settings set|reset`.
 

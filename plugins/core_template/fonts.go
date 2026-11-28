@@ -336,7 +336,23 @@ func (p *Plugin) fonts(ctx context.Context) ([]Font, error) {
 			}
 		}
 	}
-	return out, used.Err()
+	if err := used.Err(); err != nil {
+		return nil, err
+	}
+	// and the settings of templates that choose them (Templates → Settings)
+	for tpl, m := range p.host.Config.Get().TemplateSettings {
+		for _, v := range m {
+			for i := range out {
+				if v == out[i].Token && !slices.Contains(out[i].UsedBy, tpl) {
+					out[i].UsedBy = append(out[i].UsedBy, tpl)
+				}
+			}
+		}
+	}
+	for i := range out {
+		slices.Sort(out[i].UsedBy)
+	}
+	return out, nil
 }
 
 type checkedFace struct {
@@ -536,11 +552,20 @@ func (p *Plugin) setupFonts(host *coreplugin.Host) {
 			if err != nil {
 				return err
 			}
-			if len(used) > 0 {
-				names := make([]string, len(used))
-				for i, u := range used {
-					names[i] = fmt.Sprintf("%s/%d", ID, u)
+			names := make([]string, 0, len(used))
+			for _, u := range used {
+				names = append(names, fmt.Sprintf("%s/%d", ID, u))
+			}
+			// the settings of a template may choose it too (Templates → Settings)
+			for tpl, m := range host.Config.Get().TemplateSettings {
+				for _, v := range m {
+					if v == token && !slices.Contains(names, tpl) {
+						names = append(names, tpl)
+					}
 				}
+			}
+			if len(names) > 0 {
+				slices.Sort(names)
 				return apperr.Conflict("the font is used by %s (also templates in the trash); choose another font there first", strings.Join(names, ", "))
 			}
 			if _, err := tx.Exec(ctx, `DELETE FROM plugin_template_fonts WHERE id=$1`, id); err != nil {

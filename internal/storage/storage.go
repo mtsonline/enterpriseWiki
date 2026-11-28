@@ -28,6 +28,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	_ "golang.org/x/image/webp" // dimensions of uploads (images of templates)
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/config"
@@ -210,6 +211,27 @@ func (s *Store) Open(hash string) (*os.File, error) {
 		return nil, apperr.NotFound("file")
 	}
 	return os.Open(s.Path(hash))
+}
+
+// ImageInfo reads the format of an uploaded image and its size in pixels
+// from the header of the file (at most 1 MiB is read). A file that is no
+// image this package can read (an SVG, a document …) has the format "" and
+// no error; only a file that does not exist is an error. The images of
+// templates use it: only PNG, WebP and JPEG are allowed there.
+func (s *Store) ImageInfo(ctx context.Context, hash string) (format string, width, height int, err error) {
+	if _, err := s.Get(ctx, hash); err != nil {
+		return "", 0, 0, err
+	}
+	f, err := s.Open(hash)
+	if err != nil {
+		return "", 0, 0, err
+	}
+	defer func() { _ = f.Close() }()
+	cfg, format, err := image.DecodeConfig(io.LimitReader(f, 1<<20))
+	if err != nil {
+		return "", 0, 0, nil
+	}
+	return format, cfg.Width, cfg.Height, nil
 }
 
 // Inline reports whether a type may be shown inline in the browser. Active
