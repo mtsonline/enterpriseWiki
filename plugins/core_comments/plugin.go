@@ -15,8 +15,10 @@ import (
 	"fmt"
 	"html"
 	"io/fs"
+	"maps"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -390,10 +392,14 @@ func (p *Plugin) notify(ctx context.Context, tx pgx.Tx, c *Comment, cat int64) e
 	}
 	delete(ids, me.ID())
 	list := []int64{}
-	for id := range ids {
-		pr, err := p.host.Auth.LoadPrincipalQ(ctx, tx, id) // inside the transaction (S-01)
-		if err == nil && p.host.ACL.CanElement(ctx, pr, c.ElementID, cat, acl.View) {
-			list = append(list, id)
+	// one query for all of them, inside the transaction (S-01)
+	prs, err := p.host.Auth.LoadPrincipalsQ(ctx, tx, slices.Sorted(maps.Keys(ids)))
+	if err != nil {
+		return err
+	}
+	for _, pr := range prs {
+		if p.host.ACL.CanElement(ctx, pr, c.ElementID, cat, acl.View) {
+			list = append(list, pr.UserID)
 		}
 	}
 	us, err := p.host.Mail.Users(ctx, tx, list)

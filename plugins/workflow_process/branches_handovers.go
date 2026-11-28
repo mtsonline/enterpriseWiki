@@ -401,11 +401,13 @@ func (pl *Plugin) deputyFor(ctx context.Context, w *who) error {
 	if err != nil {
 		return err
 	}
-	for _, id := range ids {
-		p, err := pl.host.Auth.LoadPrincipal(ctx, id)
-		if err != nil {
-			continue // disabled: nothing to take over
-		}
+	// disabled people are left out: nothing to take over
+	ps, err := pl.host.Auth.LoadPrincipalsQ(ctx, pl.host.DB, ids)
+	if err != nil {
+		return err
+	}
+	var groups, roles []int64
+	for _, p := range ps {
 		w.users[strings.ToLower(p.Handle())] = true
 		if p.Provider == "local" {
 			w.users[strings.ToLower(p.Username)] = true
@@ -416,14 +418,13 @@ func (pl *Plugin) deputyFor(ctx context.Context, w *who) error {
 		for _, r := range p.Roles {
 			w.roles["#"+strconv.FormatInt(r, 10)] = true
 		}
-		if err := pl.names(ctx, `SELECT name FROM groups WHERE id = ANY($1)`, p.Groups, w.groups); err != nil {
-			return err
-		}
-		if err := pl.names(ctx, `SELECT name FROM roles WHERE id = ANY($1)`, p.Roles, w.roles); err != nil {
-			return err
-		}
+		groups, roles = append(groups, p.Groups...), append(roles, p.Roles...)
 	}
-	return nil
+	// the names of all their groups and roles: one query each
+	if err := pl.names(ctx, `SELECT name FROM groups WHERE id = ANY($1)`, groups, w.groups); err != nil {
+		return err
+	}
+	return pl.names(ctx, `SELECT name FROM roles WHERE id = ANY($1)`, roles, w.roles)
 }
 
 func (pl *Plugin) names(ctx context.Context, q string, ids []int64, into map[string]bool) error {
