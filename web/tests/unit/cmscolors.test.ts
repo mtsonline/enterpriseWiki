@@ -1,13 +1,11 @@
 // The colours of the CMS templates (theme.cms and theme.cms.modern) in the
 // light and the dark scheme: text 4.5:1, borders of controls 3:1 (WCAG 1.4.3,
-// 1.4.11); the primary colour chosen in the settings is made readable in the
-// dark scheme.
+// 1.4.11). The colours chosen in the settings: templatesettings.test.ts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { contrast, readableOn } from '../../src/core/blockoptions';
-import { CMS_DARK_BGS } from '../../../plugins/theme_cms/web/colors';
+import { contrast } from '../../src/core/blockoptions';
 
 const strip = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 const read = (p: string) => strip(fs.readFileSync(path.join(process.cwd(), '..', p), 'utf8'));
@@ -72,17 +70,4 @@ test('the dark scheme sets every colour of the light one (no light colour left i
       assert.ok(k in d, `${name}: ${k} has no dark value`);
     }
   }
-});
-
-test('a primary colour from the settings stays readable in the dark scheme', () => {
-  // the backgrounds the script checks are the lightest dark ones of both templates
-  const darkBgs = [cmsDark['--ewcms-surface'], cmsDark['--ewcms-page-bg'], cmsDark['--ewcms-aside-bg'],
-    modDark['--ewcms-surface'], modDark['--ewcms-page-bg'], modDark['--ewcms-soft'], modDark['--ewcms-hover2']];
-  for (const bg of darkBgs) assert.ok(CMS_DARK_BGS.some((x) => contrast('#ffffff', x) <= contrast('#ffffff', bg)), `${bg} is lighter than CMS_DARK_BGS`);
-  for (const chosen of ['#0a3760', '#2450b8', '#7a0019', '#004d40', '#000000', '#85b8ff']) {
-    const d = CMS_DARK_BGS.reduce((c, bg) => readableOn(c, bg), chosen);
-    for (const bg of darkBgs) assert.ok(contrast(d, bg) >= 4.5, `${chosen} → ${d} on ${bg}`);
-    assert.ok(contrast(d, cmsDark['--ew-on-primary'] ?? '#10151a') >= 4.5, `${chosen} → ${d}: text on primary buttons`);
-  }
-  assert.equal(readableOn('#85b8ff', '#22272b'), '#85b8ff', 'a readable colour stays as chosen');
 });

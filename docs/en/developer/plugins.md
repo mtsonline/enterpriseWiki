@@ -459,6 +459,7 @@ A template declares the settings it offers in the manifest of its plugin, under 
 ```json
 "template_settings": [
   { "key": "primary_color", "kind": "color", "group": "colors", "default": "#0a3760", "contrast_on": ["#ffffff"],
+    "css_vars": ["--ew-primary", "--ew-link"], "scheme": "light",
     "label": { "en": "Accent colour", "de": "Akzentfarbe" } },
   { "key": "logo", "kind": "image", "group": "logos", "role": "logo",
     "label": { "en": "Logo", "de": "Logo" }, "help": { "en": "PNG, WebP or JPEG.", "de": "PNG, WebP oder JPEG." } },
@@ -470,12 +471,14 @@ A template declares the settings it offers in the manifest of its plugin, under 
 ]
 ```
 
-- **Kinds:** `color` (`#rrggbb`), `font` (`system`, `sans`, `serif`, `mono` or the name of an own font), `image`, `number` (with `min` and `max`), `select` (with `options`), `bool`, `text` (up to `max_len` characters, default 200), `link` (a path in the wiki `/…` or an `https://` address).
+- **Kinds:** `color` (`#rrggbb`), `font` (one of its `options`: `system`, `inter`, `poppins`, `source-sans`, `serif`, `mono`; administrators may also choose an own font of the template designer), `image`, `number` (with `min` and `max`), `select` (with `options`), `bool`, `text` (up to `max_len` characters, default 200), `link` (a path in the wiki `/…` or an `https://` address).
 - **Groups**, in the order of the form: `colors`, `fonts`, `logos`, `header`, `content`, `footer`, `layout`.
 - **Roles of logos:** `logo` (the wide logo), `logo_on_dark`, `mark` (the mark alone, for narrow screens and small places), `mark_on_dark`. Declare every logo your template shows. Other images (a start image, a banner) have no role.
 - **Defaults:** every setting except an image needs a `default`. An image has none: without an uploaded image the template shows its own.
 - **Images:** only uploaded PNG, WebP and JPEG files (no SVG: it can contain scripts). The server reads their size when they are saved.
 - **Contrast:** `contrast_on` lists the colours a colour is shown on (other colour settings by key, or `#rrggbb`). The form warns while the contrast is below 4.5:1.
+- **CSS variables:** `css_vars` lists the CSS variables a colour, font or number is written to (a number with its `unit`: `px`, `rem`, `em` or `%`); `scheme` limits them to the `light` or `dark` colour scheme. The core sets them while the value differs from the default, so the template keeps its own look by default and needs no code for them. Without `template_look_root` they go on `<body>` (the variables `--ew-*` of the core); with it (one class, such as `".ewcms-app"`) on the element where the template defines its own variables. When `--ew-primary` changes, the core derives `--ew-primary-hover`.
+- **Default images:** `default_src` names the image the template ships (shown in the form as the default).
 - **Checked on the server:** every value is checked against the description before it is stored (`internal/tplsettings`). A list with an error stops the plugin from starting. Stored values the template no longer declares, or that no longer fit, are left out.
 
 The layout gets the effective values in the field settings of its context (images as `{ src, width, height }`; `imageSetting(v)` returns such an image or `null`). Blocks of a template that are drawn later (such as a start image at a position) read them with `shownTemplateSettings()`. Give every image its `width` and `height`, so it reserves its room before it loads:
@@ -488,7 +491,7 @@ layout: (ctx) => {
 }
 ```
 
-The values come from `GET /api/v1/templates/{id}/settings` (those of the template of the site come with `/api/v1/site`). Administrators change them with `PUT` and `DELETE /api/v1/admin/templates/{id}/settings` or `ewiki templates settings set|reset`.
+The live preview asks `POST /api/v1/admin/templates/{id}/settings/preview` for the values and CSS variables of a draft (checked, not stored). The values come from `GET /api/v1/templates/{id}/settings` (those of the template of the site come with `/api/v1/site`). Administrators change them with `PUT` and `DELETE /api/v1/admin/templates/{id}/settings` or `ewiki templates settings set|reset`.
 
 ## UI texts
 

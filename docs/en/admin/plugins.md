@@ -168,6 +168,10 @@ Every template offers positions where menus (`core.menu`), blocks (`core.blocks`
 
 With the wiki template (`theme.wiki`, `theme.wiki.dark`) the sidebar can be hidden on all screen sizes with the button in the header; the state is remembered in the browser.
 
+### Settings of the templates
+
+Every template offers its settings under *Administration → Templates → Settings*, each template with its own values: the wiki templates (`theme.wiki`, `theme.wiki.dark`) their colours in the light and the dark scheme, the fonts of text and headings, the logo, the logo on a dark background, the mark and the mark on a dark background (narrow screens), the height of the logo and the width of the sidebar. Each field shows the default the template brings; *Reset* returns to it. Logos and images are uploaded PNG, WebP or JPEG files (no SVG).
+
 ### Setting up the website templates
 
 *Administration → Templates → Settings*, for each of the two website templates on its own (`theme.cms` and `theme.cms.modern`; stored in `template_settings` of `config.yaml`, API `PUT /api/v1/admin/templates/{id}/settings`, CLI `ewiki templates settings set`). The server checks every value against the list the template declares. Without a change each setting has the default the template brings; *Reset* returns to it.
@@ -175,7 +179,10 @@ With the wiki template (`theme.wiki`, `theme.wiki.dark`) the sidebar can be hidd
 | Setting | Meaning |
 |---|---|
 | `logo`, `logo_light`, `logo_height` | logo (uploaded image) and light variant for the transparent header above the start image; height in pixels; in the dark scheme the header always shows the light variant (without one, the normal logo) |
-| `primary_color` | main colour (links, buttons, active navigation), `#rrggbb`; in the dark scheme the wiki lightens it as far as needed for 4.5 : 1 |
+| `primary_color`, `primary_color_dark` | main colour (links, buttons, active navigation) in the light and the dark scheme, `#rrggbb` |
+| `page_bg`, `surface`, `text`, `heading`, `muted`, `line`, … (each also `_dark`) | the colours of the page in both schemes; the form warns when text has less than 4.5 : 1 |
+| `font`, `heading_font` | font of the text and of the headings |
+| `mark`, `mark_on_dark` | the mark shown on narrow screens instead of the logo |
 | `header` | `overlay`: the header lies transparently above the start image and turns white when scrolling; `solid`: always white |
 | `hero_image`, `hero_title`, `hero_subtitle`, `hero_button_label`, `hero_button_link`, `hero_size` | start image only on the home page; size `large` or `medium` |
 | `banner`, `banner_image` | page title on sub-pages in an image banner (without an own image a gradient is used) |

@@ -446,12 +446,24 @@ func (p *Plugin) addFont(ctx context.Context, in fontInput) (*Font, error) {
 }
 
 // fontPublic: a font is public while a template outside the trash uses it
-// (like the designs); designers see every font.
+// (like the designs) or the settings of a template choose it; designers
+// see every font.
 func (p *Plugin) fontPublic(ctx context.Context, id int64) (bool, error) {
 	if perm.Has(ctx, permDesign) {
 		return true, nil
 	}
 	token := "own-" + strconv.FormatInt(id, 10)
+	// a font chosen in the settings of a template (Administration →
+	// Templates → Settings) is shown to every visitor too
+	if p.host.Config != nil {
+		for _, m := range p.host.Config.Get().TemplateSettings {
+			for _, v := range m {
+				if v == token {
+					return true, nil
+				}
+			}
+		}
+	}
 	var public bool
 	err := p.host.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM plugin_templates WHERE deleted_at IS NULL AND (design->'tokens'->>'font' = $1 OR design->'tokens'->>'heading_font' = $1))`, token).Scan(&public)
 	return public, err

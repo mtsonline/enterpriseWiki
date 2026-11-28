@@ -123,6 +123,11 @@ type Manifest struct {
 	// server checks every value against them before it is stored; the
 	// template gets the effective values (see docs/en/developer/plugins.md#template-settings).
 	TemplateSettings []tplsettings.Setting `json:"template_settings,omitempty"`
+	// TemplateLookRoot is the element whose CSS variables the settings with
+	// css_vars change: "" for <body> (the variables of the core), or one
+	// class of the element where the template defines its own variables
+	// (".ewcms-app").
+	TemplateLookRoot string `json:"template_look_root,omitempty"`
 }
 
 // Plugin is implemented by every plugin.
@@ -504,6 +509,8 @@ var PluginKinds = []string{KindElement, KindMacro, KindAuth, KindMFA, KindSignat
 // ("system": as the device is set).
 var ColorSchemes = []string{"system", "light", "dark"}
 
+var lookRoot = regexp.MustCompile(`^\.[a-z][a-z0-9-]{0,40}$`)
+
 var pluginID = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*(\.[a-z0-9][a-z0-9_-]*)+$`)
 
 // Validate checks the required fields of a manifest.
@@ -527,6 +534,9 @@ func (m Manifest) Validate() error {
 	}
 	if len(m.TemplateSettings) > 0 && !slices.Contains(m.Kinds, KindTemplate) {
 		return fmt.Errorf("plugin %s: template_settings are only for templates", m.ID)
+	}
+	if m.TemplateLookRoot != "" && !lookRoot.MatchString(m.TemplateLookRoot) {
+		return fmt.Errorf("plugin %s: template_look_root must be one class such as .name", m.ID)
 	}
 	if err := tplsettings.CheckDescription(m.TemplateSettings); err != nil {
 		return fmt.Errorf("plugin %s: template_settings: %w", m.ID, err)

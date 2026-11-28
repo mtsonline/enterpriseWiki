@@ -72,25 +72,54 @@ func TestTemplateSettings(t *testing.T) {
 		t.Fatalf("stored: %+v", cur)
 	}
 	// every visitor gets the effective values; images as address and size
-	var pub map[string]any
-	e.client().must("GET", "/api/v1/templates/theme.cms/settings", nil, &pub, 200)
+	var out struct {
+		Values map[string]any `json:"values"`
+	}
+	e.client().must("GET", "/api/v1/templates/theme.cms/settings", nil, &out, 200)
+	pub := out.Values
 	img, _ := pub["logo"].(map[string]any)
 	if img["src"] != "/api/v1/files/"+logo.Hash || img["width"] != 300.0 || img["height"] != 120.0 || pub["back_to_top"] != true {
 		t.Fatalf("public: %v", pub)
 	}
 	e.client().must("GET", "/api/v1/templates/no.such.template/settings", nil, nil, 404)
+	// the look: the CSS variables of the changed colours, on the element of the template
+	var look struct {
+		Look struct {
+			Light map[string]string `json:"light"`
+			Dark  map[string]string `json:"dark"`
+			All   map[string]string `json:"all"`
+		} `json:"look"`
+		Root string `json:"root"`
+	}
+	e.client().must("GET", "/api/v1/templates/theme.cms/settings", nil, &look, 200)
+	if look.Root != ".ewcms-app" || look.Look.Light["--ewcms-primary-l"] != "#7a1f1f" || len(look.Look.Dark) != 0 || look.Look.All["--ewcms-logo-h"] != "" {
+		t.Fatalf("look: %+v", look)
+	}
+	// the preview shows a draft with the look it would give, without storing it
+	look.Look.Light, look.Look.Dark, look.Look.All = nil, nil, nil
+	admin.must("POST", url+"/preview", map[string]any{"values": map[string]any{"page_bg_dark": "#101010", "font": "inter", "primary_color": nil}}, &look, 200)
+	if look.Look.Dark["--ewcms-page-bg"] != "#101010" || look.Look.All["--ewcms-font"] == "" || look.Look.Light["--ewcms-primary-l"] != "" {
+		t.Fatalf("preview: %+v", look)
+	}
+	admin.must("POST", url+"/preview", map[string]any{"values": map[string]any{"font": "Comic Sans"}}, nil, 400)
+	admin.must("GET", url, nil, &cur, 200)
+	if len(cur.Changed) != 3 {
+		t.Fatalf("the preview stored something: %v", cur.Changed)
+	}
 	// each template has its own settings: the modern variant still has the defaults
-	e.client().must("GET", "/api/v1/templates/theme.cms.modern/settings", nil, &pub, 200)
-	if pub["primary_color"] != "#0a3760" {
+	e.client().must("GET", "/api/v1/templates/theme.cms.modern/settings", nil, &out, 200)
+	if out.Values["primary_color"] != "#2450b8" {
 		t.Fatalf("the variant shares the values: %v", pub)
 	}
 	// the template of the site: its settings come with /site
 	admin.must("PUT", "/api/v1/admin/settings", map[string]any{"ui": map[string]any{"template": "theme.cms", "site_name": "Test"}}, nil, 200)
 	var site struct {
-		TemplateSettings map[string]any `json:"template_settings"`
+		TemplateSettings struct {
+			Values map[string]any `json:"values"`
+		} `json:"template_settings"`
 	}
 	e.client().must("GET", "/api/v1/site", nil, &site, 200)
-	if site.TemplateSettings["primary_color"] != "#7a1f1f" {
+	if site.TemplateSettings.Values["primary_color"] != "#7a1f1f" {
 		t.Fatalf("/site: %v", site.TemplateSettings)
 	}
 	// the general settings neither show nor overwrite them
@@ -136,4 +165,5 @@ func TestTemplateSettings(t *testing.T) {
 	tina.must("GET", url, nil, nil, 403)
 	tina.must("PUT", url, map[string]any{"values": map[string]any{"primary_color": "#000000"}}, nil, 403)
 	tina.must("DELETE", url, nil, nil, 403)
+	tina.must("POST", url+"/preview", map[string]any{"values": map[string]any{}}, nil, 403)
 }

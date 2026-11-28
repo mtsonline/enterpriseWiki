@@ -183,6 +183,23 @@ actions:
         path_params_json: '{"id": "theme.cms"}'
         body_json: '{"values": {}}'
         status: 403
+  - id: core.templates.settings.preview
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/templates/{id}/settings/preview
+    success_status: 200
+    summary:
+      text:
+        en: Show how changed settings of a template would look, without storing them
+        de: Zeigen, wie geänderte Einstellungen eines Templates aussähen, ohne sie zu speichern
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [templates, settings, preview]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        as: member
+        path_params_json: '{"id": "theme.cms"}'
+        body_json: '{"values": {"primary_color": "#7a1f1f"}}'
   - id: core.templates.settings.reset
     category: CATEGORY_ACTION
     method: DELETE

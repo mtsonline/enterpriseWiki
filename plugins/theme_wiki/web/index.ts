@@ -10,7 +10,7 @@
 //   content-top      above the content of every page
 //   content-bottom   below the content of every page
 //   footer           footer
-import { brandHeader, h, iconURL, MAIN, mediaMatches, poweredBy, registerTemplate, t, type SchemaArea, type SchemaRow, type TemplateSchema } from '@ewiki/coreplugin';
+import { brandHeader, h, logosOf, iconURL, MAIN, mediaMatches, poweredBy, registerTemplate, t, type SchemaArea, type SchemaRow, type TemplateSchema } from '@ewiki/coreplugin';
 import './style.css';
 
 export const POSITIONS = ['top-bar', 'header-nav', 'header-tools', 'sidebar', 'sidebar-bottom', 'content-top', 'content-bottom', 'footer'];
@@ -121,7 +121,7 @@ export function register(): void {
         h('div', { class: 'ewc-content' }, ctx.position('content-top'), main, ctx.position('content-bottom')));
       const header = h('header', { class: 'ewc-header' },
         toggle,
-        h('a', { href: '/', class: 'ewc-brand' }, ...brandHeader('ewc-logo', 44)),
+        h('a', { href: '/', class: 'ewc-brand' }, ...brandHeader('ewc-logo', 44, logosOf(ctx.settings))),
         nav, toolsToggle, tools);
       const root = h('div', { class: 'ewc-app' },
         h('a', { href: '#main', class: 'ew-skip' }, t('nav.skip')),

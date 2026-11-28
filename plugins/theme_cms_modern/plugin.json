@@ -4,8 +4,568 @@
   "version": "1.0.0",
   "description": "Neutral, modern website look: light header with glass effect, left-aligned start page hero, rounded cards, title banner as image card, calm dark footer. Reuses layout, positions and settings (Administration → Website template) of theme.cms and only changes the styling.",
   "author": "Enterprise Wiki",
-  "kinds": ["template"],
-  "extends": ["theme.cms"],
+  "kinds": [
+    "template"
+  ],
+  "extends": [
+    "theme.cms"
+  ],
   "frontend": true,
-  "color_scheme": "system"
+  "color_scheme": "system",
+  "template_settings": [
+    {
+      "key": "primary_color",
+      "kind": "color",
+      "group": "colors",
+      "default": "#2450b8",
+      "css_vars": [
+        "--ewcms-primary-l"
+      ],
+      "scheme": "light",
+      "contrast_on": [
+        "page_bg",
+        "surface"
+      ],
+      "label": {
+        "en": "Primary colour (light)",
+        "de": "Hauptfarbe (hell)"
+      },
+      "help": {
+        "en": "Links, buttons, active menu items and the plain start image.",
+        "de": "Links, Schaltflächen, aktive Menüpunkte und das Startbild ohne Foto."
+      }
+    },
+    {
+      "key": "primary_color_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#8fb0ff",
+      "css_vars": [
+        "--ewcms-primary-d"
+      ],
+      "scheme": "dark",
+      "contrast_on": [
+        "page_bg_dark",
+        "surface_dark"
+      ],
+      "label": {
+        "en": "Primary colour (dark)",
+        "de": "Hauptfarbe (dunkel)"
+      },
+      "help": {
+        "en": "Links, buttons, active menu items and the plain start image.",
+        "de": "Links, Schaltflächen, aktive Menüpunkte und das Startbild ohne Foto."
+      }
+    },
+    {
+      "key": "page_bg",
+      "kind": "color",
+      "group": "colors",
+      "default": "#ffffff",
+      "css_vars": [
+        "--ewcms-page-bg"
+      ],
+      "scheme": "light",
+      "label": {
+        "en": "Page background (light)",
+        "de": "Seitenhintergrund (hell)"
+      }
+    },
+    {
+      "key": "page_bg_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#11151c",
+      "css_vars": [
+        "--ewcms-page-bg"
+      ],
+      "scheme": "dark",
+      "label": {
+        "en": "Page background (dark)",
+        "de": "Seitenhintergrund (dunkel)"
+      }
+    },
+    {
+      "key": "surface",
+      "kind": "color",
+      "group": "colors",
+      "default": "#ffffff",
+      "css_vars": [
+        "--ewcms-surface"
+      ],
+      "scheme": "light",
+      "label": {
+        "en": "Background of the content (light)",
+        "de": "Hintergrund des Inhalts (hell)"
+      }
+    },
+    {
+      "key": "surface_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#171c24",
+      "css_vars": [
+        "--ewcms-surface"
+      ],
+      "scheme": "dark",
+      "label": {
+        "en": "Background of the content (dark)",
+        "de": "Hintergrund des Inhalts (dunkel)"
+      }
+    },
+    {
+      "key": "text",
+      "kind": "color",
+      "group": "colors",
+      "default": "#1f2937",
+      "css_vars": [
+        "--ewcms-text"
+      ],
+      "scheme": "light",
+      "contrast_on": [
+        "page_bg",
+        "surface"
+      ],
+      "label": {
+        "en": "Text (light)",
+        "de": "Text (hell)"
+      }
+    },
+    {
+      "key": "text_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#d9dee6",
+      "css_vars": [
+        "--ewcms-text"
+      ],
+      "scheme": "dark",
+      "contrast_on": [
+        "page_bg_dark",
+        "surface_dark"
+      ],
+      "label": {
+        "en": "Text (dark)",
+        "de": "Text (dunkel)"
+      }
+    },
+    {
+      "key": "heading",
+      "kind": "color",
+      "group": "colors",
+      "default": "#0f172a",
+      "css_vars": [
+        "--ewcms-heading",
+        "--ewcms-ink"
+      ],
+      "scheme": "light",
+      "contrast_on": [
+        "page_bg",
+        "surface"
+      ],
+      "label": {
+        "en": "Headings (light)",
+        "de": "Überschriften (hell)"
+      }
+    },
+    {
+      "key": "heading_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#f1f4f8",
+      "css_vars": [
+        "--ewcms-heading",
+        "--ewcms-ink"
+      ],
+      "scheme": "dark",
+      "contrast_on": [
+        "page_bg_dark",
+        "surface_dark"
+      ],
+      "label": {
+        "en": "Headings (dark)",
+        "de": "Überschriften (dunkel)"
+      }
+    },
+    {
+      "key": "muted",
+      "kind": "color",
+      "group": "colors",
+      "default": "#526077",
+      "css_vars": [
+        "--ewcms-muted"
+      ],
+      "scheme": "light",
+      "contrast_on": [
+        "page_bg",
+        "surface"
+      ],
+      "label": {
+        "en": "Quiet text (light)",
+        "de": "Dezenter Text (hell)"
+      }
+    },
+    {
+      "key": "muted_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#a7b1c2",
+      "css_vars": [
+        "--ewcms-muted"
+      ],
+      "scheme": "dark",
+      "contrast_on": [
+        "page_bg_dark",
+        "surface_dark"
+      ],
+      "label": {
+        "en": "Quiet text (dark)",
+        "de": "Dezenter Text (dunkel)"
+      }
+    },
+    {
+      "key": "line",
+      "kind": "color",
+      "group": "colors",
+      "default": "#e4e7ec",
+      "css_vars": [
+        "--ewcms-line"
+      ],
+      "scheme": "light",
+      "label": {
+        "en": "Lines (light)",
+        "de": "Linien (hell)"
+      }
+    },
+    {
+      "key": "line_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#2b3340",
+      "css_vars": [
+        "--ewcms-line"
+      ],
+      "scheme": "dark",
+      "label": {
+        "en": "Lines (dark)",
+        "de": "Linien (dunkel)"
+      }
+    },
+    {
+      "key": "soft",
+      "kind": "color",
+      "group": "colors",
+      "default": "#f5f7fa",
+      "css_vars": [
+        "--ewcms-soft"
+      ],
+      "scheme": "light",
+      "label": {
+        "en": "Background of quiet areas (light)",
+        "de": "Hintergrund ruhiger Bereiche (hell)"
+      }
+    },
+    {
+      "key": "soft_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#1c222c",
+      "css_vars": [
+        "--ewcms-soft"
+      ],
+      "scheme": "dark",
+      "label": {
+        "en": "Background of quiet areas (dark)",
+        "de": "Hintergrund ruhiger Bereiche (dunkel)"
+      }
+    },
+    {
+      "key": "deep",
+      "kind": "color",
+      "group": "colors",
+      "default": "#0f172a",
+      "css_vars": [
+        "--ewcms-deep"
+      ],
+      "label": {
+        "en": "Background of the start image",
+        "de": "Hintergrund des Startbilds"
+      }
+    },
+    {
+      "key": "font",
+      "kind": "font",
+      "group": "fonts",
+      "default": "inter",
+      "options": [
+        "inter",
+        "system",
+        "source-sans",
+        "serif"
+      ],
+      "css_vars": [
+        "--ewcms-font"
+      ],
+      "label": {
+        "en": "Text",
+        "de": "Text"
+      }
+    },
+    {
+      "key": "heading_font",
+      "kind": "font",
+      "group": "fonts",
+      "default": "inter",
+      "options": [
+        "inter",
+        "poppins",
+        "system",
+        "source-sans",
+        "serif"
+      ],
+      "css_vars": [
+        "--ewcms-heading-font"
+      ],
+      "label": {
+        "en": "Headings",
+        "de": "Überschriften"
+      }
+    },
+    {
+      "key": "logo",
+      "kind": "image",
+      "group": "logos",
+      "role": "logo",
+      "default_src": "/brand/logo.webp",
+      "label": {
+        "en": "Logo",
+        "de": "Logo"
+      },
+      "help": {
+        "en": "PNG, WebP or JPEG, ideally with a transparent background.",
+        "de": "PNG, WebP oder JPEG, am besten mit transparentem Hintergrund."
+      }
+    },
+    {
+      "key": "logo_light",
+      "kind": "image",
+      "group": "logos",
+      "role": "logo_on_dark",
+      "label": {
+        "en": "Logo on a dark background",
+        "de": "Logo auf dunklem Hintergrund"
+      },
+      "help": {
+        "en": "Shown in the dark colour scheme. Without it the logo is shown.",
+        "de": "Im dunklen Farbschema gezeigt. Ohne dieses Bild erscheint das Logo."
+      }
+    },
+    {
+      "key": "mark",
+      "kind": "image",
+      "group": "logos",
+      "role": "mark",
+      "default_src": "/brand/mark.webp",
+      "label": {
+        "en": "Mark (narrow screens)",
+        "de": "Bildmarke (schmale Bildschirme)"
+      },
+      "help": {
+        "en": "The small sign without text, shown on phones next to the name of the site.",
+        "de": "Das kleine Zeichen ohne Schrift, auf Handys neben dem Namen der Website."
+      }
+    },
+    {
+      "key": "mark_on_dark",
+      "kind": "image",
+      "group": "logos",
+      "role": "mark_on_dark",
+      "label": {
+        "en": "Mark on a dark background",
+        "de": "Bildmarke auf dunklem Hintergrund"
+      },
+      "help": {
+        "en": "Shown on narrow screens in the dark colour scheme.",
+        "de": "Auf schmalen Bildschirmen im dunklen Farbschema gezeigt."
+      }
+    },
+    {
+      "key": "logo_height",
+      "kind": "number",
+      "group": "logos",
+      "default": 56,
+      "min": 24,
+      "max": 120,
+      "step": 1,
+      "label": {
+        "en": "Logo height (pixels)",
+        "de": "Logo-Höhe (Pixel)"
+      },
+      "help": {
+        "en": "Default 56; the logo gets smaller when scrolling.",
+        "de": "Standard 56, beim Scrollen wird das Logo kleiner."
+      },
+      "css_vars": [
+        "--ewcms-logo-h"
+      ],
+      "unit": "px"
+    },
+    {
+      "key": "header",
+      "kind": "select",
+      "group": "header",
+      "default": "overlay",
+      "options": [
+        "overlay",
+        "solid"
+      ],
+      "label": {
+        "en": "Header",
+        "de": "Kopfbereich"
+      },
+      "option_labels": {
+        "overlay": {
+          "en": "Transparent over the start image, white when scrolling",
+          "de": "Transparent über dem Startbild, beim Scrollen weiß"
+        },
+        "solid": {
+          "en": "Always white",
+          "de": "Immer weiß"
+        }
+      }
+    },
+    {
+      "key": "hero_image",
+      "kind": "image",
+      "group": "content",
+      "label": {
+        "en": "Start image",
+        "de": "Startbild"
+      },
+      "help": {
+        "en": "Large image at the top of the start page, e.g. 2400 × 1200 pixels.",
+        "de": "Großes Bild oben auf der Startseite, z. B. 2400 × 1200 Pixel."
+      }
+    },
+    {
+      "key": "hero_title",
+      "kind": "text",
+      "group": "content",
+      "default": "",
+      "max_len": 120,
+      "label": {
+        "en": "Title in the start image",
+        "de": "Titel im Startbild"
+      }
+    },
+    {
+      "key": "hero_subtitle",
+      "kind": "text",
+      "group": "content",
+      "default": "",
+      "max_len": 240,
+      "label": {
+        "en": "Subtitle",
+        "de": "Untertitel"
+      }
+    },
+    {
+      "key": "hero_button_label",
+      "kind": "text",
+      "group": "content",
+      "default": "",
+      "max_len": 60,
+      "label": {
+        "en": "Button: text",
+        "de": "Schaltfläche: Text"
+      }
+    },
+    {
+      "key": "hero_button_link",
+      "kind": "link",
+      "group": "content",
+      "default": "",
+      "label": {
+        "en": "Button: link",
+        "de": "Schaltfläche: Link"
+      }
+    },
+    {
+      "key": "hero_size",
+      "kind": "select",
+      "group": "content",
+      "default": "large",
+      "options": [
+        "large",
+        "medium"
+      ],
+      "label": {
+        "en": "Height of the start image",
+        "de": "Höhe des Startbilds"
+      },
+      "option_labels": {
+        "large": {
+          "en": "Large",
+          "de": "Groß"
+        },
+        "medium": {
+          "en": "Medium",
+          "de": "Mittel"
+        }
+      }
+    },
+    {
+      "key": "banner",
+      "kind": "bool",
+      "group": "content",
+      "default": false,
+      "label": {
+        "en": "Title banner on sub pages",
+        "de": "Titelbanner auf Unterseiten"
+      },
+      "help": {
+        "en": "Shows the page title large over an image (as on university websites).",
+        "de": "Zeigt den Seitentitel groß über einem Bild (wie auf Hochschul-Websites)."
+      }
+    },
+    {
+      "key": "banner_image",
+      "kind": "image",
+      "group": "content",
+      "label": {
+        "en": "Image for title banners",
+        "de": "Bild für Titelbanner"
+      },
+      "help": {
+        "en": "Without its own image the start image is used.",
+        "de": "Ohne eigenes Bild wird das Startbild verwendet."
+      }
+    },
+    {
+      "key": "copyright",
+      "kind": "text",
+      "group": "footer",
+      "default": "",
+      "max_len": 200,
+      "label": {
+        "en": "Copyright line",
+        "de": "Copyright-Zeile"
+      },
+      "help": {
+        "en": "e.g. “© {year} Example University” – {year} is replaced by the current year.",
+        "de": "z. B. „© {year} Universität Musterstadt“ – {year} wird durch das aktuelle Jahr ersetzt."
+      }
+    },
+    {
+      "key": "back_to_top",
+      "kind": "bool",
+      "group": "layout",
+      "default": true,
+      "label": {
+        "en": "Back to top",
+        "de": "Nach oben"
+      }
+    }
+  ],
+  "template_look_root": ".ewcms-app"
 }

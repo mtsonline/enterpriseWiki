@@ -1038,10 +1038,16 @@ input.ew-dp-input::-webkit-calendar-picker-indicator { display: none; }
 .ew-placement-pos { margin-top: 1rem; padding: 1rem; border: 1px solid var(--ew-border); border-radius: 10px; }
 .ew-placement-pos h3 { margin-top: 0; }
 .ew-placement-addat { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .5rem 1rem; margin-top: 1rem; }
+/* logos of a template for dark backgrounds: shown in the dark colour scheme */
+.ew-on-dark { display: none; }
+body.ewc-dark .ew-on-dark { display: revert; }
+body.ewc-dark .ew-on-light { display: none; }
 /* the settings of a template: the form beside its live preview */
 .ew-tplset { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
 @media (min-width: 1200px) { .ew-tplset { grid-template-columns: minmax(0, 26rem) minmax(0, 1fr); align-items: start; } .ew-tplset-preview { position: sticky; top: calc(var(--ew-sticky-top, 0px) + 1rem); } }
 .ew-tplset-field { margin-bottom: .75rem; }
+/* the image a template ships (its size is not known here): a fixed height */
+.ew-tplset-default-img { height: 3rem; width: auto; }
 .ew-tplset-default { margin-top: .15rem; }
 .ew-input--color { inline-size: 3rem; block-size: 2.75rem; padding: .15rem; }
 .ew-tplset-framebox { overflow: auto; max-height: 80vh; border: 1px solid var(--ew-border); border-radius: 8px; background: var(--ew-bg-subtle); }

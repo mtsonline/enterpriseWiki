@@ -7,15 +7,14 @@
 // (declared in plugin.json, "template_settings"; Administration → Templates
 // → Settings), checked by the server and handed to the layout.
 import {
-  api, brandHeader, h, iconURL, imageSetting, MAIN, mediaMatches, mount, pick, poweredBy, readableOn, registerSlot, registerTemplate, shownTemplateSettings, state, t,
+  api, brandHeader, h, iconURL, imageSetting, MAIN, mediaMatches, mount, pick, poweredBy, registerSlot, registerTemplate, shownTemplateSettings, state, t,
   type Category, type ImageSetting, type SchemaArea, type TemplateSchema, type TemplateSettingValues,
 } from '@ewiki/coreplugin';
 import './style.css';
-import { CMS_DARK_BGS } from './colors';
 
 /** The settings of the template, typed (the server checked them against plugin.json). */
 interface Config {
-  logo: ImageSetting | null; logo_light: ImageSetting | null; logo_height: number; primary_color: string; header: string;
+  logo: ImageSetting | null; logo_light: ImageSetting | null; mark: ImageSetting | null; mark_on_dark: ImageSetting | null; header: string;
   hero_image: ImageSetting | null; hero_title: string; hero_subtitle: string; hero_button_label: string; hero_button_link: string; hero_size: string;
   banner: boolean; banner_image: ImageSetting | null; copyright: string; back_to_top: boolean;
 }
@@ -23,7 +22,7 @@ interface Config {
 function configOf(v: TemplateSettingValues): Config {
   const str = (k: string) => (typeof v[k] === 'string' ? v[k] as string : '');
   return {
-    logo: imageSetting(v.logo), logo_light: imageSetting(v.logo_light), logo_height: Number(v.logo_height) || 56, primary_color: str('primary_color'), header: str('header'),
+    logo: imageSetting(v.logo), logo_light: imageSetting(v.logo_light), mark: imageSetting(v.mark), mark_on_dark: imageSetting(v.mark_on_dark), header: str('header'),
     hero_image: imageSetting(v.hero_image), hero_title: str('hero_title'), hero_subtitle: str('hero_subtitle'), hero_button_label: str('hero_button_label'),
     hero_button_link: str('hero_button_link'), hero_size: str('hero_size'), banner: v.banner === true, banner_image: imageSetting(v.banner_image),
     copyright: str('copyright'), back_to_top: v.back_to_top !== false,
@@ -114,7 +113,9 @@ export function register(): void {
       };
       toggle.addEventListener('click', () => setOpen(toggle.getAttribute('aria-expanded') !== 'true'));
       nav.addEventListener('click', (ev) => { if ((ev.target as Element).closest('a')) setOpen(false); });
-      const brand = h('a', { href: '/', class: 'ewcms-brand' }, ...brandHeader('ewcms-logo', 60));
+      const c = configOf(ctx.settings);
+      // without an own logo: the logo of Enterprise Wiki (with the marks of the settings)
+      const brand = h('a', { href: '/', class: 'ewcms-brand' }, ...brandHeader('ewcms-logo', 60, { mark: c.mark, markOnDark: c.mark_on_dark }));
       // compact screens (CSS: the same query as the wiki template): search,
       // language, edit and account stay closed behind one button, so the
       // page starts with its content
@@ -157,21 +158,18 @@ export function register(): void {
         ),
         top);
 
-      // settings: colours, logo, banner, copyright
-      const c = configOf(ctx.settings);
-      if (/^#[0-9a-f]{6}$/i.test(c.primary_color)) {
-        // light scheme: the colour as chosen; dark scheme: made readable on
-        // the lightest dark background of the template (the area below the
-        // content), so links and buttons keep 4.5:1
-        root.style.setProperty('--ewcms-primary-l', c.primary_color);
-        root.style.setProperty('--ewcms-primary-d', CMS_DARK_BGS.reduce((col, bg) => readableOn(col, bg), c.primary_color));
-      }
+      // settings: logo, banner, copyright (the colours, fonts and the height
+      // of the logo are CSS variables the core sets from the settings)
       if (c.logo) {
-        const height = Math.min(Math.max(c.logo_height, 24), 120);
-        // width and height reserve the room of the logo before it loads
-        const logoImg = (x: ImageSetting, light: boolean) => h('img', { class: ['ewcms-logo-img', light && 'ewcms-logo-img--light'], src: x.src, width: x.width, height: x.height,
-          alt: light ? '' : state.site.name, 'aria-hidden': light ? 'true' : undefined, style: `--ewcms-logo-h:${height}px` });
-        mount(brand, logoImg(c.logo, false), c.logo_light ? logoImg(c.logo_light, true) : null);
+        // the light logo is shown over the start image and in the dark scheme
+        // (style.css); on narrow screens the marks, if set. Width and height
+        // reserve the room of each image before it loads.
+        const logoImg = (x: ImageSetting, mark: ImageSetting | null, light: boolean) => {
+          const img = h('img', { class: ['ewcms-logo-img', light && 'ewcms-logo-img--light'], src: x.src, width: x.width, height: x.height,
+            alt: light ? '' : state.site.name, 'aria-hidden': light ? 'true' : undefined });
+          return mark ? h('picture', null, h('source', { media: '(max-width: 600px)', srcset: mark.src, width: mark.width, height: mark.height }), img) : img;
+        };
+        mount(brand, logoImg(c.logo, c.mark, false), c.logo_light ? logoImg(c.logo_light, c.mark_on_dark ?? c.mark, true) : null);
         root.classList.toggle('ewcms--light-logo', !!c.logo_light);
       }
       if (c.copyright) copyright.textContent = c.copyright.replace('{year}', String(year));

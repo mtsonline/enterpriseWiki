@@ -13,6 +13,7 @@ import { t } from './core/i18n';
 import { api } from './core/api';
 import { CATEGORY_POSITIONS, DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, resolvePlacements, type PagePosition, type PlacementLevel, type PositionKind } from './core/placement';
 import type { TemplateSchema } from './core/templateSchema';
+import { applyLook, type TemplateLook } from './core/templateLook';
 export { SCHEMA as BLOCK_OPTIONS_SCHEMA, optionDef, problems as optionProblems, maxColumns, contrast, readableOn, type BlockOptions, type OptionDef, type OptionGroup } from './core/blockoptions';
 export { DEVICES, MAIN, deviceSize, mediaMatches, type Device, type SchemaArea, type SchemaRow, type TemplateSchema, type WindowSize } from './core/templateSchema';
 export { CATEGORY_POSITIONS, DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, positionFits, resolvePlacements, type PagePosition, type Placement, type PlacementLevel, type PositionKind } from './core/placement';
@@ -43,7 +44,7 @@ export { toast, announce } from './core/announce';
 export { consentGiven, registerConsentCategory, onConsentChange, type ConsentCategory } from './core/consent';
 export { navigate, route, rerender } from './core/router';
 export { applyScheme, setTemplateScheme, type Scheme } from './core/scheme';
-export { BRAND, brandHeader, brandMark, licensed, licenseSeal, poweredBy } from './components/brand';
+export { BRAND, brandHeader, brandMark, licensed, licenseSeal, logosOf, poweredBy, type TemplateLogos } from './components/brand';
 export { button, field, textInput, textArea, select, checkbox, openDialog, confirmDialog, formDialog, langFields, errorText, loading, pageHeader } from './components/ui';
 export type * from './core/types';
 export { registerWidget, hydrate, claimWidgetControls, provideWidgetControls, type WidgetControl } from './core/widgets';
@@ -115,16 +116,7 @@ export interface LayoutContext {
 /** The effective values of the settings of a template, by key. */
 export type TemplateSettingValues = Record<string, unknown>;
 
-/** The value of an image setting: its address and size in pixels. */
-export interface ImageSetting { src: string; width: number; height: number }
-
-/** The image of a setting, if one is set (null otherwise). */
-export function imageSetting(v: unknown): ImageSetting | null {
-  if (!v || typeof v !== 'object') return null;
-  const x = v as Partial<ImageSetting>;
-  return typeof x.src === 'string' && x.src.startsWith('/api/v1/files/') && Number(x.width) > 0 && Number(x.height) > 0
-    ? { src: x.src, width: Number(x.width), height: Number(x.height) } : null;
-}
+export { imageSetting, type ImageSetting } from './core/templateImages';
 
 export interface Layout {
   root: HTMLElement;
@@ -201,9 +193,13 @@ export function setShownTemplate(id: string): void {
 export function currentTemplateId(): string { return shownTemplate; }
 
 // the effective settings per template, loaded once per page load
-const tplSettings = new Map<string, TemplateSettingValues>();
+const tplSettings = new Map<string, TemplateSettingsState>();
 const tplSettingsLoading = new Map<string, Promise<void>>();
-let tplSettingsDraft: { id: string; values: TemplateSettingValues } | null = null;
+let tplSettingsDraft: (TemplateSettingsState & { id: string }) | null = null;
+
+/** What the server gives for the settings of a template: the effective
+ * values, the CSS variables of the changed ones and their element. */
+export interface TemplateSettingsState { values: TemplateSettingValues; look?: TemplateLook; root?: string }
 
 /** Loads the settings of a template (the template of the site comes with
  * the site already). Failing, the template is built with its defaults. */
@@ -216,8 +212,8 @@ export function loadTemplateSettings(id: string): Promise<void> {
   }
   let p = tplSettingsLoading.get(id);
   if (!p) {
-    p = api.get<TemplateSettingValues>(`templates/${encodeURIComponent(id)}/settings`)
-      .then((v) => { tplSettings.set(id, v); }, () => { tplSettings.set(id, {}); });
+    p = api.get<TemplateSettingsState>(`templates/${encodeURIComponent(id)}/settings`)
+      .then((v) => { tplSettings.set(id, v); }, () => { tplSettings.set(id, { values: {} }); });
     tplSettingsLoading.set(id, p);
   }
   return p;
@@ -228,8 +224,18 @@ export function hasTemplateSettings(id: string): boolean { return tplSettings.ha
 
 /** The settings of a template as the page uses them (a draft shown in the
  * live preview of Administration → Templates → Settings wins). */
-export function templateSettingsOf(id: string): TemplateSettingValues {
-  return tplSettingsDraft?.id === id ? tplSettingsDraft.values : tplSettings.get(id) ?? {};
+function settingsStateOf(id: string): TemplateSettingsState {
+  return tplSettingsDraft?.id === id ? tplSettingsDraft : tplSettings.get(id) ?? { values: {} };
+}
+
+/** The effective values of the settings of a template. */
+export function templateSettingsOf(id: string): TemplateSettingValues { return settingsStateOf(id).values; }
+
+/** Writes the CSS variables of the settings of a template (called by the
+ * shell whenever the frame of the page is built). */
+export function applyTemplateLook(id: string): void {
+  const st = settingsStateOf(id);
+  applyLook(st.look, st.root ?? '');
 }
 
 /** The settings of the template shown now (for blocks of a template, such as
@@ -237,8 +243,8 @@ export function templateSettingsOf(id: string): TemplateSettingValues {
 export function shownTemplateSettings(): TemplateSettingValues { return templateSettingsOf(shownTemplate); }
 
 /** Shows a draft of the settings in this window only (the live preview). */
-export function setTemplateSettingsDraft(id: string, values: TemplateSettingValues): void {
-  tplSettingsDraft = { id, values };
+export function setTemplateSettingsDraft(id: string, draft: TemplateSettingsState): void {
+  tplSettingsDraft = { ...draft, id };
 }
 
 let previewTpl = '';

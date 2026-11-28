@@ -2665,7 +2665,16 @@ test('templates: settings with defaults, contrast warning, live preview, reset; 
     await warning.getByText(/(contrast to|der kontrast zu) #ffffff/i).waitFor();
     await colorField.locator('input[type=color]').fill('#7a1f1f');
     await warning.waitFor({ state: 'hidden' });
-    await page.waitForFunction(() => document.querySelector('iframe.ew-tplset-frame')?.contentDocument?.querySelector('.ewcms-app')?.style.getPropertyValue('--ewcms-primary-l') === '#7a1f1f');
+    await page.waitForFunction(() => {
+      const doc = document.querySelector('iframe.ew-tplset-frame')?.contentDocument;
+      const app = doc?.querySelector('.ewcms-app');
+      return !!app && doc.defaultView.getComputedStyle(app).getPropertyValue('--ewcms-primary-l').trim() === '#7a1f1f';
+    });
+    // a colour of the dark scheme and a font, written as CSS variables of the template
+    await form.locator('[data-setting="page_bg_dark"] input[type=color]').fill('#101820');
+    await form.locator('[data-setting="font"] select').selectOption('inter');
+    await page.waitForFunction(() => /html body\.ewc-dark \.ewcms-app\.ewcms-app \{[^}]*--ewcms-page-bg: #101820/.test(document.querySelector('iframe.ew-tplset-frame')?.contentDocument?.getElementById('ew-template-look')?.textContent ?? '')
+      && /--ewcms-font: "Inter Variable"/.test(document.querySelector('iframe.ew-tplset-frame')?.contentDocument?.getElementById('ew-template-look')?.textContent ?? ''));
     // a text and a logo (its size comes from the file)
     await form.getByLabel(/^(copyright line|copyright-zeile)/i).fill(`© {year} Settings ${run}`);
     await form.getByLabel(/^(copyright line|copyright-zeile)/i).press('Tab');
@@ -2673,18 +2682,30 @@ test('templates: settings with defaults, contrast warning, live preview, reset; 
     const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGCAIAAABxZ0isAAAAXUlEQVR4nAXBMQEAMAgEsVfCjIiKYK6SV3IzIiqCGUVNJBHiiCssEE+skJJITnITJyQv2UQqojjFLVxQvGILyYQ55hobzDNrpCaa09zGDc1rtpGGGM5wBw8Mb9jhA/3OQpEMoO8GAAAAAElFTkSuQmCC', 'base64');
     await form.locator('[data-setting="logo"] input[type=file]').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: png });
     await frame.locator('img.ewcms-logo-img[width="8"][height="6"]').first().waitFor();
+    // the image appears in the form too, with the size the server read
+    await form.locator('[data-setting="logo"] img[width="8"][height="6"]').waitFor();
     await a11y('the settings of a template with its preview');
     await form.getByRole('button', { name: /^(save|speichern)$/i }).click();
     await page.locator('.ew-toast', { hasText: /settings saved|einstellungen gespeichert/i }).first().waitFor();
     let cur = await call('GET', url);
-    assert.deepEqual([...cur.changed].sort(), ['copyright', 'logo', 'primary_color']);
+    assert.deepEqual([...cur.changed].sort(), ['copyright', 'font', 'logo', 'page_bg_dark', 'primary_color']);
     assert.equal(cur.values.logo.width, 8, 'the size of the file');
     // the website with the template uses them
     await call('PUT', '/api/v1/admin/settings', { ui: { ...before, template: 'theme.cms' } });
     await page.goto(`${BASE}/`);
     await idle();
     await page.getByText(`© ${new Date().getFullYear()} Settings ${run}`).waitFor();
-    assert.equal(await page.locator('.ewcms-app').first().evaluate((el) => el.style.getPropertyValue('--ewcms-primary-l')), '#7a1f1f');
+    assert.equal(await page.locator('.ewcms-app').first().evaluate((el) => getComputedStyle(el).getPropertyValue('--ewcms-primary-l').trim()), '#7a1f1f');
+    // the wiki template takes its own logo and mark (on narrow screens) from its settings
+    const hash = cur.values.logo.hash;
+    await call('PUT', '/api/v1/admin/templates/theme.wiki/settings', { values: { logo: hash, mark: hash, logo_height: 60 } });
+    await call('PUT', '/api/v1/admin/settings', { ui: { ...before, template: 'theme.wiki' } });
+    await page.goto(`${BASE}/`);
+    await idle();
+    const wikiLogo = page.locator(`.ewc-brand img.ewc-logo[src="/api/v1/files/${hash}"][width="8"][height="6"]`);
+    await wikiLogo.waitFor();
+    assert.equal(await page.locator(`.ewc-brand source[srcset="/api/v1/files/${hash}"]`).count(), 1, 'the mark on narrow screens');
+    assert.equal(await wikiLogo.evaluate((el) => getComputedStyle(el).height), '60px', 'the height of the settings');
     // back to the default: one setting, then all
     await page.goto(`${BASE}/admin/templates?tab=settings&t=theme.cms`);
     await idle();
@@ -2693,7 +2714,7 @@ test('templates: settings with defaults, contrast warning, live preview, reset; 
     await form.getByRole('button', { name: /^(save|speichern)$/i }).click();
     await page.locator('.ew-toast', { hasText: /settings saved|einstellungen gespeichert/i }).first().waitFor();
     cur = await call('GET', url);
-    assert.deepEqual([...cur.changed].sort(), ['logo', 'primary_color']);
+    assert.deepEqual([...cur.changed].sort(), ['font', 'logo', 'page_bg_dark', 'primary_color']);
     await page.locator('.ew-tplset-form').getByRole('button', { name: /^(reset all|alles zurücksetzen)$/i }).click();
     // the toast of the save before may still be shown: wait for the answer itself
     const deleted = page.waitForResponse((r) => r.url().endsWith(url) && r.request().method() === 'DELETE');
@@ -2703,6 +2724,7 @@ test('templates: settings with defaults, contrast warning, live preview, reset; 
     assert.equal(cur.changed.length, 0);
   } finally {
     await call('DELETE', url);
+    await call('DELETE', '/api/v1/admin/templates/theme.wiki/settings');
     await call('PUT', '/api/v1/admin/settings', { ui: before });
   }
 });

@@ -3330,7 +3330,6 @@
  "sitetpl.settings_none": "This template offers no settings.",
  "sitetpl.contrast_low": "Contrast to {color} is only {ratio}:1; text needs at least 4.5:1.",
  "sitetpl.font_system": "Font of the system",
- "sitetpl.font_sans": "Sans serif",
  "sitetpl.font_serif": "Serif",
  "sitetpl.font_mono": "Monospace",
  "sitetpl.image_default": "The image of the template",
@@ -3352,5 +3351,8 @@
  "sitetpl.reset_all_confirm": "Set all settings of {name} back to their defaults?",
  "sitetpl.preview": "Preview",
  "sitetpl.preview_help": "Only you see the preview. Choose a device to see the website on a tablet or a phone.",
- "sitetpl.preview_frame": "Preview of the website with {name}"
+ "sitetpl.preview_frame": "Preview of the website with {name}",
+ "sitetpl.font_inter": "Inter",
+ "sitetpl.font_poppins": "Poppins",
+ "sitetpl.font_source-sans": "Source Sans 3"
 }

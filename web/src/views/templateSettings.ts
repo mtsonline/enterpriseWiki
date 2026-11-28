@@ -10,21 +10,19 @@ import { toast } from '../core/announce';
 import { contrast } from '../core/blockoptions';
 import { state } from '../core/state';
 import { DEVICES, type Device } from '../core/templateSchema';
-import { imageSetting, listTemplates, templateLabel, type TemplateTabContext } from '../coreplugin';
+import { imageSetting, listTemplates, templateLabel, type TemplateSettingsState, type TemplateTabContext } from '../coreplugin';
 import { button, checkbox, confirmDialog, errorText, field, select, textInput } from '../components/ui';
 import { currentDevice, deviceSwitch } from '../components/templateSchema';
 
 /** One setting as the server describes it (internal/tplsettings). */
 interface Setting {
   key: string; kind: 'color' | 'font' | 'image' | 'number' | 'select' | 'bool' | 'text' | 'link'; group: string; role?: string;
-  default?: unknown; min?: number; max?: number; step?: number; max_len?: number; options?: string[];
+  default?: unknown; default_src?: string; min?: number; max?: number; step?: number; max_len?: number; options?: string[];
   label: Record<string, string>; help?: Record<string, string>; option_labels?: Record<string, Record<string, string>>; contrast_on?: string[];
 }
 interface SettingsState { settings: Setting[]; values: Record<string, unknown>; changed: string[] }
 
 const GROUPS = ['colors', 'fonts', 'logos', 'header', 'content', 'footer', 'layout'];
-/** Fonts every browser has (own fonts of the template designer come on top). */
-const BASIC_FONTS = ['system', 'sans', 'serif', 'mono'];
 
 const label = (s: Setting) => pick(s.label, state.lang, 'en');
 const isColor = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
@@ -66,9 +64,22 @@ async function settingsForm(id: string, cur: SettingsState, reload: () => void):
   const stored = new Set(cur.changed);
   const status = h('p', { class: 'sr-only', 'aria-live': 'polite' });
   const fonts = await ownFonts();
-  const preview = previewFrame(id, draft);
+  const preview = previewFrame(id, { values: { ...draft } });
+  // the preview shows what saving would give: the server checks the draft
+  // and returns its values and CSS variables (nothing is stored)
+  let timer = 0;
+  const refresh = () => {
+    clearTimeout(timer);
+    timer = window.setTimeout(() => void (async () => {
+      try {
+        const st = await api.post<TemplateSettingsState>(`admin/templates/${encodeURIComponent(id)}/settings/preview`, { values: Object.fromEntries(edits) });
+        for (const s of cur.settings) if (s.kind === 'image') { draft[s.key] = st.values[s.key]; controls.get(s.key)?.(); }
+        preview.update(st);
+      } catch (e) { status.textContent = errorText(e); }
+    })(), 250);
+  };
   const changed = (key: string) => {
-    preview.update(draft);
+    refresh();
     warnings.forEach((w) => w());
     resets.get(key)?.();
   };
@@ -105,10 +116,9 @@ async function settingsForm(id: string, cur: SettingsState, reload: () => void):
         break;
       }
       case 'font': {
-        const names = [...BASIC_FONTS, ...fonts];
-        const sl = select(names.map((f) => ({ value: f, label: BASIC_FONTS.includes(f) ? t(`sitetpl.font_${f}`) : f })), String(draft[s.key] ?? 'system'));
+        const sl = select([...(s.options ?? []).map((f) => ({ value: f, label: t(`sitetpl.font_${f}`) })), ...fonts], String(draft[s.key] ?? s.default ?? ''));
         sl.addEventListener('change', () => set(sl.value));
-        sync = () => { sl.value = String(draft[s.key] ?? 'system'); };
+        sync = () => { sl.value = String(draft[s.key] ?? s.default ?? ''); };
         control = sl;
         break;
       }
@@ -116,7 +126,8 @@ async function settingsForm(id: string, cur: SettingsState, reload: () => void):
         const shown = h('div', { class: 'ew-image-preview' });
         const draw = () => {
           const img = imageSetting(draft[s.key]);
-          shown.replaceChildren(img ? h('img', { src: img.src, width: img.width, height: img.height, alt: '' }) : h('span', { class: 'ew-help' }, t('sitetpl.image_default')));
+          shown.replaceChildren(img ? h('img', { src: img.src, width: img.width, height: img.height, alt: '' })
+            : s.default_src ? h('img', { src: s.default_src, alt: '', class: 'ew-tplset-default-img' }) : h('span', { class: 'ew-help' }, t('sitetpl.image_default')));
         };
         const file = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', class: 'ew-input' }) as HTMLInputElement;
         file.addEventListener('change', () => void (async () => {
@@ -124,10 +135,7 @@ async function settingsForm(id: string, cur: SettingsState, reload: () => void):
           if (!f) return;
           try {
             const up = await uploadFile(f);
-            const size = await imageSize(`/api/v1/files/${up.hash}`);
-            draft[s.key] = { src: `/api/v1/files/${up.hash}`, ...size };
             edits.set(s.key, up.hash);
-            draw();
             changed(s.key);
             status.textContent = t('settings.image_uploaded');
           } catch (e) { toast(errorText(e), 'error'); }
@@ -184,10 +192,10 @@ async function settingsForm(id: string, cur: SettingsState, reload: () => void):
       }
     }
     controls.set(s.key, sync);
-    const def = s.kind === 'image' ? t('sitetpl.image_default') : s.kind === 'bool' ? t(s.default ? 'common.yes' : 'common.no')
+    const def = s.kind === 'image' ? t('sitetpl.image_default') : s.kind === 'font' ? t(`sitetpl.font_${String(s.default)}`) : s.kind === 'bool' ? t(s.default ? 'common.yes' : 'common.no')
       : s.kind === 'select' && s.option_labels?.[String(s.default)] ? pick(s.option_labels[String(s.default)], state.lang, 'en') : String(s.default ?? '') || '–';
     const reset = button(t('sitetpl.reset'), () => {
-      draft[s.key] = s.default;
+      draft[s.key] = s.kind === 'image' ? null : s.default;
       edits.set(s.key, null);
       sync();
       changed(s.key);
@@ -229,31 +237,21 @@ async function settingsForm(id: string, cur: SettingsState, reload: () => void):
       deviceSwitch((d) => preview.resize(d)), preview.el));
 }
 
-/** The own fonts of the template designer (none without it). */
-async function ownFonts(): Promise<string[]> {
+/** The own fonts of the template designer (none without it), as options. */
+async function ownFonts(): Promise<{ value: string; label: string }[]> {
   if (!(state.site.plugins ?? []).includes('core.template')) return [];
   try {
-    return (await api.get<{ name: string }[]>('x/core.template/fonts')).map((f) => f.name).filter((f) => /^[A-Za-z0-9][A-Za-z0-9 _.-]*$/.test(f));
+    return (await api.get<{ id: number; name: string }[]>('x/core.template/fonts')).map((f) => ({ value: `own-${f.id}`, label: f.name }));
   } catch {
     return [];
   }
 }
 
-/** The size of an uploaded image (for the preview: the server reads it itself when saving). */
-function imageSize(src: string): Promise<{ width: number; height: number }> {
-  return new Promise((res, rej) => {
-    const img = new Image();
-    img.onload = () => res({ width: img.naturalWidth, height: img.naturalHeight });
-    img.onerror = () => rej(new Error(t('sitetpl.image_unreadable')));
-    img.src = src;
-  });
-}
-
 /** The frame of the live preview: the website with the template and the
  * draft (see setupSettingsPreview in main.ts), as wide as the device chosen. */
-function previewFrame(id: string, draft: Record<string, unknown>): { el: HTMLElement; update: (v: Record<string, unknown>) => void; resize: (d: Device) => void } {
-  const w = window as unknown as { __ewTplSettingsDraft?: { id: string; values: Record<string, unknown> } };
-  w.__ewTplSettingsDraft = { id, values: { ...draft } };
+function previewFrame(id: string, first: TemplateSettingsState): { el: HTMLElement; update: (st: TemplateSettingsState) => void; resize: (d: Device) => void } {
+  const w = window as unknown as { __ewTplSettingsDraft?: { id: string; state: TemplateSettingsState } };
+  w.__ewTplSettingsDraft = { id, state: first };
   const frame = h('iframe', { src: '/', title: t('sitetpl.preview_frame', { name: templateLabel(id) }), class: 'ew-tplset-frame', loading: 'lazy' }) as HTMLIFrameElement;
   // scrolls when the device is wider than the room: reachable with the keyboard
   const box = h('div', { class: 'ew-tplset-framebox', tabindex: '0', role: 'group', 'aria-label': t('sitetpl.preview') }, frame);
@@ -266,10 +264,10 @@ function previewFrame(id: string, draft: Record<string, unknown>): { el: HTMLEle
   return {
     el: box,
     resize,
-    update: (v) => {
-      w.__ewTplSettingsDraft = { id, values: { ...v } };
+    update: (st) => {
+      w.__ewTplSettingsDraft = { id, state: st };
       try {
-        (frame.contentWindow as unknown as { __ewTplSettingsUpdate?: (x: Record<string, unknown>) => void } | null)?.__ewTplSettingsUpdate?.({ ...v });
+        (frame.contentWindow as unknown as { __ewTplSettingsUpdate?: (x: TemplateSettingsState) => void } | null)?.__ewTplSettingsUpdate?.(st);
       } catch { /* not loaded yet: it reads the draft when it starts */ }
     },
   };

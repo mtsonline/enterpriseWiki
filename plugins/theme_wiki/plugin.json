@@ -4,8 +4,413 @@
   "version": "1.0.0",
   "description": "Documentation layout with page tree sidebar, breadcrumbs and a clean reading view. Offers the positions header, sidebar, content and footer.",
   "author": "Enterprise Wiki",
-  "kinds": ["template"],
+  "kinds": [
+    "template"
+  ],
   "extends": [],
   "frontend": true,
-  "color_scheme": "system"
+  "color_scheme": "system",
+  "template_settings": [
+    {
+      "key": "primary",
+      "kind": "color",
+      "group": "colors",
+      "default": "#0b5cad",
+      "css_vars": [
+        "--ew-primary",
+        "--ew-link"
+      ],
+      "scheme": "light",
+      "contrast_on": [
+        "bg",
+        "bg_raised"
+      ],
+      "label": {
+        "en": "Primary colour (light)",
+        "de": "Hauptfarbe (hell)"
+      },
+      "help": {
+        "en": "Links, buttons and marks.",
+        "de": "Links, Schaltflächen und Markierungen."
+      }
+    },
+    {
+      "key": "primary_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#85b8ff",
+      "css_vars": [
+        "--ew-primary",
+        "--ew-link"
+      ],
+      "scheme": "dark",
+      "contrast_on": [
+        "bg_dark",
+        "bg_raised_dark"
+      ],
+      "label": {
+        "en": "Primary colour (dark)",
+        "de": "Hauptfarbe (dunkel)"
+      },
+      "help": {
+        "en": "Links, buttons and marks.",
+        "de": "Links, Schaltflächen und Markierungen."
+      }
+    },
+    {
+      "key": "on_primary",
+      "kind": "color",
+      "group": "colors",
+      "default": "#ffffff",
+      "css_vars": [
+        "--ew-on-primary"
+      ],
+      "scheme": "light",
+      "contrast_on": [
+        "primary"
+      ],
+      "label": {
+        "en": "Text on the primary colour (light)",
+        "de": "Text auf der Hauptfarbe (hell)"
+      }
+    },
+    {
+      "key": "on_primary_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#10151a",
+      "css_vars": [
+        "--ew-on-primary"
+      ],
+      "scheme": "dark",
+      "contrast_on": [
+        "primary_dark"
+      ],
+      "label": {
+        "en": "Text on the primary colour (dark)",
+        "de": "Text auf der Hauptfarbe (dunkel)"
+      }
+    },
+    {
+      "key": "bg",
+      "kind": "color",
+      "group": "colors",
+      "default": "#ffffff",
+      "css_vars": [
+        "--ew-bg"
+      ],
+      "scheme": "light",
+      "label": {
+        "en": "Background (light)",
+        "de": "Hintergrund (hell)"
+      }
+    },
+    {
+      "key": "bg_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#1d2125",
+      "css_vars": [
+        "--ew-bg"
+      ],
+      "scheme": "dark",
+      "label": {
+        "en": "Background (dark)",
+        "de": "Hintergrund (dunkel)"
+      }
+    },
+    {
+      "key": "bg_subtle",
+      "kind": "color",
+      "group": "colors",
+      "default": "#f4f5f7",
+      "css_vars": [
+        "--ew-bg-subtle"
+      ],
+      "scheme": "light",
+      "label": {
+        "en": "Background of the sidebar and footer (light)",
+        "de": "Hintergrund von Seitenleiste und Fußbereich (hell)"
+      }
+    },
+    {
+      "key": "bg_subtle_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#22272b",
+      "css_vars": [
+        "--ew-bg-subtle"
+      ],
+      "scheme": "dark",
+      "label": {
+        "en": "Background of the sidebar and footer (dark)",
+        "de": "Hintergrund von Seitenleiste und Fußbereich (dunkel)"
+      }
+    },
+    {
+      "key": "bg_raised",
+      "kind": "color",
+      "group": "colors",
+      "default": "#ffffff",
+      "css_vars": [
+        "--ew-bg-raised"
+      ],
+      "scheme": "light",
+      "label": {
+        "en": "Background of the header and cards (light)",
+        "de": "Hintergrund von Kopfbereich und Karten (hell)"
+      }
+    },
+    {
+      "key": "bg_raised_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#282e33",
+      "css_vars": [
+        "--ew-bg-raised"
+      ],
+      "scheme": "dark",
+      "label": {
+        "en": "Background of the header and cards (dark)",
+        "de": "Hintergrund von Kopfbereich und Karten (dunkel)"
+      }
+    },
+    {
+      "key": "text",
+      "kind": "color",
+      "group": "colors",
+      "default": "#172b4d",
+      "css_vars": [
+        "--ew-text"
+      ],
+      "scheme": "light",
+      "contrast_on": [
+        "bg",
+        "bg_subtle",
+        "bg_raised"
+      ],
+      "label": {
+        "en": "Text (light)",
+        "de": "Text (hell)"
+      }
+    },
+    {
+      "key": "text_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#dee4ea",
+      "css_vars": [
+        "--ew-text"
+      ],
+      "scheme": "dark",
+      "contrast_on": [
+        "bg_dark",
+        "bg_subtle_dark",
+        "bg_raised_dark"
+      ],
+      "label": {
+        "en": "Text (dark)",
+        "de": "Text (dunkel)"
+      }
+    },
+    {
+      "key": "text_muted",
+      "kind": "color",
+      "group": "colors",
+      "default": "#44546f",
+      "css_vars": [
+        "--ew-text-muted"
+      ],
+      "scheme": "light",
+      "contrast_on": [
+        "bg",
+        "bg_subtle"
+      ],
+      "label": {
+        "en": "Quiet text (light)",
+        "de": "Dezenter Text (hell)"
+      }
+    },
+    {
+      "key": "text_muted_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#b6c2cf",
+      "css_vars": [
+        "--ew-text-muted"
+      ],
+      "scheme": "dark",
+      "contrast_on": [
+        "bg_dark",
+        "bg_subtle_dark"
+      ],
+      "label": {
+        "en": "Quiet text (dark)",
+        "de": "Dezenter Text (dunkel)"
+      }
+    },
+    {
+      "key": "border",
+      "kind": "color",
+      "group": "colors",
+      "default": "#c1c7d0",
+      "css_vars": [
+        "--ew-border"
+      ],
+      "scheme": "light",
+      "label": {
+        "en": "Lines (light)",
+        "de": "Linien (hell)"
+      }
+    },
+    {
+      "key": "border_dark",
+      "kind": "color",
+      "group": "colors",
+      "default": "#454f59",
+      "css_vars": [
+        "--ew-border"
+      ],
+      "scheme": "dark",
+      "label": {
+        "en": "Lines (dark)",
+        "de": "Linien (dunkel)"
+      }
+    },
+    {
+      "key": "font",
+      "kind": "font",
+      "group": "fonts",
+      "default": "inter",
+      "options": [
+        "inter",
+        "system",
+        "source-sans",
+        "serif"
+      ],
+      "css_vars": [
+        "--ew-font"
+      ],
+      "label": {
+        "en": "Text",
+        "de": "Text"
+      }
+    },
+    {
+      "key": "heading_font",
+      "kind": "font",
+      "group": "fonts",
+      "default": "poppins",
+      "options": [
+        "poppins",
+        "inter",
+        "system",
+        "source-sans",
+        "serif"
+      ],
+      "css_vars": [
+        "--ew-heading-font"
+      ],
+      "label": {
+        "en": "Headings",
+        "de": "Überschriften"
+      }
+    },
+    {
+      "key": "logo",
+      "kind": "image",
+      "group": "logos",
+      "role": "logo",
+      "default_src": "/brand/logo.webp",
+      "label": {
+        "en": "Logo",
+        "de": "Logo"
+      },
+      "help": {
+        "en": "PNG, WebP or JPEG, ideally with a transparent background.",
+        "de": "PNG, WebP oder JPEG, am besten mit transparentem Hintergrund."
+      }
+    },
+    {
+      "key": "logo_on_dark",
+      "kind": "image",
+      "group": "logos",
+      "role": "logo_on_dark",
+      "label": {
+        "en": "Logo on a dark background",
+        "de": "Logo auf dunklem Hintergrund"
+      },
+      "help": {
+        "en": "Shown in the dark colour scheme. Without it the logo is shown.",
+        "de": "Im dunklen Farbschema gezeigt. Ohne dieses Bild erscheint das Logo."
+      }
+    },
+    {
+      "key": "mark",
+      "kind": "image",
+      "group": "logos",
+      "role": "mark",
+      "default_src": "/brand/mark.webp",
+      "label": {
+        "en": "Mark (narrow screens)",
+        "de": "Bildmarke (schmale Bildschirme)"
+      },
+      "help": {
+        "en": "The small sign without text, shown on phones next to the name of the site.",
+        "de": "Das kleine Zeichen ohne Schrift, auf Handys neben dem Namen der Website."
+      }
+    },
+    {
+      "key": "mark_on_dark",
+      "kind": "image",
+      "group": "logos",
+      "role": "mark_on_dark",
+      "label": {
+        "en": "Mark on a dark background",
+        "de": "Bildmarke auf dunklem Hintergrund"
+      },
+      "help": {
+        "en": "Shown on narrow screens in the dark colour scheme.",
+        "de": "Auf schmalen Bildschirmen im dunklen Farbschema gezeigt."
+      }
+    },
+    {
+      "key": "logo_height",
+      "kind": "number",
+      "group": "logos",
+      "default": 44,
+      "min": 24,
+      "max": 96,
+      "step": 1,
+      "css_vars": [
+        "--ewc-logo-h"
+      ],
+      "unit": "px",
+      "label": {
+        "en": "Logo height (pixels)",
+        "de": "Logo-Höhe (Pixel)"
+      },
+      "help": {
+        "en": "On phones and tablets the logo is a little smaller.",
+        "de": "Auf Handys und Tablets ist das Logo etwas kleiner."
+      }
+    },
+    {
+      "key": "sidebar_width",
+      "kind": "number",
+      "group": "layout",
+      "default": 248,
+      "min": 180,
+      "max": 400,
+      "step": 1,
+      "css_vars": [
+        "--ewc-sidebar-w"
+      ],
+      "unit": "px",
+      "label": {
+        "en": "Width of the sidebar (pixels)",
+        "de": "Breite der Seitenleiste (Pixel)"
+      }
+    }
+  ]
 }
