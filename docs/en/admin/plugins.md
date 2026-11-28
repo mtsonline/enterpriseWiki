@@ -166,11 +166,11 @@ Every template offers positions where menus (`core.menu`), blocks (`core.blocks`
 | `footer-1` … `footer-4` | – | columns in the footer |
 | `footer` | footer | bottom line of the footer |
 
-With the wiki template (`theme.wiki`, `theme.wiki.dark`) the sidebar can be hidden on all screen sizes with the button in the header; the state is remembered in the browser.
+With the wiki template (`theme.wiki`) the sidebar can be hidden on all screen sizes with the button in the header; the state is remembered in the browser.
 
 ### Settings of the templates
 
-Every template offers its settings under *Administration → Templates → Settings*, each template with its own values: the wiki templates (`theme.wiki`, `theme.wiki.dark`) their colours in the light and the dark scheme, the fonts of text and headings, the logo, the logo on a dark background, the mark and the mark on a dark background (narrow screens), the height of the logo and the width of the sidebar. Each field shows the default the template brings; *Reset* returns to it. Logos and images are uploaded PNG, WebP or JPEG files (no SVG).
+Every template offers its settings under *Administration → Templates → Settings*, each template with its own values: the wiki template (`theme.wiki`) its colours in the light and the dark scheme, the fonts of text and headings, the logo, the logo on a dark background, the mark and the mark on a dark background (narrow screens), the height of the logo and the width of the sidebar. Each field shows the default the template brings; *Reset* returns to it. Logos and images are uploaded PNG, WebP or JPEG files (no SVG). Templates with dark colours also offer the **colour scheme by default** (as the device is set, light or dark); a choice of a person always wins.
 
 Templates of data (see below) offer the values of their design: every colour of the light and, if they have them, the dark scheme, the fonts, the size of the text, the corners, the content width and the logo, with the values of the design as the defaults. They also offer the mark for narrow screens and, with dark colours, the logo and the mark on dark colours. The server checks the design with these values like a saved design: every pair of colours needs its contrast and every row its room. A value that breaks this is refused, and the form says why at once. A copy of a template of data takes the values of its original as the values of its design, and keeps the mark and the logos on dark colours as its own settings. A template deleted for good loses its settings.
 
@@ -304,7 +304,6 @@ Core plugins are full code with access to the database and the server. Only inst
 | `theme.wiki` | template | documentation layout with page tree; text in Inter, headings in Poppins Bold (the font of the logo) |
 | `theme.cms` | template | website, classic (university, organisation): main navigation, transparent header above the start image, title banner, footer columns |
 | `theme.cms.modern` | template | website, modern and neutral: inherits structure, positions and settings from `theme.cms`, own design (font Inter, glass header, left-aligned start image, rounded cards) |
-| `theme.wiki.dark` | template (example) | inherits from `theme.wiki`, only changes the colours |
 | `example.notice` | element type (example) | notice box, inherits from `core.html` |
 
 Developing own plugins: [Developing plugins](../developer/plugins.md)

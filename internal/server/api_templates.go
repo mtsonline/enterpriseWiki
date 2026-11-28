@@ -188,20 +188,19 @@ func (t tplInfo) checkValues(ctx context.Context, stored map[string]any) error {
 // settings). Only the manifests needed are read: this runs for every /site.
 func (s *Server) template(ctx context.Context, id string) (tplInfo, error) {
 	find := func(id string) (coreplugin.Manifest, bool) {
-		p, ok := s.app.Kernel.Get(id)
+		m, ok := s.app.Kernel.Manifest(id)
 		if !ok || !s.app.Kernel.Enabled(id) {
 			return coreplugin.Manifest{}, false
 		}
-		m := p.Manifest()
 		return m, slices.Contains(m.Kinds, coreplugin.KindTemplate)
 	}
 	m, ok := find(id)
 	if !ok {
 		if desc, check, ok := s.app.Content.TemplateSettings(ctx, id); ok {
-			return tplInfo{settings: desc, check: check}, nil
+			return withScheme(tplInfo{settings: desc, check: check}, s.app.Content.TemplateColorScheme(ctx, id)), nil
 		}
 		if s.app.Content.TemplateOK(ctx, id) {
-			return tplInfo{}, nil
+			return withScheme(tplInfo{}, s.app.Content.TemplateColorScheme(ctx, id)), nil
 		}
 		return tplInfo{}, apperr.NotFound("template")
 	}
@@ -217,7 +216,17 @@ func (s *Server) template(ctx context.Context, id string) (tplInfo, error) {
 			}
 		}
 	}
-	return t, nil
+	return withScheme(t, m.ColorScheme), nil
+}
+
+// withScheme adds the colour scheme by default to the settings of a
+// template with dark colours (def: the scheme it declares; "" = light
+// colours only, no setting). The list of the template is not changed.
+func withScheme(t tplInfo, def string) tplInfo {
+	if def != "" {
+		t.settings = append(slices.Clip(t.settings), tplsettings.SchemeSetting(def))
+	}
+	return t
 }
 
 // siteTemplateSettings are the effective settings of the template of the

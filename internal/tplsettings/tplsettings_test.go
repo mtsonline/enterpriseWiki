@@ -190,3 +190,34 @@ func TestLook(t *testing.T) {
 		t.Errorf("unchecked value written: %+v", l)
 	}
 }
+
+// The colour scheme by default is added by the core: a template cannot
+// declare it, and its value is used only for templates with dark colours.
+func TestScheme(t *testing.T) {
+	if CheckDescription([]Setting{SchemeSetting("system")}) == nil {
+		t.Fatal("a template declared the colour scheme itself")
+	}
+	cases := []struct {
+		def    string
+		stored map[string]any
+		want   string
+	}{
+		{"system", nil, "system"},
+		{"system", map[string]any{KeyColorScheme: "dark"}, "dark"},
+		{"dark", map[string]any{KeyColorScheme: "purple"}, "dark"},
+		{"dark", map[string]any{KeyColorScheme: 1}, "dark"},
+		{"", map[string]any{KeyColorScheme: "dark"}, ""},
+	}
+	for _, c := range cases {
+		if got := Scheme(c.def, c.stored); got != c.want {
+			t.Errorf("Scheme(%q, %v) = %q, want %q", c.def, c.stored, got, c.want)
+		}
+	}
+	s := SchemeSetting("light")
+	if _, err := Check([]Setting{s}, map[string]any{KeyColorScheme: "dark"}, nil); err != nil {
+		t.Fatalf("a valid scheme: %v", err)
+	}
+	if _, err := Check([]Setting{s}, map[string]any{KeyColorScheme: "sepia"}, nil); err == nil {
+		t.Fatal("an unknown scheme was accepted")
+	}
+}

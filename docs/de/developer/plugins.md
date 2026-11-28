@@ -19,7 +19,7 @@ Vollständige Beispiele im Repository:
 | Beispiel | zeigt |
 |---|---|
 | `plugins/example_notice` | Elementtyp, der von `core.html` erbt, eigene API-Route, Übersetzungen, Frontend-Editor, der den Basis-Editor wiederverwendet |
-| `plugins/theme_wiki_dark` | Template, das von einem anderen Template erbt |
+| `plugins/theme_cms_modern` | Template, das von einem anderen Template erbt (`theme.cms`), mit eigenen Vorgaben |
 | `plugins/core_menu` | Migrationen, CRUD-API mit Admin-Prüfung, Widgets an Template-Positionen, eigene Admin-Seite |
 | `plugins/auth_local` | Anmeldeverfahren |
 
@@ -45,7 +45,7 @@ Vollständige Beispiele im Repository:
 - `required`: kann nicht deaktiviert werden (nur für Kern-Plugins).
 - `default_off`: wird mitgeliefert, ist aber aus, bis die Administration es einschaltet (`plugins.enabled` in `config.yaml`), zum Beispiel die Web Application Firewall `core.waf`.
 - `frontend`: `true`, wenn `web/index.ts` existiert.
-- `color_scheme` (nur Templates): `system`, `light` oder `dark`, das Farbschema, wenn die Person keines gewählt hat. Damit sagt das Template, dass seine Farben aus den Farbvariablen des Kerns kommen (hell und dunkel); der Kern setzt dann die Klasse `ewc-dark`. Ohne das Feld hat das Template nur helle Farben, und die Wahl der Person gilt dafür nicht.
+- `color_scheme` (nur Templates): `system`, `light` oder `dark`, das Farbschema, wenn die Person keines gewählt hat. Damit sagt das Template, dass seine Farben aus den Farbvariablen des Kerns kommen (hell und dunkel); der Kern setzt dann die Klasse `ewc-dark`. Ohne das Feld hat das Template nur helle Farben, und die Wahl der Person gilt dafür nicht. Mit dem Feld fügt der Kern dem Template die Einstellung *Farbschema als Vorgabe* hinzu (`color_scheme`, siehe Template-Einstellungen), mit diesem Wert als Vorgabe; ein Template meldet diese Einstellung nicht selbst an.
 
 ## Rechte (Pflicht)
 

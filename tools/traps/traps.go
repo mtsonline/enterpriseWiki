@@ -2253,4 +2253,25 @@ var traps = []trap{
 		New:  "func (s *Service) UserFeedKeys(ctx context.Context, uid int64) ([]FeedKey, error) {\n\tif err := error(nil); err != nil {",
 		Pkg:  "./internal/server/", Tests: "^TestFeeds$",
 	},
+	{
+		ID: "template.scheme-setting-ignored", About: "the colour scheme chosen in the settings of a template is not used",
+		File: "internal/tplsettings/tplsettings.go",
+		Old:  "	if v, ok := stored[KeyColorScheme].(string); ok && slices.Contains(ColorSchemes, v) {",
+		New:  "	if v, ok := stored[KeyColorScheme].(string); ok && v == \"\" {",
+		Pkg:  "./internal/server/", Tests: "^TestColorScheme$",
+	},
+	{
+		ID: "template.scheme-light-only", About: "a template with light colours only offers a colour scheme",
+		File: "internal/server/api_templates.go",
+		Old:  "	if def != \"\" {\n\t\tt.settings = append(slices.Clip(t.settings), tplsettings.SchemeSetting(def))",
+		New:  "	if true {\n\t\tt.settings = append(slices.Clip(t.settings), tplsettings.SchemeSetting(def))",
+		Pkg:  "./internal/server/", Tests: "^TestColorScheme$",
+	},
+	{
+		ID: "kernel.manifest-per-request", About: "the kernel reads the manifests again for every list (slow /site)",
+		File: "internal/kernel/kernel.go",
+		Old:  "	for id := range k.plugins {\n\t\tm := k.manifests[id]",
+		New:  "	for id := range k.plugins {\n\t\tm := k.plugins[id].Manifest()",
+		Pkg:  "./internal/kernel/", Tests: "^TestManifestsReadOnce$",
+	},
 }

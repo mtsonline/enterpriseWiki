@@ -145,6 +145,42 @@ var (
 // CheckDescription checks the description of the settings of a template
 // (done when it is registered): keys, kinds, groups, roles, limits and
 // that every default is a valid value.
+// KeyColorScheme is the setting the core adds to every template with dark
+// colours: the scheme shown to people who have not chosen one. A template
+// does not declare it itself (CheckDescription refuses the key).
+const KeyColorScheme = "color_scheme"
+
+// ColorSchemes are the values of KeyColorScheme ("system": as the device is
+// set); the same as the choice of a person.
+var ColorSchemes = []string{"system", "light", "dark"}
+
+// SchemeSetting is the setting KeyColorScheme with the default def (the
+// scheme the template declares: its manifest, or its design).
+func SchemeSetting(def string) Setting {
+	return Setting{Key: KeyColorScheme, Kind: KindSelect, Group: "colors", Default: def, Options: ColorSchemes,
+		Label: Texts{"en": "Colour scheme by default", "de": "Farbschema als Vorgabe"},
+		Help: Texts{"en": "Shown to everyone who has not chosen light or dark. A choice of a person always wins.",
+			"de": "Gilt für alle, die nicht selbst hell oder dunkel gewählt haben. Die Wahl einer Person hat immer Vorrang."},
+		OptionLabels: map[string]Texts{
+			"system": {"en": "As the device is set", "de": "Wie am Gerät eingestellt"},
+			"light":  {"en": "Light", "de": "Hell"},
+			"dark":   {"en": "Dark", "de": "Dunkel"},
+		}}
+}
+
+// Scheme is the effective default scheme of a template: def (what it
+// declares; "" = light colours only, then there is no choice) or the value
+// stored in its settings.
+func Scheme(def string, stored map[string]any) string {
+	if def == "" {
+		return ""
+	}
+	if v, ok := stored[KeyColorScheme].(string); ok && slices.Contains(ColorSchemes, v) {
+		return v
+	}
+	return def
+}
+
 func CheckDescription(list []Setting) error {
 	if len(list) > MaxSettings {
 		return fmt.Errorf("at most %d settings", MaxSettings)
@@ -162,6 +198,9 @@ func CheckDescription(list []Setting) error {
 		}
 		if seen[s.Key] {
 			return fmt.Errorf("setting %q: declared twice", s.Key)
+		}
+		if s.Key == KeyColorScheme {
+			return fmt.Errorf("setting %q: added by the core to every template with dark colours", s.Key)
 		}
 		seen[s.Key] = true
 		if !slices.Contains(Kinds, s.Kind) {

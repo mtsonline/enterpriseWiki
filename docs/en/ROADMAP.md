@@ -12,7 +12,7 @@ The implementation happens in milestones. Every milestone runs and is tested by 
 - Permissions for users, groups, roles, guests and signed-in people with inheritance
 - Local sign-in (always first), sessions, API keys, SSH key login
 - Full-text search, tags
-- Menus (`core.menu`), template `theme.wiki` (+ example `theme.wiki.dark`)
+- Menus (`core.menu`), template `theme.wiki` (the example "Wiki dark" was removed on 28.11.2026: the colour scheme by default is now a setting of every template)
 - Admin area: users, groups, roles, plugins, settings (in `config.yaml`), languages, log, menus
 - CLI with access to every API function, setup assistant, Docker, systemd installer, update script with backup and rollback
 - Tests: unit, API integration (including a check that every route is used by the frontend), browser E2E with WCAG check (axe), GitHub Actions
@@ -81,7 +81,7 @@ Administration → Elements (search, filter, edit, move, delete all elements); e
 
 ## Improvements v7.4.2
 
-The menu editor only shows the list of entries, "Edit" opens a single entry (including the parent entry); the wiki template is now called `theme.wiki`/`theme.wiki.dark`, narrower sidebar that can be shown and hidden; website template `theme.cms` redesigned (transparent header above the hero image, title banner on sub-pages, footer columns, "Back to top" button, font Source Sans 3) with its own settings page *Administration → Website template*; settings forms know image and colour fields.
+The menu editor only shows the list of entries, "Edit" opens a single entry (including the parent entry); the wiki template is now called `theme.wiki` (then with "Wiki dark"), narrower sidebar that can be shown and hidden; website template `theme.cms` redesigned (transparent header above the hero image, title banner on sub-pages, footer columns, "Back to top" button, font Source Sans 3) with its own settings page *Administration → Website template*; settings forms know image and colour fields.
 
 ## Licensing (v7.5)
 

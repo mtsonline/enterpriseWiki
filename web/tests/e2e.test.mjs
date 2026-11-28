@@ -1576,8 +1576,18 @@ test('hint on long sentences: offered by the site, chosen by the person, marks w
 });
 
 test('workflow: HR application from template, start and handle a case', async () => {
+  // the meta data of the editor arrives after the template is chosen: the
+  // editor draws again and must keep the choice (regression: "Use template"
+  // then did nothing)
+  let release;
+  const held = new Promise((r) => { release = r; });
+  await page.route('**/api/v1/x/workflow.process/meta', async (route) => { await held; await route.continue(); }, { times: 1 });
   await newPage('workflow.process', `Application ${run}`);
   await page.locator('.ewf-template:not(.ewf-add-step) select').selectOption('hr');
+  const meta = page.waitForResponse((r) => r.url().endsWith('/api/v1/x/workflow.process/meta'));
+  release();
+  await meta;
+  await page.waitForFunction(() => document.querySelector('.ewf-template:not(.ewf-add-step) select')?.value === 'hr');
   await page.getByRole('button', { name: /use template|vorlage verwenden/i }).click();
   await page.waitForFunction(() => document.querySelectorAll('.ewf-step-row').length >= 4);
   assert.ok(await page.locator('.ewf-step-row--email').count() >= 2, 'template contains e-mail steps');
@@ -2721,6 +2731,13 @@ test('templates: settings with defaults, contrast warning, live preview, reset; 
     // a colour of the dark scheme and a font, written as CSS variables of the template
     await form.locator('[data-setting="page_bg_dark"] input[type=color]').fill('#101820');
     await form.locator('[data-setting="font"] select').selectOption('inter');
+    // the colour scheme by default (the core adds it to every template with
+    // dark colours); the preview shows it unless this person chose one
+    await form.locator('[data-setting="color_scheme"] select').selectOption('dark');
+    await page.waitForFunction(() => {
+      const doc = document.querySelector('iframe.ew-tplset-frame')?.contentDocument;
+      return !!doc?.body && (doc.documentElement.dataset.schemeChoice ? true : doc.body.classList.contains('ewc-dark'));
+    });
     await page.waitForFunction(() => /html body\.ewc-dark \.ewcms-app\.ewcms-app \{[^}]*--ewcms-page-bg: #101820/.test(document.querySelector('iframe.ew-tplset-frame')?.contentDocument?.getElementById('ew-template-look')?.textContent ?? '')
       && /--ewcms-font: "Inter Variable"/.test(document.querySelector('iframe.ew-tplset-frame')?.contentDocument?.getElementById('ew-template-look')?.textContent ?? ''));
     // a text and a logo (its size comes from the file)
@@ -2736,14 +2753,21 @@ test('templates: settings with defaults, contrast warning, live preview, reset; 
     await form.getByRole('button', { name: /^(save|speichern)$/i }).click();
     await page.locator('.ew-toast', { hasText: /settings saved|einstellungen gespeichert/i }).first().waitFor();
     let cur = await call('GET', url);
-    assert.deepEqual([...cur.changed].sort(), ['copyright', 'font', 'logo', 'page_bg_dark', 'primary_color']);
+    assert.deepEqual([...cur.changed].sort(), ['color_scheme', 'copyright', 'font', 'logo', 'page_bg_dark', 'primary_color']);
     assert.equal(cur.values.logo.width, 8, 'the size of the file');
+    assert.equal((await call('GET', '/api/v1/site')).templates.find((x) => x.id === 'theme.cms').color_scheme, 'dark', 'the site names the scheme of the settings');
     // the website with the template uses them
     await call('PUT', '/api/v1/admin/settings', { ui: { ...before, template: 'theme.cms' } });
     await page.goto(`${BASE}/`);
     await idle();
     await page.getByText(`© ${new Date().getFullYear()} Settings ${run}`).waitFor();
-    assert.equal(await page.locator('.ewcms-app').first().evaluate((el) => getComputedStyle(el).getPropertyValue('--ewcms-primary-l').trim()), '#7a1f1f');
+    // the scheme of the settings is dark (unless this person chose one): the dark colours apply
+    if (await page.evaluate(() => !document.documentElement.dataset.schemeChoice)) {
+      assert.ok(await page.evaluate(() => document.body.classList.contains('ewc-dark')), 'dark by the settings');
+      assert.equal(await page.locator('.ewcms-app').first().evaluate((el) => getComputedStyle(el).getPropertyValue('--ewcms-page-bg').trim()), '#101820');
+    } else {
+      assert.equal(await page.locator('.ewcms-app').first().evaluate((el) => getComputedStyle(el).getPropertyValue('--ewcms-primary-l').trim()), '#7a1f1f');
+    }
     // the wiki template takes its own logo and mark (on narrow screens) from its settings
     const hash = cur.values.logo.hash;
     await call('PUT', '/api/v1/admin/templates/theme.wiki/settings', { values: { logo: hash, mark: hash, logo_height: 60 } });
@@ -2762,7 +2786,7 @@ test('templates: settings with defaults, contrast warning, live preview, reset; 
     await form.getByRole('button', { name: /^(save|speichern)$/i }).click();
     await page.locator('.ew-toast', { hasText: /settings saved|einstellungen gespeichert/i }).first().waitFor();
     cur = await call('GET', url);
-    assert.deepEqual([...cur.changed].sort(), ['font', 'logo', 'page_bg_dark', 'primary_color']);
+    assert.deepEqual([...cur.changed].sort(), ['color_scheme', 'font', 'logo', 'page_bg_dark', 'primary_color']);
     await page.locator('.ew-tplset-form').getByRole('button', { name: /^(reset all|alles zurücksetzen)$/i }).click();
     // the toast of the save before may still be shown: wait for the answer itself
     const deleted = page.waitForResponse((r) => r.url().endsWith(url) && r.request().method() === 'DELETE');
@@ -2875,7 +2899,7 @@ test('templates: the schematic of each device shows the positions where the page
   const set = (tpl) => call('GET', '/api/v1/admin/settings').then((cur) => call('PUT', '/api/v1/admin/settings', { ui: { ...cur.config.ui, template: tpl } }));
   // the sizes of the devices of the schematic (core/templateSchema.ts)
   const devices = { desktop: [1280, 800], tablet: [820, 1180], phone: [390, 844], 'phone-landscape': [844, 390] };
-  const ids = ['theme.wiki', 'theme.wiki.dark', 'theme.cms', 'theme.cms.modern', 'core.template/example-wiki', 'core.template/example-cms'];
+  const ids = ['theme.wiki', 'theme.cms', 'theme.cms.modern', 'core.template/example-wiki', 'core.template/example-cms'];
   const before = { template: (await call('GET', '/api/v1/admin/settings')).config.ui.template, viewport: page.viewportSize() };
   try {
     // what the schematics say, device by device
@@ -6992,7 +7016,7 @@ test('demo content: create, browse accessibly, remove', async () => {
   // ones): every component takes its colours from the variables, axe checks
   // the contrast
   const uiBefore = (await call('GET', '/api/v1/admin/settings')).config.ui;
-  await call('PUT', '/api/v1/admin/settings', { ui: { ...uiBefore, template: 'theme.wiki.dark' } });
+  await call('PUT', '/api/v1/admin/settings', { ui: { ...uiBefore, template: 'theme.wiki' } });
   await call('PUT', '/api/v1/scheme', { scheme: 'dark' });
   try {
     let dark = 0;
@@ -8250,7 +8274,7 @@ test('administration overview: tiles with links, update commands, narrow and wid
   }
   // dark colour scheme
   const uiBefore = (await call('GET', '/api/v1/admin/settings')).config.ui;
-  await call('PUT', '/api/v1/admin/settings', { ui: { ...uiBefore, template: 'theme.wiki.dark' } });
+  await call('PUT', '/api/v1/admin/settings', { ui: { ...uiBefore, template: 'theme.wiki' } });
   await call('PUT', '/api/v1/scheme', { scheme: 'dark' });
   try {
     await page.goto(`${BASE}/admin/overview`);
@@ -8516,7 +8540,7 @@ test('people: the menu on names and the person page – mouse, keyboard, touch, 
 
     // dark and wide
     const uiBefore = (await call('GET', '/api/v1/admin/settings')).config.ui;
-    await call('PUT', '/api/v1/admin/settings', { ui: { ...uiBefore, template: 'theme.wiki.dark' } });
+    await call('PUT', '/api/v1/admin/settings', { ui: { ...uiBefore, template: 'theme.wiki' } });
     await call('PUT', '/api/v1/scheme', { scheme: 'dark' });
     try {
       await page.setViewportSize({ width: 1400, height: 900 });

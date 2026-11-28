@@ -397,11 +397,18 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
       h('div', { class: 'ew-actions' }, ...moveBtns(m.steps, i, s.name || t('workflow.step_n', { n: i + 1 }), focusIn('.ewf-step-row'))));
   };
 
+  // the choices of the two selects outside the model survive a new draw
+  // (the editor draws again when its meta data arrives: a template chosen
+  // before was lost, and "Use template" did nothing)
+  let tplChoice = '';
+  let newTypeChoice: string = 'task';
   const draw = () => {
     const desc = area(() => m.description, (v) => { m.description = v; }, 4);
     desc.setAttribute('aria-labelledby', ctx.labelId);
-    const tpl = select([{ value: '', label: t('workflow.template_choose') }, ...TEMPLATES.map((x) => ({ value: x.id, label: t(`workflow.template.${x.id}`) }))], '');
-    const newType = select(STEP_TYPES.map((x) => ({ value: x, label: t(`workflow.steptype.${x}`) })), 'task');
+    const tpl = select([{ value: '', label: t('workflow.template_choose') }, ...TEMPLATES.map((x) => ({ value: x.id, label: t(`workflow.template.${x.id}`) }))], tplChoice);
+    tpl.addEventListener('change', () => { tplChoice = tpl.value; });
+    const newType = select(STEP_TYPES.map((x) => ({ value: x, label: t(`workflow.steptype.${x}`) })), newTypeChoice);
+    newType.addEventListener('change', () => { newTypeChoice = newType.value; });
     root.replaceChildren(
       h('div', { class: 'ewf-template' }, field(t('workflow.template'), tpl, { inline: true }),
         button(t('workflow.template_apply'), async () => {

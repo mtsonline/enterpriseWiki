@@ -507,7 +507,7 @@ var PluginKinds = []string{KindElement, KindMacro, KindAuth, KindMFA, KindSignat
 
 // ColorSchemes are the colour schemes a person or a template may choose
 // ("system": as the device is set).
-var ColorSchemes = []string{"system", "light", "dark"}
+var ColorSchemes = tplsettings.ColorSchemes
 
 var lookRoot = regexp.MustCompile(`^\.[a-z][a-z0-9-]{0,40}$`)
 
